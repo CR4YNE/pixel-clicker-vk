@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.251-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.258-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -135,6 +135,7 @@
     { kind: 'premium', id: 'triple', name: '3Х ДОХОД', line: 'НАВСЕГДА', price: '65 ГОЛОСОВ' },
     { kind: 'premium', id: 'autoclick', name: 'АВТО-КЛИК', line: '10 В СЕКУНДУ', price: '25 ГОЛОСОВ' },
     { kind: 'premium', id: 'bundle', name: 'ПАКЕТ ВСЁ ВМЕСТЕ', line: 'НАВСЕГДА', price: '120 ГОЛОСОВ' },
+    { kind: 'premium', id: 'noads', name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', line: 'НАВСЕГДА', price: '95 ГОЛОСОВ' },
     { kind: 'premium', id: 'reb1', add: 1, name: '+1 ПЕРЕРОЖДЕНИЕ', line: 'ВЫШЕ ДОХОД', price: '7 ГОЛОСОВ' },
     { kind: 'premium', id: 'reb2', add: 2, name: '+2 ПЕРЕРОЖДЕНИЯ', line: 'ВЫШЕ ДОХОД', price: '13 ГОЛОСОВ' },
     { kind: 'premium', id: 'reb5', add: 5, name: '+5 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '25 ГОЛОСОВ' },
@@ -171,14 +172,15 @@
   // what each premium purchase does, for the confirmation and the "purchased" windows
   const PREMIUM_INFO = {
     double: { name: '2Х ДОХОД', lines: ['ДВОЙНОЙ ДОХОД ПРЯНИКОВ', 'УМНОЖАЕТСЯ С 3Х, НАВСЕГДА'] },
-    reb1: { name: '+1 ПЕРЕРОЖДЕНИЕ', lines: ['+1 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД'] },
-    reb2: { name: '+2 ПЕРЕРОЖДЕНИЯ', lines: ['+2 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД'] },
-    reb5: { name: '+5 ПЕРЕРОЖДЕНИЙ', lines: ['+5 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД'] },
-    reb10: { name: '+10 ПЕРЕРОЖДЕНИЙ', lines: ['+10 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД'] },
+    reb1: { name: '+1 ПЕРЕРОЖДЕНИЕ', lines: ['+1 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    reb2: { name: '+2 ПЕРЕРОЖДЕНИЯ', lines: ['+2 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    reb5: { name: '+5 ПЕРЕРОЖДЕНИЙ', lines: ['+5 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    reb10: { name: '+10 ПЕРЕРОЖДЕНИЙ', lines: ['+10 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    noads: { name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', lines: ['БЕЗ РЕКЛАМЫ КАЖДЫЕ 7 МИН, БОНУСЫ ЗА РЕКЛАМУ БЕЗ ПРОСМОТРА', 'НАВСЕГДА'] },
     bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА', 'НАВСЕГДА'] },
     triple: { name: '3Х ДОХОД', lines: ['ТРОЙНОЙ ДОХОД', 'УМНОЖАЕТСЯ С 2Х, НАВСЕГДА'] },
     autoclick: { name: 'АВТО-КЛИК', lines: ['10 В СЕКУНДУ', 'НАВСЕГДА'] },
-    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ ДАЁТ 4Х', 'ВМЕСТО 2Х, НАВСЕГДА'] },
+    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ ДАЁТ 4Х', 'ВМЕСТО 2Х, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
     discount: { name: 'СКИДКА 50% НА ВСЕ', lines: ['ВСЕ УЛУЧШЕНИЯ ДЕШЕВЛЕ ВДВОЕ', 'КРОМЕ ПРЕМИУМА, НАВСЕГДА'] },
     skin_neon: { name: 'КОСМИЧЕСКИЙ ПРЯНИК', lines: ['ЗВЁЗДЫ И ИСКРЫ', 'НАВСЕГДА'] },
     skin_volcano: { name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', lines: ['ЛАВА И ИСКРЫ', 'НАВСЕГДА'] },
@@ -432,7 +434,7 @@
   let clickOwned = CLICK_UPGRADES.map(() => 0);
   let techOwned = TECHNIKA.map(() => 0);
   let prokOwned = PROKACHKI.map(() => false);
-  let premiumOwned = { double: false, triple: false, autoclick: false, rebirth2: false, discount: false };
+  let premiumOwned = { double: false, triple: false, autoclick: false, rebirth2: false, discount: false, noads: false };
   let adBoost = { double: 0, discount: 0 };   // seconds left, not saved
   let adWatched = { double: false, discount: false };   // which rewarded ads were watched (saved)
   // перерождение: income is multiplied by 2 for each rebirth (4 with premium); progress resets, extras stay
@@ -643,6 +645,7 @@
     autoAcc = 0;
     cycleEarned = 0n;
     rebirthOpen = false;
+    if (!rebirthAdOff) showFullScreenAd();   // the ad on a rebirth, unless a rebirth item was bought
     shopReturn = false;
     scroll = 0;
     saveGame();
@@ -856,6 +859,7 @@
     premiumWin = { mode: 'pending', idx: premiumWin.idx };
     payProduct(it.id).then((res) => {
       if (res.ok) {
+        if (it.add || it.id === 'rebirth2') rebirthAdOff = true;   // after buying any of these, no ad on a rebirth
         if (it.add) rebirths += it.add;   // a rebirth pack adds its rebirths; progress is not reset
         else premiumOwned[it.id] = true;
         // the bundle gives everything in it at once
@@ -944,7 +948,7 @@
     fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
     fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
     const it = PREMIUM_ITEMS[premiumWin.idx];
-    const info = PREMIUM_INFO[it.id];
+    const info = PREMIUM_INFO[it.id] || { name: it.name, lines: [it.line, it.price] };   // a safe fallback: an item without a text never breaks the window
     const m = premiumWin.mode;
     if (m === 'confirm' || m === 'pending') {
       // the skin effects stay inside the window: the picture is clipped to the inner frame
@@ -973,8 +977,10 @@
       let yPC = drawWrapped(info.name, 1, tx, 30, maxWPC, accent(), 11);
       yPC = drawWrapped(isSkin && it.id !== 'skins_all' ? 'ЭФФЕКТЫ:' : 'ЧТО ДАЁТ:', 1, tx, yPC, maxWPC, dimTone(), 11);
       const line0 = info.lines[0];   // the whole range of skins
-      drawWrapped(line0, 1, tx, yPC, maxWPC, COL.text, 11);
-      drawText(info.lines[1], 1, tx, 107, accent(), 'left');   // НАВСЕГДА: yellow, 1 px lower than before (above the buy button, which starts at 140)
+      yPC = drawWrapped(line0, 1, tx, yPC, maxWPC, COL.text, 11);
+      if (info.lines[2]) drawWrapped(info.lines[2], 1, tx, yPC, maxWPC, COL.text, 11);   // the rebirth items: the ad line, right under the +N line
+      drawText(info.lines[1], 1, tx, 107, accent(), 'left');
+      // НАВСЕГДА: yellow, 1 px lower than before (above the buy button, which starts at 140)
       if (m === 'confirm') {
         settingsButton(51, 140, 269, 154, 'КУПИТЬ ЗА ' + it.price);
         settingsButton(51, 156, 269, 170, 'ОТМЕНА');
@@ -1070,13 +1076,25 @@
   // the reward ad: in VK it is shown by VK Bridge, and the reward comes only if the ad was shown;
   // outside VK (testing) the reward comes at once
   function showRewardAd(onReward) {
-    if (!window.vkBridge) { onReward(); return; }
+    if (premiumOwned.noads || !window.vkBridge) { onReward(); return; }   // with the ad-free purchase the reward comes at once
     vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', use_waterfall: true })
       .then((data) => {
         if (data && data.result) onReward();
         else popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМЫ НЕТ' });
       })
       .catch(() => popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА НЕ ПРОШЛА' }));
+  }
+  // the full-screen ad: on a rebirth, and every 7 minutes of play. The play timer stops while an ad is on the screen.
+  const AD_PLAY_SECONDS = 420;     // 7 minutes of play between timed ads
+  let adPlayAcc = 0;               // seconds of play since the last timed ad; a rebirth or reward ad does not reset it
+  let adOpen = false;              // a full-screen ad is on the screen now
+  let rebirthAdOff = false;        // set by buying a rebirth item: no ad on a rebirth after that (saved)
+  function showFullScreenAd() {
+    if (!window.vkBridge || adOpen) return;   // outside VK no ad is shown
+    adOpen = true;
+    vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial', use_waterfall: true })
+      .catch(() => {})
+      .finally(() => { adOpen = false; });
   }
   function watchSkinAd(id) {
     showRewardAd(() => grantSkinView(id));
@@ -2276,7 +2294,7 @@
   function premiumItemsFor(sec) {
     if (sec === 'ads') return PREMIUM_ITEMS.filter((x) => x.kind === 'ad');
     // the bonuses from the cheapest to the most expensive, top to bottom
-    if (sec === 'bonus') return PREMIUM_ITEMS.filter((x) => x.kind === 'premium' && ['double', 'triple', 'rebirth2', 'discount', 'autoclick', 'bundle', 'reb1', 'reb2', 'reb5', 'reb10'].includes(x.id)).sort((a, b) => {
+    if (sec === 'bonus') return PREMIUM_ITEMS.filter((x) => x.kind === 'premium' && ['double', 'triple', 'rebirth2', 'discount', 'autoclick', 'bundle', 'reb1', 'reb2', 'reb5', 'reb10', 'noads'].includes(x.id)).sort((a, b) => {
       // the bonuses by price, then the bundle, then the rebirth packs by price
       const grp = (x) => (x.add ? 2 : x.id === 'bundle' ? 1 : 0);
       return grp(a) - grp(b) || parseInt(a.price, 10) - parseInt(b.price, 10);
@@ -2672,6 +2690,11 @@
       if (bonyaZs[i] >= BONYA_Z_LIFE) bonyaZs.splice(i, 1);
     }
     playSec += dt;
+    // the timed ad: counts only while play goes on (not while an ad is open) and never with the ad-free purchase
+    if (!premiumOwned.noads && !adOpen) {
+      adPlayAcc += dt;
+      if (adPlayAcc >= AD_PLAY_SECONDS) { adPlayAcc = 0; showFullScreenAd(); }
+    }
     const today = mskDate();
     if (dailySecDate !== today) { dailySecDate = today; dailySec = 0; }
     dailySec += dt;
@@ -3189,9 +3212,8 @@
     // the hint: yellow like the bonus lines; shown before the first tap and after a minute without taps
     // the hint sits on the floor right under the cookie
     if ((!everTapped || animT > 60) && !panelOpen) drawText('КЛИКАЙ', 1, cx, 149, accent(), 'center');   // hidden while the shop is open
-    // the bonus tab and its menu sit under the buttons and the shop: drawn before them, so nothing is shown on top of the others
+    // the bonus tab: drawn before the buttons; its menu is drawn on top of the screen, like the other menus
     drawBoostLine();
-    if (boostMenuOpen) drawBoostMenu();
     // the appearance button at the left wall: always shown, also while the shop is open
     {
       // the appearance button, vertical: a frame like the other tabs, and the label stacked letter by letter, top to bottom
@@ -3235,6 +3257,7 @@
     if (premiumWin) drawPremiumWin();
     if (skinOffer) drawSkinOffer();
     if (ev && ev.type === 'appetite') drawAppetite();
+    if (boostMenuOpen) drawBoostMenu();
     ctx.restore();
   }
 
@@ -3356,6 +3379,7 @@
         techOwned,
         prokOwned,
         premiumOwned,
+        rebirthAdOff,
         adWatched,
         adBoost: { double: adBoost.double, discount: adBoost.discount },   // the ad bonuses keep their time left
         rebirths,
@@ -3401,6 +3425,7 @@
       if (Array.isArray(s.clickOwned) && s.clickOwned.length === clickOwned.length) clickOwned = s.clickOwned.map(Number);
       if (Array.isArray(s.techOwned) && s.techOwned.length === techOwned.length) techOwned = s.techOwned.map(Number);
       if (Array.isArray(s.prokOwned) && s.prokOwned.length === prokOwned.length) prokOwned = s.prokOwned.map(Boolean);
+      rebirthAdOff = !!s.rebirthAdOff || !!(s.premiumOwned && s.premiumOwned.rebirth2);
       if (s.adWatched) adWatched = { double: !!s.adWatched.double, discount: !!s.adWatched.discount };
       if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
       rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
@@ -3419,6 +3444,7 @@
           triple: !!s.premiumOwned.triple,
           autoclick: !!s.premiumOwned.autoclick,
           rebirth2: !!s.premiumOwned.rebirth2,
+          noads: !!s.premiumOwned.noads,
           discount: !!s.premiumOwned.discount,
           skin_neon: !!s.premiumOwned.skin_neon,
           skins_all: !!s.premiumOwned.skins_all,
