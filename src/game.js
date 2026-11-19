@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.197-vk';
+  const VERSION = '1.0.198-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -218,7 +218,7 @@
 
   // ---------- pixel font ----------
   function glyphWidth(ch) {
-    return ch === ' ' ? FONT_SPACE_W : FONT[ch].rows[0].length;
+    return ch === ' ' || !FONT[ch] ? FONT_SPACE_W : FONT[ch].rows[0].length;   // a missing letter is a space, not a crash
   }
   function textWidth(str, sc) {
     let total = 0;
@@ -279,7 +279,7 @@
     yCap = Math.round(yCap);
     ctx.fillStyle = color;
     for (const ch of str) {
-      if (ch !== ' ') {
+      if (ch !== ' ' && FONT[ch]) {   // a letter the font does not have is skipped
         const g = FONT[ch];
         for (let j = 0; j < g.rows.length; j++) {
           const row = g.rows[j];
