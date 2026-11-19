@@ -4,11 +4,11 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.234-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.251-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
-  const HIT_R = 67;             // click zone: cookie half-width (37) + 30 px margin = 134 px across
+  const HIT_R = 37;             // click zone: only the cookie itself (half-width 37); the room, walls and buttons around it do not count
   const COIN_Y = 104;           // cookie centre (moved down to make room under the counter)
   const COIN_X_CLOSED = 160;
   const COIN_X_OPEN = 80;       // centre of the free left half when the shop is open
@@ -41,8 +41,8 @@
   const listTop = () => (tab === 'premium' ? 66 : LIST_TOP_BASE);
   // the tabs with the buy-amount row (КЛИК, ТЕХНИКА) keep the close button higher; the other tabs get it lower and a bigger list
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
-  const closeY = () => (hasBuyRow() ? 140 : 158);
-  const listBottom = () => closeY() - 4;
+  const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
+  const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
   const ROW_H = 31;             // three text lines per row
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
@@ -874,8 +874,8 @@
   function handlePremiumWinDown(gx, gy) {
     const m = premiumWin.mode;
     if (m === 'confirm') {
-      if (inRect(gx, gy, 60, 140, 260, 155)) startPremiumPurchase();
-      else if (inRect(gx, gy, 60, 156, 260, 171)) premiumWin = null;
+      if (inRect(gx, gy, 51, 140, 269, 155)) startPremiumPurchase();
+      else if (inRect(gx, gy, 51, 156, 269, 171)) premiumWin = null;
       return;
     }
     if (m === 'done' || m === 'error') {
@@ -917,6 +917,25 @@
     const list = SKINS.filter((k) => k.premium).map((k) => k.id);
     return list[Math.floor(performance.now() / 3000) % list.length];
   }
+  // splits a text into lines that fit the width; the lines are drawn with a step of their own
+  function wrapText(str, sc, maxW) {
+    const lines = [];
+    let cur = '';
+    for (const w of str.split(' ')) {
+      const t = cur ? cur + ' ' + w : w;
+      if (textWidth(t, sc) <= maxW || !cur) cur = t;
+      else { lines.push(cur); cur = w; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function drawWrapped(str, sc, x, y, maxW, color, step = 10) {
+    for (const line of wrapText(str, sc, maxW)) {
+      drawText(line, sc, x, y, color, 'left');
+      y += step;
+    }
+    return y;
+  }
   function drawPremiumWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
     fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
@@ -928,6 +947,8 @@
     const info = PREMIUM_INFO[it.id];
     const m = premiumWin.mode;
     if (m === 'confirm' || m === 'pending') {
+      // the skin effects stay inside the window: the picture is clipped to the inner frame
+      ctx.save(); ctx.beginPath(); ctx.rect(REB_X0 + 2, REB_Y0 + 2, REB_X1 - REB_X0 - 4, REB_Y1 - REB_Y0 - 4); ctx.clip();
       drawTextBox('ПОКУПКА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
       const previewSkin = it.id === 'skins_all' ? premiumSkinCycle() : PREMIUM_SKIN_OF[it.id];   // the bundle cycles through all premium skins
       const isSkin = !!previewSkin;
@@ -947,18 +968,20 @@
         fxMask = null;
       }
       // the lines are 4 px apart (a 7 px line and a 4 px gap: the step is 11)
-      drawText(info.name, 1, tx, 30, accent(), 'left');
-      drawText('ЧТО ДАЁТ:', 1, tx, 41, dimTone(), 'left');
+      // the text wraps inside the window (right edge at x 250); the lines are 4 px apart (step 11)
+      const maxWPC = 250 - tx;
+      let yPC = drawWrapped(info.name, 1, tx, 30, maxWPC, accent(), 11);
+      yPC = drawWrapped(isSkin && it.id !== 'skins_all' ? 'ЭФФЕКТЫ:' : 'ЧТО ДАЁТ:', 1, tx, yPC, maxWPC, dimTone(), 11);
       const line0 = info.lines[0];   // the whole range of skins
-      drawText(line0, 1, tx, 52, COL.text, 'left');
-      drawText(info.lines[1], 1, tx, 121, accent(), 'left');   // НАВСЕГДА: yellow, about where the white line is (above the buy button, which starts at 140)
-      drawText('ЦЕНА: ' + it.price, 1, tx, 86, COL.text, 'left');
+      drawWrapped(line0, 1, tx, yPC, maxWPC, COL.text, 11);
+      drawText(info.lines[1], 1, tx, 107, accent(), 'left');   // НАВСЕГДА: yellow, 1 px lower than before (above the buy button, which starts at 140)
       if (m === 'confirm') {
-        settingsButton(60, 140, 260, 154, 'КУПИТЬ ЗА ' + it.price);
-        settingsButton(60, 156, 260, 170, 'ОТМЕНА');
+        settingsButton(51, 140, 269, 154, 'КУПИТЬ ЗА ' + it.price);
+        settingsButton(51, 156, 269, 170, 'ОТМЕНА');
       } else {
         drawTextBox('ОПЛАТА...', 1, 60, 260, 140, 154, COL.text);
       }
+      ctx.restore();
       return;
     }
     if (m === 'done') {
@@ -983,9 +1006,11 @@
   // ---------- appearance window (ВНЕШНИЙ ВИД): choose the gingerbread skin ----------
   // the button at the bottom: a framed button like the top row, with 2 px between the letters and the frame
   const SKIN_BTN_LABEL = 'ВНЕШНИЙ ВИД';
-  const SKIN_BTN_W = textWidth(SKIN_BTN_LABEL, 1) + 2 * (2 + 2);
-  const SKIN_BTN_X0 = 160 - Math.floor(SKIN_BTN_W / 2);   // whole pixels, so the frame is as sharp as the top buttons
-  const SKIN_BTN = [SKIN_BTN_X0, 159, SKIN_BTN_X0 + SKIN_BTN_W, 177];   // 18 px tall; 3 px to the bottom edge, like the top buttons have at the top
+  // vertical: a narrow tab along the left wall, standing between the full-screen icon (bottom at y 42) and the bonus counter (top at y 159);
+  // the label is stacked: one letter under another, 9 px per letter, 4 px gap between the two words
+  const SKIN_BTN_Y0 = 45;                               // 3 px below the full-screen icon (it ends at y 42)
+  const SKIN_BTN_H = 111;                               // 3 px above the bonus counter (it starts at y 159)
+  const SKIN_BTN = [MENU_BTN_X, SKIN_BTN_Y0, MENU_BTN_X + MENU_BTN_W, SKIN_BTN_Y0 + SKIN_BTN_H];   // 18 px wide
   // the appearance window: a list of skins; tapping a skin opens its preview (its look and name), where it can be worn
   let skinPreview = null;        // id of the skin shown in the preview, or null for the list
   function handleSkinDown(gx, gy) {
@@ -2194,7 +2219,7 @@
   const BUY_MAX_STEPS = 5000;   // safety cap for МАКС
   function buyRect(i) {
     const x = PX0 + 6 + i * 37;
-    return [x, 158, x + 35, 172];
+    return [x, 144, x + 35, 158];
   }
   // a click upgrade or a technika opens after 5 of the one before it (the first one is always open)
   const UNLOCK_PREV = 5;
@@ -2466,7 +2491,7 @@
     if (inRect(gx, gy, GEAR_X0, GEAR_Y0, GEAR_X1, GEAR_Y1)) { closeMenus('settings'); settingsOpen = true; return; }
     if (inRect(gx, gy, FS_X, FS_Y, FS_X + FS_S, FS_Y + FS_S)) { toggleFullScreen(); return; }
     // shop controls (only when the panel is fully open)
-    if (!panelOpen && inRect(gx, gy, SKIN_BTN[0], SKIN_BTN[1], SKIN_BTN[2], SKIN_BTN[3])) { closeMenus('skin'); skinWin = true; return; }
+    if (inRect(gx, gy, SKIN_BTN[0], SKIN_BTN[1], SKIN_BTN[2], SKIN_BTN[3])) { closeMenus('skin'); skinWin = true; return; }
     // the ПРОГРЕСС button is reachable from the shop too
     const [ax0, ax1, ay0, ay1] = topRect('achievements');
     if (inRect(gx, gy, ax0, ay0, ax1, ay1)) { closeMenus('progress'); progWin = { tab: 'stats', page: 0 }; return; }
@@ -2479,13 +2504,13 @@
         const [x0, y0, x1, y1] = tabRect(i);
         if (inRect(gx, gy, x0, y0, x1, y1)) { tab = TABS[i].id; prokSel = null; scroll = 0; return; }
       }
-      if (hasBuyRow() && gy >= 158 && gy < 172) {
+      if (hasBuyRow() && gy >= 144 && gy < 158) {
         for (let i = 0; i < BUY_MODES.length; i++) {
           const [x0, y0, x1, y1] = buyRect(i);
           if (inRect(gx, gy, x0, y0, x1, y1)) { buyMode = BUY_MODES[i].mode; return; }
         }
       }
-      if (inRect(gx, gy, PX0 + 6, closeY(), PX1 - 6, closeY() + 14)) {
+      if (inRect(gx, gy, PX0 + 2, closeY(), PX1 - 2, closeY() + 16)) {
         if (tab === 'prok' && prokSel !== null) { prokSel = null; scroll = 0; return; }   // back to the technika list
         panelOpen = false;
         return;
@@ -2510,7 +2535,8 @@
     // the coin works with the shop open too
     const dx = gx - coinX();
     const dy = gy - COIN_Y;
-    if (dx * dx + dy * dy <= HIT_R * HIT_R && gy < FLOOR_Y && !inCounter(gx, gy)) spawnClick(gx, gy);
+    // the whole screen above the bonus row counts as a tap on the cookie; the buttons above return earlier, and the open shop panel does not count
+    if (gy < MENU_BTN_Y[0] && !(panelOpen && gx >= PX0)) spawnClick(gx, gy);
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -2974,9 +3000,9 @@
     }
 
     // close button
-    fillRect(PX0 + 6, closeY(), PX1 - PX0 - 12, 14, COL.row);
+    fillRect(PX0 + 2, closeY(), PX1 - PX0 - 4, 16, COL.row);
     const backLabel = tab === 'prok' && prokSel !== null ? 'НАЗАД' : 'ЗАКРЫТЬ';
-    drawTextBox(backLabel, 1, PX0 + 6, PX1 - 6, closeY(), closeY() + 14, COL.text);
+    drawTextBox(backLabel, 1, PX0 + 2, PX1 - 2, closeY(), closeY() + 16, COL.text);
 
     // buy-amount row, only where a purchase can be repeated
     if (hasBuyRow()) {
@@ -3163,9 +3189,22 @@
     // the hint: yellow like the bonus lines; shown before the first tap and after a minute without taps
     // the hint sits on the floor right under the cookie
     if ((!everTapped || animT > 60) && !panelOpen) drawText('КЛИКАЙ', 1, cx, 149, accent(), 'center');   // hidden while the shop is open
-    // the appearance button at the bottom, where the hint used to be (only while the shop is closed)
-    if (!panelOpen) {
-      drawTopButton(SKIN_BTN_LABEL, SKIN_BTN[0], SKIN_BTN[2], SKIN_BTN[1], SKIN_BTN[3]);
+    // the bonus tab and its menu sit under the buttons and the shop: drawn before them, so nothing is shown on top of the others
+    drawBoostLine();
+    if (boostMenuOpen) drawBoostMenu();
+    // the appearance button at the left wall: always shown, also while the shop is open
+    {
+      // the appearance button, vertical: a frame like the other tabs, and the label stacked letter by letter, top to bottom
+      const [sx0, sy0, sx1, sy1] = SKIN_BTN;
+      fillRect(sx0, sy0, sx1 - sx0, sy1 - sy0, COL.btnFrame);
+      fillRect(sx0 + 2, sy0 + 2, sx1 - sx0 - 4, sy1 - sy0 - 4, COL.btnFill);
+      fillRect(sx0 + 2, sy0 + 2, sx1 - sx0 - 4, 1, COL.btnHi);
+      let ly = sy0 + 5;                                    // the stacked text starts 5 px from the top edge
+      for (const ch of SKIN_BTN_LABEL) {
+        if (ch === ' ') { ly += 3; continue; }   // gap between the two words: 5 px of empty rows between them
+        drawText(ch, 1, (sx0 + sx1) / 2, ly, COL.btnText, 'center');
+        ly += 10;
+      }
     }
 
     // top-row buttons first, so the open shop panel covers them where they overlap
@@ -3196,8 +3235,6 @@
     if (premiumWin) drawPremiumWin();
     if (skinOffer) drawSkinOffer();
     if (ev && ev.type === 'appetite') drawAppetite();
-    drawBoostLine();
-    if (boostMenuOpen) drawBoostMenu();
     ctx.restore();
   }
 
@@ -3462,10 +3499,10 @@
     // the title stands a little apart; all the other lines are 12 px apart, and so is the button under the last one
     drawText('КУЧА ПРЯНИКОВ КЛИКЕР', 1, 160, 34, accent(), 'center');
     const lines = [
-      ['ВЕРСИЯ ' + VERSION.replace('-VK', ''), COL.text],
+      ['ВЕРСИЯ: ' + VERSION.replace('-VK', ''), COL.text],
       ['РАЗРАБОТЧИК: CR4YNE', COL.text],
       ['ВОЗРАСТНОЕ', COL.text],
-      ['ОГРАНИЧЕНИЕ 0+', COL.text],
+      ['ОГРАНИЧЕНИЕ: 0+', COL.text],
       ['ИГРА В РАЗРАБОТКЕ', dimTone()],
       ['ИГРОВОЙ ПРОЦЕСС', dimTone()],
       ['МОЖЕТ БЫТЬ ИЗМЕНЁН', dimTone()],
