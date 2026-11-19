@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.204-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.205-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2265,9 +2265,9 @@
   const FS_X = GEAR_X0, FS_Y = GEAR_Y1 + 3, FS_S = 18;
   function drawFullScreenIcon() {
     const x = FS_X, y = FS_Y, s = FS_S;
-    fillRect(x, y, s, s, COL.btnFrame);                    // 2 px frame
-    fillRect(x + 2, y + 2, s - 4, s - 4, COL.btnFill);
-    fillRect(x + 2, y + 2, s - 4, 1, COL.btnHi);
+    // only the 2 px frame as a ring: the inside is empty, the wall shows through
+    fillRect(x, y, s, 2, COL.btnFrame); fillRect(x, y + s - 2, s, 2, COL.btnFrame);
+    fillRect(x, y, 2, s, COL.btnFrame); fillRect(x + s - 2, y, 2, s, COL.btnFrame);
     // four brackets, 2 px thick like the frame, pushed out to the corners; symmetrical (3 px from each edge)
     const c = COL.btnFrame;
     const L = x + 3, R = x + 14, T = y + 3, B = y + 14;
