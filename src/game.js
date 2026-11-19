@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.202-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.203-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2261,17 +2261,20 @@
     drawTextBox(label, 1, x0, x1, y0, y1, COL.btnText);
   }
 
-  // the full-screen icon: a 12x12 frame with the corners cut out, directly under НАСТРОЙКИ (3 px gap)
-  const FS_X = GEAR_X0, FS_Y = GEAR_Y1 + 3, FS_S = 12;
+  // the full-screen icon: 18x18 like the top buttons, a 2 px silver frame, and four symmetrical corner brackets
+  const FS_X = GEAR_X0, FS_Y = GEAR_Y1 + 3, FS_S = 18;
   function drawFullScreenIcon() {
-    const c = COL.btnText, x = FS_X, y = FS_Y, s = FS_S;
-    fillRect(x, y, s, s, COL.btnFrame);
-    fillRect(x + 1, y + 1, s - 2, s - 2, COL.btnFill);
-    // corner marks: a short line in each corner, pointing outwards
-    fillRect(x + 2, y + 2, 3, 1, c); fillRect(x + 2, y + 2, 1, 3, c);
-    fillRect(x + s - 5, y + 2, 3, 1, c); fillRect(x + s - 3, y + 2, 1, 3, c);
-    fillRect(x + 2, y + s - 3, 1, 3, c); fillRect(x + 2, y + s - 3, 3, 1, c);
-    fillRect(x + s - 3, y + s - 3, 1, 3, c); fillRect(x + s - 5, y + s - 3, 3, 1, c);
+    const x = FS_X, y = FS_Y, s = FS_S;
+    fillRect(x, y, s, s, COL.btnFrame);                    // 2 px frame
+    fillRect(x + 2, y + 2, s - 4, s - 4, COL.btnFill);
+    fillRect(x + 2, y + 2, s - 4, 1, COL.btnHi);
+    const c = COL.btnText;
+    // the brackets: 8 px wide and tall, centred in the icon (left 5, right 12 of 18: symmetrical)
+    const L = x + 5, R = x + 12, T = y + 5, B = y + 12;
+    fillRect(L, T, 3, 1); fillRect(L, T, 1, 3);             // top left
+    fillRect(R - 2, T, 3, 1); fillRect(R, T, 1, 3);         // top right
+    fillRect(L, B, 3, 1); fillRect(L, B - 2, 1, 3);         // bottom left
+    fillRect(R - 2, B, 3, 1); fillRect(R, B - 2, 1, 3);     // bottom right
   }
   function drawSettingsButton() {
     const x = GEAR_X0, y = GEAR_Y0, w = GEAR_X1 - GEAR_X0, h = GEAR_Y1 - GEAR_Y0;
