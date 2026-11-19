@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.198-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.199-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2307,6 +2307,11 @@
     drawText('ТРЯСКА ЭКРАНА', 1, 76, 108, COL.text, 'left');
     fillRect(200, 104, 44, 10, settings.shake ? '#5c5096' : COL.track);
     fillRect(settings.shake ? 236 : 202, 105, 8, 8, COL.btnText);
+    // full screen: the toggle sits on the free row between the shake toggle and the reset button
+    drawText('НА ВЕСЬ ЭКРАН', 1, 76, 117, COL.text, 'left');
+    const fsOn = !!document.fullscreenElement;
+    fillRect(200, 114, 44, 10, fsOn ? '#5c5096' : COL.track);
+    fillRect(fsOn ? 236 : 202, 115, 8, 8, COL.btnText);
     settingsButton(76, 126, 244, 141, ['СБРОС ПРОГРЕССА', 'ТОЧНО СБРОСИТЬ', 'ТОЧНО ЭТО НЕОБРАТИМО'][resetStage]);
     settingsButton(76, 144, 244, 159, 'ЗАКРЫТЬ');
     // the version and the developer: the very bottom of the window
@@ -2332,8 +2337,16 @@
     saveGame();
   }
 
+  // the whole screen: a tap in the settings asks the browser for it (browsers allow it only after a tap)
+  function toggleFullScreen() {
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } catch (err) { /* the browser refused: nothing changes */ }
+  }
   function handleSettingsDown(gx, gy) {
     if (inRect(gx, gy, 76, 144, 244, 159)) { settingsOpen = false; resetStage = 0; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
+    if (inRect(gx, gy, 196, 113, 248, 124)) { toggleFullScreen(); return; }
     if (inRect(gx, gy, 196, 86, 248, 100)) { settings.animBg = !settings.animBg; return; }
     if (inRect(gx, gy, 196, 102, 248, 116)) { settings.shake = !settings.shake; return; }
     if (inRect(gx, gy, 76, 126, 244, 141)) {
