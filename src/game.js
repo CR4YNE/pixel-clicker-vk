@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.217-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.234-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -157,7 +157,7 @@
     { kind: 'premium', id: 'skin_easter', name: 'ПАСХАЛЬНЫЙ ПРЯНИК', line: 'ЯЙЦА И ЛЕПЕСТКИ', price: '7 ГОЛОСОВ' },
     { kind: 'premium', id: 'skin_zefir', name: 'ЗЕФИРНЫЙ ПРЯНИК', line: 'ОБЛАКО И СЕРДЦА', price: '7 ГОЛОСОВ' },
     { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ ПРЯНИК', line: 'ЁЛКИ И ОЛЕНЬ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skins_all', name: 'ВСЕ ПРЕМИУМ СКИНЫ', line: 'СЕЙЧАС: 1 СКИН', price: '30 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skins_all', name: 'ВСЕ СКИНЫ', line: 'СЕЙЧАС: 1 СКИН', price: '30 ГОЛОСОВ' },
   ];
   const AD_BOOST_SECONDS = 600;
   // which skin each premium shop item shows in its purchase preview (a new skin: add it here too)
@@ -196,7 +196,7 @@
     skin_easter: { name: 'ПАСХАЛЬНЫЙ ПРЯНИК', lines: ['ЯЙЦА И ЛЕПЕСТКИ', 'НАВСЕГДА'] },
     skin_solar: { name: 'СОЛНЕЧНЫЙ ПРЯНИК', lines: ['8 ПЛАНЕТ ВОКРУГ', 'НАВСЕГДА'] },
     skin_sea: { name: 'МОРСКОЙ ПРЯНИК', lines: ['ПУЗЫРИ И РЫБКА', 'НАВСЕГДА'] },
-    skins_all: { name: 'ВСЕ ПРЕМИУМ СКИНЫ', lines: ['СРАЗУ ВСЕ СКИНЫ', 'ВСЕ 16 ПРЯНИКОВ'] },
+    skins_all: { name: 'ВСЕ СКИНЫ', lines: ['ВЕСЬ АССОРТИМЕНТ СКИНОВ', 'НАВСЕГДА'] },   // the count of premium skins is shown in the purchase window
   };
   // for each technika, the global PROKACHKI indexes of its 4 upgrades (level 1..4)
   const PROK_BY_TECH = TECHNIKA.map((_, j) => PROKACHKI.map((p, g) => (p.tech === j ? g : -1)).filter((g) => g >= 0));
@@ -912,6 +912,11 @@
     if (inRect(gx, gy, 60, 130, 260, 144)) { settings.skin = id; loadSkin(id); saveGame(); skinOffer = null; return; }
     if (inRect(gx, gy, 60, 150, 260, 164)) { skinOffer = null; return; }
   }
+  // the premium skins in the order of the appearance window; the picture changes every 3 seconds
+  function premiumSkinCycle() {
+    const list = SKINS.filter((k) => k.premium).map((k) => k.id);
+    return list[Math.floor(performance.now() / 3000) % list.length];
+  }
   function drawPremiumWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
     fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
@@ -924,10 +929,10 @@
     const m = premiumWin.mode;
     if (m === 'confirm' || m === 'pending') {
       drawTextBox('ПОКУПКА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
-      const previewSkin = PREMIUM_SKIN_OF[it.id];
+      const previewSkin = it.id === 'skins_all' ? premiumSkinCycle() : PREMIUM_SKIN_OF[it.id];   // the bundle cycles through all premium skins
       const isSkin = !!previewSkin;
       // a skin item shows the skin itself on the left: the neon one glows, pulsing
-      const tx = isSkin ? 148 : 60;
+      const tx = isSkin ? 148 : 62;
       if (isSkin) {
         const thumb = skinThumbs[previewSkin];
         const glow = 0.5 + 0.5 * Math.sin(cookT * 3);
@@ -941,10 +946,12 @@
         drawSkinFxAt(previewSkin, 103, 69, 40, 33);   // the same effects as the appearance preview
         fxMask = null;
       }
+      // the lines are 4 px apart (a 7 px line and a 4 px gap: the step is 11)
       drawText(info.name, 1, tx, 30, accent(), 'left');
-      drawText('ЧТО ДАЁТ:', 1, tx, 46, dimTone(), 'left');
-      drawText(info.lines[0], 1, tx, 56, COL.text, 'left');
-      drawText(info.lines[1], 1, tx, 66, COL.text, 'left');
+      drawText('ЧТО ДАЁТ:', 1, tx, 41, dimTone(), 'left');
+      const line0 = info.lines[0];   // the whole range of skins
+      drawText(line0, 1, tx, 52, COL.text, 'left');
+      drawText(info.lines[1], 1, tx, 121, accent(), 'left');   // НАВСЕГДА: yellow, about where the white line is (above the buy button, which starts at 140)
       drawText('ЦЕНА: ' + it.price, 1, tx, 86, COL.text, 'left');
       if (m === 'confirm') {
         settingsButton(60, 140, 260, 154, 'КУПИТЬ ЗА ' + it.price);
@@ -956,20 +963,20 @@
     }
     if (m === 'done') {
       drawTextBox('КУПЛЕНО', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, accent());
-      drawText('НАЗВАНИЕ:', 1, 60, 26, dimTone(), 'left');
-      drawText(info.name, 1, 60, 36, COL.text, 'left');
-      drawText('ДЕЙСТВИЕ:', 1, 60, 52, dimTone(), 'left');
-      drawText(info.lines[0], 1, 60, 62, COL.text, 'left');
-      drawText(info.lines[1], 1, 60, 72, COL.text, 'left');
-      drawText('ТЕПЕРЬ ЭТО У ВАС НАВСЕГДА', 1, 60, 92, accent(), 'left');
+      drawText('НАЗВАНИЕ:', 1, 62, 26, dimTone(), 'left');
+      drawText(info.name, 1, 62, 36, COL.text, 'left');
+      drawText('ДЕЙСТВИЕ:', 1, 62, 52, dimTone(), 'left');
+      drawText(info.lines[0], 1, 62, 62, COL.text, 'left');
+      drawText(info.lines[1], 1, 62, 72, COL.text, 'left');
+      drawText('ТЕПЕРЬ ЭТО У ВАС НАВСЕГДА', 1, 62, 92, accent(), 'left');
       settingsButton(60, 156, 260, 170, 'ОК');
       return;
     }
     // error
     drawTextBox('ОШИБКА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
-    drawText(info.name, 1, 60, 30, COL.text, 'left');
-    drawText(premiumWin.msg || 'ПОКУПКА НЕ ПРОШЛА', 1, 60, 56, COL.text, 'left');
-    drawText('ПОПРОБУЙТЕ ПОЗЖЕ', 1, 60, 70, dimTone(), 'left');
+    drawText(info.name, 1, 62, 30, COL.text, 'left');
+    drawText(premiumWin.msg || 'ПОКУПКА НЕ ПРОШЛА', 1, 62, 56, COL.text, 'left');
+    drawText('ПОПРОБУЙТЕ ПОЗЖЕ', 1, 62, 70, dimTone(), 'left');
     settingsButton(60, 156, 260, 170, 'ОК');
   }
 
@@ -2437,7 +2444,7 @@
     if (splashT > 0) return;                  // the start screen takes no taps
     if (infoOpen) {                           // the launch info window: its OK button closes it
       const [ix, iy] = toGame(e);
-      if (inRect(ix, iy, 110, 134, 210, 148)) infoOpen = false;
+      if (inRect(ix, iy, 61, 140, 259, 158)) infoOpen = false;
       return;
     }
     startMusicOnce();
@@ -3277,7 +3284,7 @@
     musicStarted = true;
     const ctx = ensureAudio();
     if (!ctx) return;
-    trackIdx = 0;                           // the main theme starts the game
+    trackIdx = Math.floor(Math.random() * TRACKS.length);   // a random track at every launch
     playTrack(trackIdx, 1);
   }
 
@@ -3449,18 +3456,22 @@
   let infoOpen = true;
   function drawInfoDialog() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.75)');
-    fillRect(60, 16, 200, 148, COL.panel);
-    fillRect(60, 16, 200, 1, COL.panelEdge); fillRect(60, 163, 200, 1, COL.panelEdge);
-    fillRect(60, 16, 1, 148, COL.panelEdge); fillRect(259, 16, 1, 148, COL.panelEdge);
-    drawText('КУЧА ПРЯНИКОВ КЛИКЕР', 1, 160, 28, accent(), 'center');
-    drawText('ВЕРСИЯ ' + VERSION.replace('-VK', ''), 1, 160, 44, COL.text, 'center');
-    drawText('РАЗРАБОТЧИК: CR4YNE', 1, 160, 58, COL.text, 'center');
-    drawText('ВОЗРАСТНОЕ', 1, 160, 72, COL.text, 'center');
-    drawText('ОГРАНИЧЕНИЕ 0+', 1, 160, 84, COL.text, 'center');
-    drawText('ИГРА В РАЗРАБОТКЕ', 1, 160, 98, dimTone(), 'center');
-    drawText('ИГРОВОЙ ПРОЦЕСС', 1, 160, 112, dimTone(), 'center');
-    drawText('МОЖЕТ БЫТЬ ИЗМЕНЁН', 1, 160, 124, dimTone(), 'center');
-    settingsButton(110, 134, 210, 148, 'ОК');
+    fillRect(60, 20, 200, 140, COL.panel);
+    fillRect(60, 20, 200, 1, COL.panelEdge); fillRect(60, 159, 200, 1, COL.panelEdge);
+    fillRect(60, 20, 1, 140, COL.panelEdge); fillRect(259, 20, 1, 140, COL.panelEdge);
+    // the title stands a little apart; all the other lines are 12 px apart, and so is the button under the last one
+    drawText('КУЧА ПРЯНИКОВ КЛИКЕР', 1, 160, 34, accent(), 'center');
+    const lines = [
+      ['ВЕРСИЯ ' + VERSION.replace('-VK', ''), COL.text],
+      ['РАЗРАБОТЧИК: CR4YNE', COL.text],
+      ['ВОЗРАСТНОЕ', COL.text],
+      ['ОГРАНИЧЕНИЕ 0+', COL.text],
+      ['ИГРА В РАЗРАБОТКЕ', dimTone()],
+      ['ИГРОВОЙ ПРОЦЕСС', dimTone()],
+      ['МОЖЕТ БЫТЬ ИЗМЕНЁН', dimTone()],
+    ];
+    lines.forEach(([t, col], i) => drawText(t, 1, 70, 51 + i * 12, col, 'left'));   // the text starts at the left edge of the window
+    settingsButton(61, 140, 259, 158, 'ОК');   // the full width of the window, 1 px above the bottom border
   }
   let last = performance.now();
   function frame(now) {
