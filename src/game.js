@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.203-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.204-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -778,7 +778,7 @@
   }
   // the bonus row at the height of КЛИКАЙ, centred under it: the framed button with the number of active bonuses (0 when none),
   // then one multiplier for the premium 2x and 3x and the 10-minute ad 2x, multiplied together (for example Х12)
-  const MENU_BTN_W = 20, MENU_BTN_Y = [159, 177];   // the same row as the appearance button (18 px tall)
+  const MENU_BTN_W = 18, MENU_BTN_Y = [159, 177];   // the same row as the appearance button: 18x18 like the top buttons
   const MENU_BTN_X = TOP_MARGIN;                   // the left edge, with the same margin from the wall as the НАСТРОЙКИ button
   function multiplierBonus() {
     return (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1) * (adBoost.double > 0 ? 2 : 1);
@@ -2268,13 +2268,13 @@
     fillRect(x, y, s, s, COL.btnFrame);                    // 2 px frame
     fillRect(x + 2, y + 2, s - 4, s - 4, COL.btnFill);
     fillRect(x + 2, y + 2, s - 4, 1, COL.btnHi);
-    const c = COL.btnText;
-    // the brackets: 8 px wide and tall, centred in the icon (left 5, right 12 of 18: symmetrical)
-    const L = x + 5, R = x + 12, T = y + 5, B = y + 12;
-    fillRect(L, T, 3, 1); fillRect(L, T, 1, 3);             // top left
-    fillRect(R - 2, T, 3, 1); fillRect(R, T, 1, 3);         // top right
-    fillRect(L, B, 3, 1); fillRect(L, B - 2, 1, 3);         // bottom left
-    fillRect(R - 2, B, 3, 1); fillRect(R, B - 2, 1, 3);     // bottom right
+    // four brackets, 2 px thick like the frame, pushed out to the corners; symmetrical (3 px from each edge)
+    const c = COL.btnFrame;
+    const L = x + 3, R = x + 14, T = y + 3, B = y + 14;
+    fillRect(L, T, 4, 2); fillRect(L, T, 2, 4);             // top left
+    fillRect(R - 3, T, 4, 2); fillRect(R - 1, T, 2, 4);     // top right
+    fillRect(L, B - 1, 4, 2); fillRect(L, B - 3, 2, 4);     // bottom left
+    fillRect(R - 3, B - 1, 4, 2); fillRect(R - 1, B - 3, 2, 4);   // bottom right
   }
   function drawSettingsButton() {
     const x = GEAR_X0, y = GEAR_Y0, w = GEAR_X1 - GEAR_X0, h = GEAR_Y1 - GEAR_Y0;
