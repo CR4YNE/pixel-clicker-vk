@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.201-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.202-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -778,7 +778,7 @@
   }
   // the bonus row at the height of КЛИКАЙ, centred under it: the framed button with the number of active bonuses (0 when none),
   // then one multiplier for the premium 2x and 3x and the 10-minute ad 2x, multiplied together (for example Х12)
-  const MENU_BTN_W = 20, MENU_BTN_Y = [145, 159];   // 3 px lower than before
+  const MENU_BTN_W = 20, MENU_BTN_Y = [159, 177];   // the same row as the appearance button (18 px tall)
   const MENU_BTN_X = TOP_MARGIN;                   // the left edge, with the same margin from the wall as the НАСТРОЙКИ button
   function multiplierBonus() {
     return (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1) * (adBoost.double > 0 ? 2 : 1);
@@ -789,7 +789,7 @@
     const multText = mult > 1 ? 'Х' + mult : '';
     const total = MENU_BTN_W + (multText ? 4 + textWidth(multText, 1) : 0);
     drawTopButton(String(n), MENU_BTN_X, MENU_BTN_X + MENU_BTN_W, MENU_BTN_Y[0], MENU_BTN_Y[1]);   // the same frame as the top buttons
-    if (multText) drawText(multText, 1, MENU_BTN_X + MENU_BTN_W + 4, 149, accent(), 'left');
+    if (multText) drawText(multText, 1, MENU_BTN_X + MENU_BTN_W + 4, 164, accent(), 'left');
   }
   // the menu that opens on that button; a tap anywhere closes it
   let boostMenuOpen = false;
