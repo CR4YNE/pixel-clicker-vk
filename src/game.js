@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.211-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.213-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -881,8 +881,38 @@
       return;
     }
     if (m === 'done' || m === 'error') {
-      if (inRect(gx, gy, 60, 156, 260, 171)) premiumWin = null;
+      if (inRect(gx, gy, 60, 156, 260, 171)) {
+        const bought = PREMIUM_ITEMS[premiumWin.idx];
+        premiumWin = null;
+        if (m === 'done' && bought && bought.id.startsWith('skin_')) offerSkin(bought.id.slice(5));
+      }
     }
+  }
+  // a new skin: the offer window asks to try it on now or to do it later
+  let skinOffer = null;   // {id} while the offer is open
+  function offerSkin(id) {
+    if (!id || settings.skin === id) return;
+    skinOffer = { id };
+  }
+  function drawSkinOffer() {
+    const k = SKINS.find((s) => s.id === skinOffer.id);
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
+    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
+    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
+    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
+    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
+    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
+    drawTextBox('НОВЫЙ СКИН', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, accent());
+    const thumb = skinThumbs[k.id];
+    if (thumb && thumb.complete && thumb.naturalWidth) ctx.drawImage(thumb, 160 - 37, 30, 74, 74);
+    drawTextBox(k.name, 1, REB_X0, REB_X1, 110, 118, COL.text);
+    settingsButton(60, 130, 260, 144, 'ПРИМЕРИТЬ');
+    settingsButton(60, 150, 260, 164, 'ПОЗЖЕ');
+  }
+  function handleSkinOfferDown(gx, gy) {
+    const id = skinOffer.id;
+    if (inRect(gx, gy, 60, 130, 260, 144)) { settings.skin = id; loadSkin(id); saveGame(); skinOffer = null; return; }
+    if (inRect(gx, gy, 60, 150, 260, 164)) { skinOffer = null; return; }
   }
   function drawPremiumWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
@@ -1011,7 +1041,7 @@
     const k = SKINS.find((s) => s.id === id);
     if (!k || skinOwned[id]) return;
     skinAdViews[id] = (skinAdViews[id] || 0) + 1;
-    if (skinAdViews[id] >= skinAdNeed(k)) { skinOwned[id] = true; skinAdViews[id] = 0; sfxBuy(); }
+    if (skinAdViews[id] >= skinAdNeed(k)) { skinOwned[id] = true; skinAdViews[id] = 0; sfxBuy(); offerSkin(id); }
     saveGame();
   }
   // the reindeer: it comes out of nothing (transparent to solid), flies across the cookie with its sleigh, and fades away
@@ -1968,7 +1998,7 @@
     if (!dailyCanClaim()) return;
     const s = dailyNext();
     const skin = SKINS[s.next];                  // day 1 gives skin 2 in the list, ..., day 7 gives skin 8
-    if (skin && !skinOwned[skin.id]) skinOwned[skin.id] = true;   // already owned: nothing to give
+    if (skin && !skinOwned[skin.id]) { skinOwned[skin.id] = true; offerSkin(skin.id); }   // already owned: nothing to give
     dailyDay = s.next;
     dailyDate = mskDate();
     saveGame();
@@ -2272,10 +2302,10 @@
     // four brackets, 2 px thick like the frame, pushed out to the corners; symmetrical (3 px from each edge)
     const c = COL.btnFrame;
     const L = x + 3, R = x + 14, T = y + 3, B = y + 14;
-    fillRect(L, T, 4, 2); fillRect(L, T, 2, 4);             // top left
-    fillRect(R - 3, T, 4, 2); fillRect(R - 1, T, 2, 4);     // top right
-    fillRect(L, B - 1, 4, 2); fillRect(L, B - 3, 2, 4);     // bottom left
-    fillRect(R - 3, B - 1, 4, 2); fillRect(R - 1, B - 3, 2, 4);   // bottom right
+    fillRect(L, T, 4, 2, COL.btnFrame); fillRect(L, T, 2, 4, COL.btnFrame);             // top left
+    fillRect(R - 3, T, 4, 2, COL.btnFrame); fillRect(R - 1, T, 2, 4, COL.btnFrame);     // top right
+    fillRect(L, B - 1, 4, 2, COL.btnFrame); fillRect(L, B - 3, 2, 4, COL.btnFrame);     // bottom left
+    fillRect(R - 3, B - 1, 4, 2, COL.btnFrame); fillRect(R - 1, B - 3, 2, 4, COL.btnFrame);   // bottom right
   }
   function drawSettingsButton() {
     const x = GEAR_X0, y = GEAR_Y0, w = GEAR_X1 - GEAR_X0, h = GEAR_Y1 - GEAR_Y0;
@@ -2399,6 +2429,7 @@
     const [gx, gy] = toGame(e);
     if (settingsOpen) { handleSettingsDown(gx, gy); return; }   // the settings window blocks everything else
     if (rebirthOpen) { handleRebirthDown(gx, gy); return; }      // so does the rebirth window
+    if (skinOffer) { handleSkinOfferDown(gx, gy); return; }
     if (progWin) { handleProgDown(gx, gy); return; }             // and the progress window
     if (skinWin) { handleSkinDown(gx, gy); return; }             // and the appearance window
     if (premiumWin) { handlePremiumWinDown(gx, gy); return; }     // and the premium purchase window
@@ -3139,6 +3170,7 @@
     if (progWin) drawProgWin();
     if (skinWin) drawSkinWin();
     if (premiumWin) drawPremiumWin();
+    if (skinOffer) drawSkinOffer();
     if (ev && ev.type === 'appetite') drawAppetite();
     drawBoostLine();
     if (boostMenuOpen) drawBoostMenu();
