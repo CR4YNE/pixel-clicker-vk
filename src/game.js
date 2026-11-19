@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.213-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.216-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -544,10 +544,8 @@
       // placeholders: payments and the ad SDK are not connected yet
       const it = PREMIUM_ITEMS[index];
       if (it.kind === 'ad') {
-        // ad reward placeholder: gives the boost right away, so it can be checked in the game
-        adBoost[it.id] = AD_BOOST_SECONDS;
-        adWatched[it.id] = true;
-        sfxBuy();
+        // the reward comes after the ad is shown (in VK); outside VK it comes at once
+        showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); });
         return true;
       }
       return false;
@@ -1037,7 +1035,21 @@
     });
   }
   // an ad for a skin: the ad SDK is not connected yet, so the view counts right away
+  // the reward ad: in VK it is shown by VK Bridge, and the reward comes only if the ad was shown;
+  // outside VK (testing) the reward comes at once
+  function showRewardAd(onReward) {
+    if (!window.vkBridge) { onReward(); return; }
+    vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', use_waterfall: true })
+      .then((data) => {
+        if (data && data.result) onReward();
+        else popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМЫ НЕТ' });
+      })
+      .catch(() => popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА НЕ ПРОШЛА' }));
+  }
   function watchSkinAd(id) {
+    showRewardAd(() => grantSkinView(id));
+  }
+  function grantSkinView(id) {
     const k = SKINS.find((s) => s.id === id);
     if (!k || skinOwned[id]) return;
     skinAdViews[id] = (skinAdViews[id] || 0) + 1;
@@ -2357,7 +2369,7 @@
     settingsButton(76, 126, 244, 141, ['СБРОС ПРОГРЕССА', 'ТОЧНО СБРОСИТЬ', 'ТОЧНО ЭТО НЕОБРАТИМО'][resetStage]);
     settingsButton(76, 144, 244, 159, 'ЗАКРЫТЬ');
     // the version and the developer: the very bottom of the window
-    drawText(VERSION + ' - РАЗРАБОТЧИК: CR4YNE', 1, 160, 163, dimTone(), 'center');
+    drawText(VERSION.replace('-VK', '') + '   РАЗРАБОТЧИК: CR4YNE', 1, 160, 163, dimTone(), 'center');   // the version without the platform suffix, no dashes
   }
 
   function setSlider(name, gx) {
@@ -2423,6 +2435,11 @@
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     if (splashT > 0) return;                  // the start screen takes no taps
+    if (infoOpen) {                           // the launch info window: its OK button closes it
+      const [ix, iy] = toGame(e);
+      if (inRect(ix, iy, 110, 127, 210, 141)) infoOpen = false;
+      return;
+    }
     startMusicOnce();
     // by default the game opens on the whole screen: the browser allows it after the first tap
     if (!fullScreenAsked) { fullScreenAsked = true; if (!document.fullscreenElement) enterFullScreen(); }
@@ -3428,6 +3445,21 @@
     fillRect(bx, by, Math.round(bw * Math.min(1, el / SPLASH_T)), 2, accent());
     ctx.restore();
   }
+  // the launch info window: version, developer, age rating and the development stage; shown after the start screen
+  let infoOpen = true;
+  function drawInfoDialog() {
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.75)');
+    fillRect(60, 28, 200, 124, COL.panel);
+    fillRect(60, 28, 200, 1, COL.panelEdge); fillRect(60, 151, 200, 1, COL.panelEdge);
+    fillRect(60, 28, 1, 124, COL.panelEdge); fillRect(259, 28, 1, 124, COL.panelEdge);
+    drawText('КУЧА ПРЯНИКОВ КЛИКЕР', 1, 160, 40, accent(), 'center');
+    drawText('ВЕРСИЯ ' + VERSION.replace('-VK', ''), 1, 160, 56, COL.text, 'center');
+    drawText('РАЗРАБОТЧИК: CR4YNE', 1, 160, 70, COL.text, 'center');
+    drawText('ВОЗРАСТНОЕ', 1, 160, 84, COL.text, 'center');
+    drawText('ОГРАНИЧЕНИЕ 0+', 1, 160, 96, COL.text, 'center');
+    drawText('ИГРА В РАЗРАБОТКЕ', 1, 160, 110, dimTone(), 'center');
+    settingsButton(110, 127, 210, 141, 'ОК');
+  }
   let last = performance.now();
   function frame(now) {
     const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));   // a frame timestamp can be slightly earlier than `last` on load
@@ -3435,6 +3467,7 @@
     update(dt);
     render();
     if (splashT > 0) drawSplash();
+    else if (infoOpen) drawInfoDialog();
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
