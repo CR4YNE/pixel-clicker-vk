@@ -2,6 +2,17 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+  <script>
+    // one link for every device: VK tells the platform in vk_platform; a phone goes to the portrait version,
+    // the same address parameters are kept, so the VK bridge still works there
+    (function () {
+      var m = /[?&]vk_platform=([^&]*)/.exec(location.search);
+      var p = m ? decodeURIComponent(m[1]) : '';
+      if (/^(mobile_web|android|ios|mobile_android|mobile_ios)$/.test(p)) {
+        location.replace('https://cr4yne.github.io/pixel-clicker-phone/' + location.search + location.hash);
+      }
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Куча Пряников: Кликер</title>
   <style>
