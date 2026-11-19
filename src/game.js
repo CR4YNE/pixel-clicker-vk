@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.206-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.211-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -773,7 +773,8 @@
     const list = menuLabels();
     if (premiumOwned.double) list.push('2Х ДОХОД НАВСЕГДА');
     if (premiumOwned.triple) list.push('3Х ДОХОД НАВСЕГДА');
-    if (adBoost.double > 0) list.push('2Х РЕКЛАМА ' + adLabel().replace('2Х ДОХОД ', ''));
+    if (adBoost.double > 0) list.push('2Х ДОХОД ЗА РЕКЛАМУ ' + adLabel().replace('2Х ДОХОД ', ''));
+    if (adBoost.discount > 0) { const s = Math.ceil(adBoost.discount), ss = s % 60; list.push('СКИДКА 50% ЗА РЕКЛАМУ ' + Math.floor(s / 60) + ':' + (ss < 10 ? '0' : '') + ss); }   // the free 50% discount, with its time left
     return list;
   }
   // the bonus row at the height of КЛИКАЙ, centred under it: the framed button with the number of active bonuses (0 when none),
@@ -2845,7 +2846,9 @@
     } else {
       line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : 'СКОРО: ОПЛАТА ГОЛОСАМИ';   // placeholder until payments exist
     }
-    return { line1: it.line, line2, price: it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
+    // a free ad that is running shows the time left on the row (the row draws only this line)
+    const left = it.kind === 'ad' && adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + Math.ceil(adBoost[it.id] / 60) + ' МИН' : it.line;
+    return { line1: left, line2, price: it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
   }
 
   function drawPanel() {
@@ -3261,6 +3264,7 @@
         prokOwned,
         premiumOwned,
         adWatched,
+        adBoost: { double: adBoost.double, discount: adBoost.discount },   // the ad bonuses keep their time left
         rebirths,
         cycleEarned: cycleEarned.toString(),
         totalEarned: totalEarned.toString(),
@@ -3305,6 +3309,7 @@
       if (Array.isArray(s.techOwned) && s.techOwned.length === techOwned.length) techOwned = s.techOwned.map(Number);
       if (Array.isArray(s.prokOwned) && s.prokOwned.length === prokOwned.length) prokOwned = s.prokOwned.map(Boolean);
       if (s.adWatched) adWatched = { double: !!s.adWatched.double, discount: !!s.adWatched.discount };
+      if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
       rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
       totalEarned = BigInt(s.totalEarned || '0');
       playerClicks = Math.max(0, Math.floor(Number(s.playerClicks) || 0));
