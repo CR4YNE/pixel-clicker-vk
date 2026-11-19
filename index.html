@@ -19,10 +19,18 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-  <script src="https://unpkg.com/@vkontakte/vk-bridge@2.15.11/dist/browser.min.js"></script>
   <script>
-    // tells VK that the game has started; must be sent within 30 seconds of the launch
-    try { if (window.vkBridge) vkBridge.send("VKWebAppInit", {}); } catch (err) { /* not inside VK */ }
+    // the VK bridge is loaded only when the game runs inside VK (VK adds vk_* parameters to the address);
+    // elsewhere (for example, a plain browser or Yandex) the script is not loaded at all
+    if (/[?&]vk_/.test(location.search)) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/@vkontakte/vk-bridge@2.15.11/dist/browser.min.js';
+      s.onload = function () {
+        // tells VK that the game has started; must be sent within 30 seconds of the launch
+        try { if (window.vkBridge) vkBridge.send('VKWebAppInit', {}); } catch (err) { /* ignore */ }
+      };
+      document.head.appendChild(s);
+    }
   </script>
   <script src="src/font-data.js?v=5"></script>
   <script src="src/game.js?v=275"></script>
