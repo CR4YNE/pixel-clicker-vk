@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.196-vk';
+  const VERSION = '1.0.197-vk';
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2810,7 +2810,7 @@
     } else {
       line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : 'СКОРО: ОПЛАТА ГОЛОСАМИ';   // placeholder until payments exist
     }
-    return { line1: it.line, line2, price: it.price, can: it.kind === 'ad' };
+    return { line1: it.line, line2, price: it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
   }
 
   function drawPanel() {
