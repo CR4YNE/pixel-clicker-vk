@@ -8,7 +8,9 @@
     (function () {
       var m = /[?&]vk_platform=([^&]*)/.exec(location.search);
       var p = m ? decodeURIComponent(m[1]) : '';
-      if (/^(mobile_web|android|ios|mobile_android|mobile_ios)$/.test(p)) {
+      // no VK parameter (a plain link opened in a phone browser): the browser tells it is a phone
+      var phoneBrowser = /Android|iPhone|iPod|iPad|Mobile/i.test(navigator.userAgent);
+      if (/^(mobile_web|android|ios|mobile_android|mobile_ios)$/.test(p) || (!p && phoneBrowser)) {
         location.replace('https://cr4yne.github.io/pixel-clicker-phone/' + location.search + location.hash);
       }
     })();
