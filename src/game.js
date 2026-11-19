@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.200-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.201-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2261,6 +2261,18 @@
     drawTextBox(label, 1, x0, x1, y0, y1, COL.btnText);
   }
 
+  // the full-screen icon: a 12x12 frame with the corners cut out, directly under НАСТРОЙКИ (3 px gap)
+  const FS_X = GEAR_X0, FS_Y = GEAR_Y1 + 3, FS_S = 12;
+  function drawFullScreenIcon() {
+    const c = COL.btnText, x = FS_X, y = FS_Y, s = FS_S;
+    fillRect(x, y, s, s, COL.btnFrame);
+    fillRect(x + 1, y + 1, s - 2, s - 2, COL.btnFill);
+    // corner marks: a short line in each corner, pointing outwards
+    fillRect(x + 2, y + 2, 3, 1, c); fillRect(x + 2, y + 2, 1, 3, c);
+    fillRect(x + s - 5, y + 2, 3, 1, c); fillRect(x + s - 3, y + 2, 1, 3, c);
+    fillRect(x + 2, y + s - 3, 1, 3, c); fillRect(x + 2, y + s - 3, 3, 1, c);
+    fillRect(x + s - 3, y + s - 3, 1, 3, c); fillRect(x + s - 5, y + s - 3, 3, 1, c);
+  }
   function drawSettingsButton() {
     const x = GEAR_X0, y = GEAR_Y0, w = GEAR_X1 - GEAR_X0, h = GEAR_Y1 - GEAR_Y0;
     fillRect(x, y, w, h, COL.btnFrame);                 // 2 px silver border, symmetric
@@ -2333,7 +2345,11 @@
     saveGame();
   }
 
-  // the whole screen: a tap in the settings asks the browser for it (browsers allow it only after a tap)
+  let fullScreenAsked = false;   // the first tap of the game asks for the whole screen once
+  function enterFullScreen() {
+    try { document.documentElement.requestFullscreen().catch(() => {}); } catch (err) { /* the browser refused */ }
+  }
+  // the whole screen: a tap on the icon or in the settings asks the browser for it (browsers allow it only after a tap)
   function toggleFullScreen() {
     try {
       if (document.fullscreenElement) document.exitFullscreen();
@@ -2374,6 +2390,8 @@
     e.preventDefault();
     if (splashT > 0) return;                  // the start screen takes no taps
     startMusicOnce();
+    // by default the game opens on the whole screen: the browser allows it after the first tap
+    if (!fullScreenAsked) { fullScreenAsked = true; if (!document.fullscreenElement) enterFullScreen(); }
     const [gx, gy] = toGame(e);
     if (settingsOpen) { handleSettingsDown(gx, gy); return; }   // the settings window blocks everything else
     if (rebirthOpen) { handleRebirthDown(gx, gy); return; }      // so does the rebirth window
@@ -2387,6 +2405,7 @@
     if (tapBonyaBubble(gx, gy)) return;
     if (tapBonya(gx, gy)) return;                                 // the sleeping rabbit by the cake
     if (inRect(gx, gy, GEAR_X0, GEAR_Y0, GEAR_X1, GEAR_Y1)) { closeMenus('settings'); settingsOpen = true; return; }
+    if (inRect(gx, gy, FS_X, FS_Y, FS_X + FS_S, FS_Y + FS_S)) { toggleFullScreen(); return; }
     // shop controls (only when the panel is fully open)
     if (!panelOpen && inRect(gx, gy, SKIN_BTN[0], SKIN_BTN[1], SKIN_BTN[2], SKIN_BTN[3])) { closeMenus('skin'); skinWin = true; return; }
     // the ПРОГРЕСС button is reachable from the shop too
@@ -3095,6 +3114,7 @@
     // small line under the counter: automatic coins per second
     drawSmallText('+' + String(Math.floor(autoPerSec())) + ' В СЕК', cx, COUNTER_AUTO_Y, '#ffffff');   // whole numbers only: the font has no '.'
     drawSettingsButton();
+    drawFullScreenIcon();
     drawTopButton('ПРОГРЕСС', ...topRect('achievements'));
     if (dailyCanClaim() && Math.sin(cookT * 6) > 0) {
       const [ax0, ax1, ay0] = topRect('achievements');   // topRect gives [x0, x1, y0, y1]
