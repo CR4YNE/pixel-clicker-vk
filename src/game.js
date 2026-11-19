@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.216-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.217-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2437,7 +2437,7 @@
     if (splashT > 0) return;                  // the start screen takes no taps
     if (infoOpen) {                           // the launch info window: its OK button closes it
       const [ix, iy] = toGame(e);
-      if (inRect(ix, iy, 110, 127, 210, 141)) infoOpen = false;
+      if (inRect(ix, iy, 110, 134, 210, 148)) infoOpen = false;
       return;
     }
     startMusicOnce();
@@ -3449,16 +3449,18 @@
   let infoOpen = true;
   function drawInfoDialog() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.75)');
-    fillRect(60, 28, 200, 124, COL.panel);
-    fillRect(60, 28, 200, 1, COL.panelEdge); fillRect(60, 151, 200, 1, COL.panelEdge);
-    fillRect(60, 28, 1, 124, COL.panelEdge); fillRect(259, 28, 1, 124, COL.panelEdge);
-    drawText('КУЧА ПРЯНИКОВ КЛИКЕР', 1, 160, 40, accent(), 'center');
-    drawText('ВЕРСИЯ ' + VERSION.replace('-VK', ''), 1, 160, 56, COL.text, 'center');
-    drawText('РАЗРАБОТЧИК: CR4YNE', 1, 160, 70, COL.text, 'center');
-    drawText('ВОЗРАСТНОЕ', 1, 160, 84, COL.text, 'center');
-    drawText('ОГРАНИЧЕНИЕ 0+', 1, 160, 96, COL.text, 'center');
-    drawText('ИГРА В РАЗРАБОТКЕ', 1, 160, 110, dimTone(), 'center');
-    settingsButton(110, 127, 210, 141, 'ОК');
+    fillRect(60, 16, 200, 148, COL.panel);
+    fillRect(60, 16, 200, 1, COL.panelEdge); fillRect(60, 163, 200, 1, COL.panelEdge);
+    fillRect(60, 16, 1, 148, COL.panelEdge); fillRect(259, 16, 1, 148, COL.panelEdge);
+    drawText('КУЧА ПРЯНИКОВ КЛИКЕР', 1, 160, 28, accent(), 'center');
+    drawText('ВЕРСИЯ ' + VERSION.replace('-VK', ''), 1, 160, 44, COL.text, 'center');
+    drawText('РАЗРАБОТЧИК: CR4YNE', 1, 160, 58, COL.text, 'center');
+    drawText('ВОЗРАСТНОЕ', 1, 160, 72, COL.text, 'center');
+    drawText('ОГРАНИЧЕНИЕ 0+', 1, 160, 84, COL.text, 'center');
+    drawText('ИГРА В РАЗРАБОТКЕ', 1, 160, 98, dimTone(), 'center');
+    drawText('ИГРОВОЙ ПРОЦЕСС', 1, 160, 112, dimTone(), 'center');
+    drawText('МОЖЕТ БЫТЬ ИЗМЕНЁН', 1, 160, 124, dimTone(), 'center');
+    settingsButton(110, 134, 210, 148, 'ОК');
   }
   let last = performance.now();
   function frame(now) {
