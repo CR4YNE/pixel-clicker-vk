@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.332-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.333-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -883,7 +883,7 @@
     if (TEST_FREE_PREMIUM) return Promise.resolve({ ok: true });
     if (!window.vkBridge) return Promise.resolve({ ok: false, msg: 'ОПЛАТА ТОЛЬКО В ВК' });
     return vkBridge.send('VKWebAppShowOrderBox', { type: 'item', item: id })
-      .then(() => ({ ok: true }))
+      .then((data) => (data && data.success ? { ok: true } : { ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: 'НЕТ' }))
       .catch((e) => ({ ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: vkErrorCode(e) }));
   }
   // the code VK gives for a refused payment, so the player can tell us what happened

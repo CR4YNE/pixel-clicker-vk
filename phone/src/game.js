@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.332-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.333-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -893,7 +893,7 @@
     // the same VK payment form as on the desktop: the purchase is made in votes, the server confirms it
     if (!window.vkBridge) return Promise.resolve({ ok: false, msg: 'ОПЛАТА ТОЛЬКО В ВК' });
     return vkBridge.send('VKWebAppShowOrderBox', { type: 'item', item: id })
-      .then(() => ({ ok: true }))
+      .then((data) => (data && data.success ? { ok: true } : { ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: 'НЕТ' }))
       .catch((e) => ({ ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: vkErrorCode(e) }));
   }
   // the code VK gives for a refused payment, so the player can tell us what happened
