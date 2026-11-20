@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.353-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.354-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -3446,8 +3446,8 @@
       const y = listTop() + i * ROW_H - Math.round(scroll);
       if (y + ROW_H < listTop() || y > listBottom()) return;
       const row = rowInfo(i, it);
-      fillRect(PX0 + 2, y, PX1 - PX0 - 4, ROW_H - 2, row.can ? COL.rowHi : COL.row);
-      if (row.can) fillRect(PX0 + 2, y, 2, ROW_H - 2, accent());   // affordable: bar on the left, not only colour
+      fillRect(PX0 + 2, y, PX1 - PX0 - 4, ROW_H - 1, row.can ? COL.rowHi : COL.row);
+      if (row.can) fillRect(PX0 + 2, y, 2, ROW_H - 1, accent());   // affordable: bar on the left, not only colour
       // two lines: the name; what one purchase gives; the price on the right of the second line
       drawText(it.name, 1, PX0 + 6, y + 1, COL.text, 'left');
       drawText(row.line1, 1, PX0 + 6, y + 10, accent(), 'left');
