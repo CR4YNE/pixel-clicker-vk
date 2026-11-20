@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.354-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.355-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -3715,7 +3715,11 @@
     if (noticeWin) inSheet(drawNotice);
     if (boostMenuOpen) inSheet(drawBoostMenu);   // the same place as the other menus: the sheet under the scene
     if (restDue && !anyMenuOpenNow() && !consentOpen && loadingLeft <= 0) drawRestButton();
-    if (!anyMenuOpenNow() && !consentOpen && document.fullscreenEnabled) drawFullScreenIconAt(FS_BL_X, FS_BL_Y, FS_BL_S);   // only where the browser allows fullscreen
+    if (!anyMenuOpenNow() && !consentOpen && document.fullscreenEnabled) {   // only where the browser allows fullscreen
+      drawFullScreenIconAt(FS_BL_X, FS_BL_Y, FS_BL_S);
+      // the label next to the icon; it is hidden when the screen is already full
+      if (!document.fullscreenElement) drawText('НА ПОЛНЫЙ ЭКРАН', 1, FS_BL_X + FS_BL_S + 4, FS_BL_Y + 5, COL.text, 'left');
+    }
     ctx.restore();
   }
 
