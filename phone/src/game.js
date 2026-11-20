@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.356-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.357-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -3722,7 +3722,7 @@
         // a pixel arrow pointing at the icon (it sways 2 px), and the label pulses so that it is noticed
         const pulse = (Math.sin(performance.now() / 250) + 1) / 2;   // 0..1
         const ax = FS_BL_X + FS_BL_S + 3 + Math.round(pulse * 2);
-        const ARROW = ['..#..', '.##..', '#####', '.##..', '..#..'];   // the tip points left, at the icon
+        const ARROW = ['..#..', '.#...', '#####', '.#...', '..#..'];   // the tip points left, at the icon
         ARROW.forEach((row, j) => { for (let i = 0; i < 5; i++) if (row[i] === '#') fillRect(ax + i, FS_BL_Y + 7 + j, 1, 1, COL.text); });
         ctx.globalAlpha = 0.55 + 0.45 * pulse;
         drawText('НА ПОЛНЫЙ ЭКРАН', 1, ax + 7, FS_BL_Y + 9 - 4, COL.text, 'left');
