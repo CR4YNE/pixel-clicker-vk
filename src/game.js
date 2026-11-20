@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.337-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.338-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -44,7 +44,8 @@
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
   const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
-  const ROW_H = 30;             // three text lines per row; a 4 px gap between the rows
+  const rowH = () => (tab === 'premium' ? 30 : 31);   // the premium rows are a little tighter; the other tabs keep 31
+  const gapH = () => (tab === 'premium' ? 4 : 3);     // the space between the rows (the background is shorter by this)
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
 
@@ -2436,13 +2437,13 @@
     return premiumItemsFor(premiumSection);
   }
   function maxScroll() {
-    const content = items().length * ROW_H;
+    const content = items().length * rowH();
     return Math.max(0, content - (listBottom() - listTop()));
   }
   // list pixels per thumb pixel, so the thumb reaches the end of the track when the list reaches its end
   function thumbRatio() {
     const trackH = listBottom() - listTop();
-    const content = items().length * ROW_H;
+    const content = items().length * rowH();
     const thumbH = Math.max(12, Math.round((trackH * trackH) / content));
     return maxScroll() / Math.max(1, trackH - thumbH);
   }
@@ -2826,7 +2827,7 @@
     const wasTap = drag.moved < 4;
     drag = null;
     if (wasTap && inRect(gx, gy, PX0, listTop(), PX1 - 8, listBottom())) {
-      const idx = Math.floor((gy - listTop() + scroll) / ROW_H);
+      const idx = Math.floor((gy - listTop() + scroll) / rowH());
       if (idx >= 0 && idx < items().length) {
         if (tab === 'prok' && prokSel === null) { prokSel = idx; scroll = 0; }     // open the technika's 4 upgrades
         else if (tab === 'prok') buy('prok', PROK_BY_TECH[prokSel][idx]);
@@ -3289,11 +3290,11 @@
     const list = items();
     if (tab === 'premium' && premiumSection === 'skins' && list.length === 0) drawTextBox('ТОВАРОВ НЕТ', 1, PX0 + 6, PX1 - 6, listTop() + 14, listTop() + 26, dimTone());
     list.forEach((it, i) => {
-      const y = listTop() + i * ROW_H - Math.round(scroll);
-      if (y + ROW_H < listTop() || y > listBottom()) return;
+      const y = listTop() + i * rowH() - Math.round(scroll);
+      if (y + rowH() < listTop() || y > listBottom()) return;
       const row = rowInfo(i, it);
-      fillRect(PX0 + 6, y, PX1 - PX0 - 12, ROW_H - 4, row.can ? COL.rowHi : COL.row);
-      if (row.can) fillRect(PX0 + 6, y, 2, ROW_H - 4, accent());   // affordable: bar on the left, not only colour
+      fillRect(PX0 + 6, y, PX1 - PX0 - 12, rowH() - gapH(), row.can ? COL.rowHi : COL.row);
+      if (row.can) fillRect(PX0 + 6, y, 2, rowH() - gapH(), accent());   // affordable: bar on the left, not only colour
       // three lines: name; what one purchase gives; status; price on the right
       drawText(it.name, 1, PX0 + 10, y + 2, COL.text, 'left');
       drawText(row.line1, 1, PX0 + 10, y + 10, accent(), 'left');
@@ -3306,7 +3307,7 @@
     const max = maxScroll();
     if (max > 0) {
       const trackH = listBottom() - listTop();
-      const content = list.length * ROW_H;
+      const content = list.length * rowH();
       const thumbH = Math.max(12, Math.round((trackH * trackH) / content));
       // top of the list = thumb at the top; dragging down moves the thumb down
       const thumbY = listTop() + Math.round((trackH - thumbH) * (scroll / max));
