@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.347-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.348-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -1189,11 +1189,11 @@
   function showNotice(lines) { noticeWin = { lines }; }
   function drawNotice() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
-    fillRect(70, 56, 180, 68, COL.panel);
-    fillRect(70, 56, 180, 1, COL.panelEdge); fillRect(70, 123, 180, 1, COL.panelEdge);
-    fillRect(70, 56, 1, 68, COL.panelEdge); fillRect(249, 56, 1, 68, COL.panelEdge);
-    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 70, 250, 66 + i * 10, 74 + i * 10, COL.text));
-    settingsButton(110, 100, 210, 114, 'ОК');
+    fillRect(80, 64, 160, 48, COL.panel);
+    fillRect(80, 64, 160, 1, COL.panelEdge); fillRect(80, 111, 160, 1, COL.panelEdge);
+    fillRect(80, 64, 1, 48, COL.panelEdge); fillRect(239, 64, 1, 48, COL.panelEdge);
+    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 81, 239, 72 + i * 10, 80 + i * 10, COL.text));
+    settingsButton(81, 100, 239, 111, 'ОК');   // full width, on the bottom edge of the window
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count; saved)
   let restDue = false;             // the rest button is shown under the shop (saved)
@@ -2750,7 +2750,7 @@
     e.preventDefault();
     if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
     const [ngx, ngy] = toGame(e);
-    if (noticeWin) { if (inRect(ngx, ngy, 110, 100, 210, 114)) noticeWin = null; return; }   // the message takes the taps until OK
+    if (noticeWin) { if (inRect(ngx, ngy, 81, 100, 239, 111)) noticeWin = null; return; }   // the message takes the taps until OK
     if (splashT > 0) return;                  // the start screen takes no taps
     if (consentOpen) { const [cgx, cgy] = toGame(e); handleConsentDown(cgx, cgy); return; }   // the first-launch window comes before the info window
     startMusicOnce();

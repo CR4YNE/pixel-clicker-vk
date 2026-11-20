@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.347-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.348-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -1172,11 +1172,11 @@
   let noticeWin = null;            // {lines} while it is open
   function showNotice(lines) { noticeWin = { lines }; }
   function drawNotice() {
-    fillRect(76, 36, 168, 72, COL.panel);
-    fillRect(76, 36, 168, 1, COL.panelEdge); fillRect(76, 107, 168, 1, COL.panelEdge);
-    fillRect(76, 36, 1, 72, COL.panelEdge); fillRect(243, 36, 1, 72, COL.panelEdge);
-    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 76, 244, 46 + i * 10, 54 + i * 10, COL.text));
-    settingsButton(74, 110, 246, 124, 'ОК');
+    fillRect(84, 46, 152, 50, COL.panel);
+    fillRect(84, 46, 152, 1, COL.panelEdge); fillRect(84, 95, 152, 1, COL.panelEdge);
+    fillRect(84, 46, 1, 50, COL.panelEdge); fillRect(235, 46, 1, 50, COL.panelEdge);
+    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 85, 235, 56 + i * 10, 64 + i * 10, COL.text));
+    settingsButton(85, 86, 235, 95, 'ОК');   // full width, on the bottom edge of the window
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count)
   let restDue = false;             // the rest button is shown under the shop
@@ -2811,7 +2811,7 @@
     e.preventDefault();
     if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
     const [ngx, ngy] = toGame(e);
-    if (noticeWin) { if (inRect(ngx, ngy - SHEET_DY, 74, 110, 246, 124)) noticeWin = null; return; }   // the message takes the taps until OK
+    if (noticeWin) { if (inRect(ngx, ngy - SHEET_DY, 85, 86, 235, 95)) noticeWin = null; return; }   // the message takes the taps until OK
     if (splashT > 0) return;                  // the start screen takes no taps
     // the documents scroll by dragging them (in the consent window too), inside their text area
     if (docsOpen >= 0) {
