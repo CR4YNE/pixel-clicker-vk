@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.339-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.340-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -46,7 +46,7 @@
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 124;     // the close button: the same level as the close button of the other menus
   // the list ends above the buy row (107) where there is one; without it (прокачки, премиум) the list takes the space down to the close button
-  const listBottom = () => (hasBuyRow() ? 104 : 122);
+  const listBottom = () => (tab === 'premium' ? 122 : hasBuyRow() ? 105 : 123);   // the other tabs get 1 px more of the list
   const ROW_H = 20;             // two text lines per row, tight: more goods fit the sheet
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
