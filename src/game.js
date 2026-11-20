@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.358-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.359-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -3918,6 +3918,11 @@
   }
   setInterval(saveGame, 5000);
   window.addEventListener('pagehide', () => { saveGame(); if (window.vkBridge) vkSaveNow(); });
+  // the sound stops when the page is hidden (a browser tab, or the app in the background) and comes back when it is shown
+  document.addEventListener('visibilitychange', () => {
+    if (!audioCtx) return;
+    if (document.hidden) audioCtx.suspend(); else audioCtx.resume();
+  });
 
   // ---------- loop ----------
   // the start screen: 1.5 s after each load, with the logo, the game's name and the developer
