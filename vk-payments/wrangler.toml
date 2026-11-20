@@ -1,0 +1,8 @@
+name = "pryanik-vk-pay"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# хранилище подтверждённых покупок: ключ — VK user_id, значение — список заказов
+[[kv_namespaces]]
+binding = "PURCHASES"
+id = "d5e557e74945467c8d31846199017b59"
