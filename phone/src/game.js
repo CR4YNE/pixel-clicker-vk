@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.359-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.360-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -2848,7 +2848,7 @@
     const [gx, gy] = toGame(e);
     // with a menu open the cookie still counts: the menus are drawn lower down (from y 182), the cookie is above them
     if ((anyMenuOpenNow() || supportOpen || docsListOpen || docsOpen >= 0) && gy < FLOOR_Y + 10) { spawnClick(gx, gy); return; }
-    if (!anyMenuOpenNow() && inRect(gx, gy, FS_BL_X, FS_BL_Y, FS_BL_X + FS_BL_S, FS_BL_Y + FS_BL_S)) { toggleFullScreen(); return; }
+    if (!anyMenuOpenNow() && !document.fullscreenElement && inRect(gx, gy, FS_BL_X, FS_BL_Y, FS_BL_X + FS_BL_S, FS_BL_Y + FS_BL_S)) { toggleFullScreen(); return; }
     if (consentOpen) { handleConsentDown(gx, gy - SHEET_DY); return; }
     if (supportOpen || docsListOpen || docsOpen >= 0) { handleInfoDown(gx, gy - SHEET_DY); return; }
     if (settingsOpen) { handleSettingsDown(gx, gy - SHEET_DY); return; }   // the settings window blocks everything else
@@ -3715,7 +3715,7 @@
     if (noticeWin) inSheet(drawNotice);
     if (boostMenuOpen) inSheet(drawBoostMenu);   // the same place as the other menus: the sheet under the scene
     if (restDue && !anyMenuOpenNow() && !consentOpen && loadingLeft <= 0) drawRestButton();
-    if (!anyMenuOpenNow() && !consentOpen && document.fullscreenEnabled) {   // only where the browser allows fullscreen
+    if (!anyMenuOpenNow() && !consentOpen && document.fullscreenEnabled && !document.fullscreenElement) {   // only where the browser allows fullscreen, and only while the screen is not full yet
       drawFullScreenIconAt(FS_BL_X, FS_BL_Y, FS_BL_S);
       // the label next to the icon; it is hidden when the screen is already full
       if (!document.fullscreenElement) {
