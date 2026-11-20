@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.304-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.305-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -1834,6 +1834,7 @@
           fillRect(mx + x, my + y, 1, 1, '#FFF3B0');
         }
       }
+      ctx.globalAlpha = 1;   // the moon's pulsing glow must not fade everything drawn after it (the menus and text)
       // four bats flap round the cookie, with tiny orange eyes
       for (let i = 0; i < 4; i++) {
         const t = cookT * (0.6 + i * 0.15) + i * 1.6;
@@ -2787,10 +2788,11 @@
   canvas.addEventListener('pointercancel', () => { drag = null; });
 
   let wheelPending = 0;   // wheel distance not yet scrolled: eased in update(), so the list glides
+  let docsWheelPending = 0;   // the same for the document reader
   canvas.addEventListener('wheel', (e) => {
     if (docsOpen >= 0) {   // the document scrolls with the wheel
       e.preventDefault();
-      docsScroll = Math.max(0, Math.min(docMaxScroll(DOCS[docsOpen]), docsScroll + e.deltaY * 0.5));
+      docsWheelPending += e.deltaY * 0.5;   // eased in update(), like the lists
       return;
     }
     if (!panelOpen) return;
@@ -2812,6 +2814,17 @@
       const before = scroll;
       clampScroll();
       if (scroll !== before) wheelPending = 0;   // stop at the ends of the list
+    }
+    if (docsWheelPending !== 0) {
+      if (docsOpen < 0) docsWheelPending = 0;
+      else {
+        const step = docsWheelPending * Math.min(1, dt * 14);
+        docsWheelPending -= step;
+        if (Math.abs(docsWheelPending) < 0.05) docsWheelPending = 0;
+        const want = docsScroll + step;
+        docsScroll = Math.max(0, Math.min(docMaxScroll(DOCS[docsOpen]), want));
+        if (docsScroll !== want) docsWheelPending = 0;
+      }
     }
     if (splashT > 0) splashT = Math.max(0, splashT - dt);
     animT += dt;
