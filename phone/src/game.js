@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.349-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.350-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -1175,7 +1175,9 @@
     fillRect(84, 46, 152, 50, COL.panel);
     fillRect(84, 46, 152, 1, COL.panelEdge); fillRect(84, 95, 152, 1, COL.panelEdge);
     fillRect(84, 46, 1, 50, COL.panelEdge); fillRect(235, 46, 1, 50, COL.panelEdge);
-    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 85, 235, 56 + i * 10, 64 + i * 10, COL.text));
+    // the text is centred between the top edge and the OK button (the centre is at y 66)
+    const n = noticeWin.lines.length, y0 = Math.round(66 - (10 * (n - 1) + 8) / 2);
+    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 85, 235, y0 + i * 10, y0 + i * 10 + 8, COL.text));
     settingsButton(85, 86, 235, 95, 'ОК');   // full width, on the bottom edge of the window
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count)

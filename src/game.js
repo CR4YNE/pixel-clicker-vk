@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.349-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.350-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -1192,7 +1192,9 @@
     fillRect(80, 64, 160, 48, COL.panel);
     fillRect(80, 64, 160, 1, COL.panelEdge); fillRect(80, 111, 160, 1, COL.panelEdge);
     fillRect(80, 64, 1, 48, COL.panelEdge); fillRect(239, 64, 1, 48, COL.panelEdge);
-    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 81, 239, 72 + i * 10, 80 + i * 10, COL.text));
+    // the text is centred between the top edge and the OK button (the centre is at y 82)
+    const n = noticeWin.lines.length, y0 = Math.round(82 - (10 * (n - 1) + 8) / 2);
+    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 81, 239, y0 + i * 10, y0 + i * 10 + 8, COL.text));
     settingsButton(81, 100, 239, 111, 'ОК');   // full width, on the bottom edge of the window
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count; saved)
