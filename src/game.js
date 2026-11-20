@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.357-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.358-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2719,8 +2719,8 @@
   // the whole screen: a tap on the icon or in the settings asks the browser for it (browsers allow it only after a tap)
   function toggleFullScreen() {
     try {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen();
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen().catch(() => {});   // the browser may refuse: nothing changes
     } catch (err) { /* the browser refused: nothing changes */ }
   }
   function handleSettingsDown(gx, gy) {

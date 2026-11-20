@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.357-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.358-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -2774,8 +2774,8 @@
   }
   function toggleFullScreen() {
     try {
-      if (document.fullscreenElement) document.exitFullscreen();
-      else document.documentElement.requestFullscreen();
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else document.documentElement.requestFullscreen().catch(() => {});   // the browser may refuse: nothing changes
     } catch (err) { /* the browser refused: nothing changes */ }
   }
   function handleSettingsDown(gx, gy) {
@@ -2789,7 +2789,7 @@
       if (resetStage >= 3) { resetAll(); resetStage = 0; }
       return;
     }
-    if (inRect(gx, gy, 198, 60, 248, 74)) { toggleFullScreen(); return; }
+    if (inRect(gx, gy, 198, 51, 248, 65)) { toggleFullScreen(); return; }   // the full-screen toggle, drawn at y 53-63
     if (inRect(gx, gy, 120, 22, 246, 34)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
     if (inRect(gx, gy, 120, 38, 246, 50)) { sliderDrag = 'music'; setSlider('music', gx); return; }
   }
