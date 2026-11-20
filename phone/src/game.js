@@ -4116,8 +4116,9 @@
       updateLaunchGate();   // the gate is updated here, not only in the frame loop
       if (ok) syncPurchases();
     };
-    xhr.onerror = () => retry('ОШИБКА');
-    xhr.ontimeout = () => retry('ТАЙМАУТ');
+    // the code shows where the request stopped: readyState 1 = not sent or opened, 2 = sent, 3 = loading, 4 = done; status 0 = no answer
+    xhr.onerror = () => retry('ОШИБКА ' + xhr.readyState + '/' + xhr.status);
+    xhr.ontimeout = () => retry('ТАЙМАУТ ' + xhr.readyState + '/' + xhr.status);
     xhr.send();
   }
   if (launchState === 'checking') {
