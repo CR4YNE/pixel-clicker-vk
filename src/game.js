@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.333-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.336-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -44,7 +44,7 @@
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
   const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
-  const ROW_H = 31;             // three text lines per row
+  const ROW_H = 28;             // three text lines per row, tight: more goods fit the sheet
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
 
@@ -100,6 +100,14 @@
 
   // ---------- data (placeholder names; numbers are first-pass balance) ----------
   // КЛИК: each adds `add` coins per click for every bought one (order = by click income)
+  // the names in the hint "КУПИ 5 ..." in the right form for five of them
+  const FIVE = {
+    'СКАЛКА': 'СКАЛОК', 'ТЕСТО': 'ПОРЦИЙ ТЕСТА', 'ШОКОЛАД': 'ПЛИТОК ШОКОЛАДА', 'МУКА': 'МЕШКОВ МУКИ', 'ЯЙЦО': 'ЯИЦ',
+    'МЁД': 'БАНОК МЁДА', 'СЛИВКИ': 'ПАКЕТОВ СЛИВОК', 'КОРИЦА': 'ПАЧЕК КОРИЦЫ', 'ИМБИРЬ': 'КУСКОВ ИМБИРЯ', 'ГЛАЗУРЬ': 'ЛОЖЕК ГЛАЗУРИ',
+    'МИКСЕР': 'МИКСЕРОВ', 'ПЕЧЬ': 'ПЕЧЕЙ', 'ХОЛОДИЛЬНИК': 'ХОЛОДИЛЬНИКОВ', 'ПЛИТА': 'ПЛИТ', 'КОФЕМАШИНА': 'КОФЕМАШИН',
+    'КОНВЕКТОМАТ': 'КОНВЕКТОМАТОВ', 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАНОВ', 'ТЕСТОМЕС': 'ТЕСТОМЕСОВ', 'КОНВЕЙЕР': 'КОНВЕЙЕРОВ', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИК ПРЯНИКОВ',
+  };
+  const fiveOf = (name) => FIVE[name] || name;
   const CLICK_UPGRADES = [
     { name: 'СКАЛКА', base: 50n, add: 1n },
     { name: 'ТЕСТО', base: 100n, add: 2n },
@@ -3165,8 +3173,8 @@
 
   // text and price for one row of the current tab
   function rowInfo(i, it) {
-    if (tab === 'click' && listLocked('click', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + CLICK_UPGRADES[i - 1].name, price: '', can: false };
-    if (tab === 'tech' && listLocked('tech', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + TECHNIKA[i - 1].name, price: '', can: false };
+    if (tab === 'click' && listLocked('click', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(CLICK_UPGRADES[i - 1].name), price: '', can: false };
+    if (tab === 'tech' && listLocked('tech', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(TECHNIKA[i - 1].name), price: '', can: false };
     if (tab === 'click') {
       const owned = clickOwned[i];
       const p = plan('click', i);
@@ -3232,7 +3240,7 @@
     if (it.kind === 'ad') {
       line2 = adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + Math.ceil(adBoost[it.id] / 60) + ' МИН' : 'ЗА ПРОСМОТР: 10 МИНУТ';
     } else {
-      line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : 'СКОРО: ОПЛАТА ГОЛОСАМИ';   // placeholder until payments exist
+      line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : '';   // owned: КУПЛЕНО; not owned: nothing (the price is on the row)
     }
     // a free ad that is running shows the time left on the row (the row draws only this line)
     const left = it.kind === 'ad' && adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + Math.ceil(adBoost[it.id] / 60) + ' МИН' : it.line;
@@ -3288,9 +3296,9 @@
       if (row.can) fillRect(PX0 + 6, y, 2, ROW_H - 3, accent());   // affordable: bar on the left, not only colour
       // three lines: name; what one purchase gives; status; price on the right
       drawText(it.name, 1, PX0 + 10, y + 2, COL.text, 'left');
-      drawText(row.line1, 1, PX0 + 10, y + 11, accent(), 'left');
-      drawText(row.line2, 1, PX0 + 10, y + 20, dimTone(), 'left');
-      drawText(row.price, 1, PX1 - 12 - textWidth(row.price, 1), y + 11, row.can ? accent() : dimTone(), 'left');
+      drawText(row.line1, 1, PX0 + 10, y + 10, accent(), 'left');
+      drawText(row.line2, 1, PX0 + 10, y + 18, dimTone(), 'left');
+      drawText(row.price, 1, PX1 - 12 - textWidth(row.price, 1), y + 10, row.can ? accent() : dimTone(), 'left');
     });
     ctx.restore();
 
