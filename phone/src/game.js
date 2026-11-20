@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.325-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.326-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -4153,7 +4153,11 @@
   }
   let fitW = 0, fitH = 0;   // the window size the canvas was last fitted to
   function fitScreen() {
-    const k = Math.max(1, Math.floor(Math.min(window.innerWidth / PHONE_W, window.innerHeight / PHONE_H)));
+    // the size left inside the safe area (the body's padding is the notch and the system bars)
+    const cs = getComputedStyle(document.body);
+    const availW = window.innerWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const availH = window.innerHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const k = Math.max(1, Math.floor(Math.min(availW / PHONE_W, availH / PHONE_H)));
     canvas.style.width = PHONE_W * k + 'px';
     canvas.style.height = PHONE_H * k + 'px';
   }
