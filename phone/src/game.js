@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.363-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.364-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -613,7 +613,7 @@
   let panelOpen = false;
   let settingsOpen = false;
   const settings = { sound: 0.8, music: 0.5, colorblind: false, animBg: true, shake: false, skin: 'classic' };   // sound: no effects yet; music: 0..1
-  let resetStage = 0;          // reset needs three presses
+  let resetWin = null;         // the reset window: {stage}: 1 what is lost and what stays, 2 and 3 the two confirmations
   let sliderDrag = null;       // 'sound' | 'music' while a slider is held
   let panelT = 0;               // 0 = closed, 1 = open (animated)
   let scroll = 0;               // list scroll in game px
@@ -675,7 +675,7 @@
   function closeMenus(except) {
     if (except !== 'skin') { skinWin = false; skinPreview = null; }
     if (except !== 'shop') { if (panelOpen) shopReturn = true; panelOpen = false; }
-    if (except !== 'settings') { settingsOpen = false; resetStage = 0; }
+    if (except !== 'settings') { settingsOpen = false; resetWin = null; }
     if (except !== 'rebirth') rebirthOpen = false;
     if (except !== 'progress') { progWin = null; dailyPreview = null; }
     if (except !== 'premium') premiumWin = null;
@@ -2597,7 +2597,7 @@
     drawText('ТРЯСКА ЭКРАНА', 1, 74, 82, COL.text, 'left');
     fillRect(202, 81, 44, 10, settings.shake ? '#5c5096' : COL.track);
     fillRect(settings.shake ? 238 : 204, 82, 8, 8, COL.btnText);
-    settingsButton(74, 96, 246, 108, ['СБРОС ПРОГРЕССА', 'ТОЧНО СБРОСИТЬ?', 'ТОЧНО? ЭТО НЕОБРАТИМО!'][resetStage]);
+    settingsButton(74, 96, 246, 108, 'СБРОС ПРОГРЕССА');
     // the support and documents tabs, and the close button under them
     settingsButton(74, 110, 160, 122, 'ПОДДЕРЖКА');
     settingsButton(164, 110, 246, 122, 'ДОКУМЕНТЫ');
@@ -2745,6 +2745,34 @@
     saveGame();   // the volume is kept on this device (and in the VK cloud save)
   }
 
+  // the reset window (in the sheet): what is lost and what stays, then two confirmations (three steps in all)
+  function drawResetWin() {
+    fillRect(76, 8, 168, 126, COL.panel);
+    fillRect(76, 8, 168, 1, COL.panelEdge); fillRect(76, 133, 168, 1, COL.panelEdge);
+    fillRect(76, 8, 1, 126, COL.panelEdge); fillRect(243, 8, 1, 126, COL.panelEdge);
+    if (resetWin.stage === 1) {
+      drawTextBox('СБРОС ПРОГРЕССА', 1, 76, 244, 14, 22, accent());
+      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, МОНЕТЫ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ', 'НАСТРОЙКИ И СТАТИСТИКА'];
+      lines.forEach((t, i) => drawTextBox(t, 1, 80, 240, 28 + i * 10, 35 + i * 10, COL.text));
+      settingsButton(80, 106, 160, 120, 'ДАЛЕЕ');
+      settingsButton(164, 106, 240, 120, 'ОТМЕНА');
+    } else {
+      drawTextBox(resetWin.stage === 2 ? 'ТОЧНО СБРОСИТЬ?' : 'ТОЧНО? ЭТО НЕОБРАТИМО!', 1, 76, 244, 56, 64, COL.text);
+      settingsButton(80, 96, 160, 110, 'ДА');
+      settingsButton(164, 96, 240, 110, 'НЕТ');
+    }
+  }
+  function handleResetDown(gx, gy) {
+    if (resetWin.stage === 1) {
+      if (inRect(gx, gy, 80, 106, 160, 120)) resetWin = { stage: 2 };
+      else if (inRect(gx, gy, 164, 106, 240, 120)) resetWin = null;
+      return;
+    }
+    if (inRect(gx, gy, 80, 96, 160, 110)) {
+      if (resetWin.stage === 2) resetWin = { stage: 3 };
+      else { resetAll(); resetWin = null; }
+    } else if (inRect(gx, gy, 164, 96, 240, 110)) resetWin = null;
+  }
   function resetAll() {
     coins = 0n;
     clickOwned = clickOwned.map(() => 0);
@@ -2779,16 +2807,13 @@
     } catch (err) { /* the browser refused: nothing changes */ }
   }
   function handleSettingsDown(gx, gy) {
+    if (resetWin) { handleResetDown(gx, gy); return; }   // the reset window takes all taps
     if (inRect(gx, gy, 74, 110, 160, 122)) { supportOpen = true; return; }
     if (inRect(gx, gy, 164, 110, 246, 122)) { docsListOpen = true; return; }
-    if (inRect(gx, gy, 74, 124, 246, 136)) { settingsOpen = false; resetStage = 0; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
+    if (inRect(gx, gy, 74, 124, 246, 136)) { settingsOpen = false; resetWin = null; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
     if (inRect(gx, gy, 198, 66, 248, 78)) { settings.animBg = !settings.animBg; saveGame(); return; }
     if (inRect(gx, gy, 198, 80, 248, 92)) { settings.shake = !settings.shake; saveGame(); return; }
-    if (inRect(gx, gy, 74, 96, 246, 108)) {
-      resetStage += 1;
-      if (resetStage >= 3) { resetAll(); resetStage = 0; }
-      return;
-    }
+    if (inRect(gx, gy, 74, 96, 246, 108)) { resetWin = { stage: 1 }; return; }   // opens the reset window
     if (inRect(gx, gy, 198, 51, 248, 65)) { toggleFullScreen(); return; }   // the full-screen toggle, drawn at y 53-63
     if (inRect(gx, gy, 120, 22, 246, 34)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
     if (inRect(gx, gy, 120, 38, 246, 50)) { sliderDrag = 'music'; setSlider('music', gx); return; }
@@ -3712,6 +3737,7 @@
     if (ev && ev.type === 'appetite') drawAppetite();
     if (loadingLeft > 0) drawLoading();
     if (consentOpen) { inSheet(drawConsent); if (docsOpen >= 0) inSheet(drawDocReader); }   // the first-launch window is the top layer
+    if (resetWin) inSheet(drawResetWin);
     if (noticeWin) inSheet(drawNotice);
     if (boostMenuOpen) inSheet(drawBoostMenu);   // the same place as the other menus: the sheet under the scene
     if (restDue && !anyMenuOpenNow() && !consentOpen && loadingLeft <= 0) drawRestButton();
