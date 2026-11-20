@@ -627,6 +627,7 @@
   let shakeT = 0;
   const popups = [];
   const sparks = [];
+  const SPARKS_ON = false;   // no flying pixels on the phone: they load the phone (the +N popups stay)
 
   function coinX() {
     return COIN_X_CLOSED + (COIN_X_OPEN - COIN_X_CLOSED) * panelT;
@@ -652,7 +653,7 @@
     for (let k = 0; k < 8; k++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 60 + Math.random() * 80;
-      sparks.push({ x: gx, y: gy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, t: 0 });
+      if (SPARKS_ON) sparks.push({ x: gx, y: gy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, t: 0 });
     }
   }
 
@@ -776,7 +777,7 @@
         totalEarned += pay;
         popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + fmt(pay) });   // every auto tap shows its +N
         const sa = Math.random() * Math.PI * 2;
-        sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(sa) * 50, vy: Math.sin(sa) * 50 - 30, t: 0 });
+        if (SPARKS_ON) sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(sa) * 50, vy: Math.sin(sa) * 50 - 30, t: 0 });
       }
     }
     minuteAcc += minuteLeft > 0 ? 25 * dt : 0;   // the cooking minute only                             // 25 virtual presses a second
@@ -789,7 +790,7 @@
       popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + fmt(perClick) });   // middle of the screen, away from the counter
       const a = Math.random() * Math.PI * 2;
       const sp = 40 + Math.random() * 60;
-      sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: 0 });
+      if (SPARKS_ON) sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: 0 });
     }
     if (minuteLeft <= 0) minuteAcc = 0;
   }
