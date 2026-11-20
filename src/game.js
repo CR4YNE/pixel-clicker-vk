@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.278-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.296-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -20,10 +20,11 @@
   // 4 px from the screen edges and 4 px between buttons, 19 px tall, widths fitted to the text
   const TOP_Y0 = 3, TOP_Y1 = 21, TOP_GAP = 3, TOP_MARGIN = 3;   // 18 px tall; 1 px less from the top, the sides and between buttons
   const TOP_BUTTONS = [
-    { id: 'settings', w: 70 },
-    { id: 'achievements', w: 79 },
-    { id: 'rebirth', w: 93 },
-    { id: 'shop', w: 63 },   // stretched so its right edge is 3 px from the screen edge, like the settings button on the left
+    // the same 6 px of space on each side of every label (the widest label of the rebirth button sets its width)
+    { id: 'settings', w: 74 },     // НАСТРОЙКИ
+    { id: 'achievements', w: 67 }, // ПРОГРЕСС
+    { id: 'rebirth', w: 97 },      // ПЕРЕРОЖДЕНИЕ, the widest of its labels
+    { id: 'shop', w: 67 },         // МАГАЗИН, stretched so its right edge is 3 px from the screen edge
   ];
   function topRect(id) {
     let x = TOP_MARGIN;
@@ -47,6 +48,28 @@
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
 
+  // the Latin letters of the e-mails: added to the game's pixel font in the same 6 by 8 style
+  const LATIN_GLYPHS = {
+    '@': ["..####", "##....", "##..##", "##..##", "##..##", "##....", "..####", "......"],
+    'G': ["..####", "##....", "##....", "##..##", "##..##", "##..##", "##..##", "..####"],
+    'A': ["..##..", "##..##", "##..##", "######", "##..##", "##..##", "##..##", "##..##"],
+    'I': ["######", "..##..", "..##..", "..##..", "..##..", "..##..", "..##..", "######"],
+    'L': ["##....", "##....", "##....", "##....", "##....", "##....", "##....", "######"],
+    'B': ["####..", "##..##", "##..##", "####..", "##..##", "##..##", "##..##", "####.."],
+    'K': ["##..##", "##..##", "####..", "##....", "####..", "##..##", "##..##", "##..##"],
+    'D': ["####..", "##..##", "##..##", "##..##", "##..##", "##..##", "##..##", "####.."],
+    'Z': ["######", "....##", "..##..", "..##..", "..##..", "##....", "######", "......"],
+    'O': ["..##..", "##..##", "##..##", "##..##", "##..##", "##..##", "##..##", "..##.."],
+    'S': ["..####", "##....", "##....", "..##..", "....##", "....##", "####..", "......"],
+    'M': ["##..##", "######", "######", "##..##", "##..##", "##..##", "##..##", "##..##"],
+    'V': ["##..##", "##..##", "##..##", "##..##", "##..##", "##..##", "..##..", "..##.."],
+    'P': ["####..", "##..##", "##..##", "####..", "##....", "##....", "##....", "##...."],
+    'T': ["######", "..##..", "..##..", "..##..", "..##..", "..##..", "..##..", "..##.."],
+    'U': ["##..##", "##..##", "##..##", "##..##", "##..##", "##..##", "##..##", "..##.."],
+    'H': ["##..##", "##..##", "##..##", "######", "##..##", "##..##", "##..##", "##..##"],
+    '_': ["......", "......", "......", "......", "......", "......", "......", "######"]
+  };
+  for (const k of Object.keys(LATIN_GLYPHS)) if (!FONT[k]) FONT[k] = { rows: LATIN_GLYPHS[k], above: 0, below: 0 };
   const COL = {
     bg: '#221e40',
     floor: '#2e2854',
@@ -648,7 +671,7 @@
     autoAcc = 0;
     cycleEarned = 0n;
     rebirthOpen = false;
-    if (!rebirthAdOff) showFullScreenAd();   // the ad on a rebirth, unless a rebirth item was bought
+    if (!rebirthAdOff) startLoading();   // the ad on a rebirth, shown during a loading screen, unless a rebirth item was bought
     shopReturn = false;
     scroll = 0;
     saveGame();
@@ -1081,20 +1104,41 @@
   // an ad for a skin: the ad SDK is not connected yet, so the view counts right away
   // the reward ad: in VK it is shown by VK Bridge, and the reward comes only if the ad was shown;
   // outside VK (testing) the reward comes at once
+  // the reward ad that the player chooses: one per minute (the cooldown); with the ad-free purchase it is given at once
+  let rewardAdReadyAt = 0;
   function showRewardAd(onReward) {
-    if (premiumOwned.noads || !window.vkBridge) { onReward(); return; }   // with the ad-free purchase the reward comes at once
+    if (premiumOwned.noads) { onReward(); return; }
+    const now = Date.now();
+    if (now < rewardAdReadyAt) {
+      popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА ЧЕРЕЗ ' + Math.ceil((rewardAdReadyAt - now) / 1000) + ' С' });
+      return;
+    }
+    rewardAdReadyAt = now + 60000;
+    if (!window.vkBridge) { onReward(); return; }
     vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', use_waterfall: true })
       .then((data) => {
         if (data && data.result) onReward();
-        else popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМЫ НЕТ' });
+        else { rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМЫ НЕТ' }); }
       })
-      .catch(() => popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА НЕ ПРОШЛА' }));
+      .catch(() => { rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА НЕ ПРОШЛА' }); });
   }
   // the full-screen ad: on a rebirth, and every 7 minutes of play. The play timer stops while an ad is on the screen.
   const AD_PLAY_SECONDS = 420;     // 7 minutes of play between timed ads
   let adPlayAcc = 0;               // seconds of play since the last timed ad; a rebirth or reward ad does not reset it
   let adOpen = false;              // a full-screen ad is on the screen now
-  let rebirthAdOff = false;        // set by buying a rebirth item: no ad on a rebirth after that (saved)
+  let loadingLeft = 0;             // seconds the loading screen stays up
+  // the loading screen: shown before the full-screen ad, so the ad comes during an explicit loading
+  function startLoading() {
+    loadingLeft = 2.5;
+    showFullScreenAd();
+  }
+  function drawLoading() {
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.85)');
+    drawTextBox('ЗАГРУЗКА', 1, 0, W, H / 2 - 16, H / 2 - 6, COL.text);
+    const p = Math.min(1, (2.5 - loadingLeft) / 2.5);
+    fillRect(W / 2 - 60, H / 2 + 6, 120, 4, COL.btnFrame);
+    fillRect(W / 2 - 60, H / 2 + 6, Math.round(120 * p), 4, accent());
+  }
   function showFullScreenAd() {
     if (!window.vkBridge || adOpen) return;   // outside VK no ad is shown
     adOpen = true;
@@ -2424,11 +2468,97 @@
     fillRect(200, 104, 44, 10, settings.shake ? '#5c5096' : COL.track);
     fillRect(settings.shake ? 236 : 202, 105, 8, 8, COL.btnText);
     settingsButton(76, 126, 244, 141, ['СБРОС ПРОГРЕССА', 'ТОЧНО СБРОСИТЬ', 'ТОЧНО ЭТО НЕОБРАТИМО'][resetStage]);
-    settingsButton(76, 144, 244, 159, 'ЗАКРЫТЬ');
-    // the version and the developer: the very bottom of the window
-    drawText(VERSION.replace('-VK', '') + '   РАЗРАБОТЧИК: CR4YNE', 1, 160, 163, dimTone(), 'center');   // the version without the platform suffix, no dashes
+    // the support and documents tabs, and the close button under them
+    settingsButton(76, 144, 160, 158, 'ПОДДЕРЖКА');
+    settingsButton(164, 144, 244, 158, 'ДОКУМЕНТЫ');
+    settingsButton(76, 160, 244, 174, 'ЗАКРЫТЬ');
   }
 
+  // ---------- support and documents: the e-mails are copied, the documents are read in the game ----------
+  let supportOpen = false, docsListOpen = false, docsOpen = -1, docsScroll = 0;
+  const SUPPORT_EMAILS = ['CR4YNEGAMES@GMAIL.COM', 'BILLKAMIKADZE@GMAIL.COM'];
+  const DOC_TOP = 26, DOC_BOTTOM = 152, DOC_X = 66, DOC_W = 188;
+  // the copy button: a thin 1 px frame in the same colour as the menu's borders, and the inside of the card
+  function copyButton(x0, y0, x1, y1, label) {
+    fillRect(x0, y0, x1 - x0, y1 - y0, COL.panelEdge);
+    fillRect(x0 + 1, y0 + 1, x1 - x0 - 2, y1 - y0 - 2, COL.row);
+    drawTextBox(label, 1, x0, x1, y0, y1, COL.text);
+  }
+  // the copy button turns into СКОПИРОВАНО for 5 seconds after a copy
+  let copiedUntil = [0, 0];
+  function copyEmail(i) {
+    try { navigator.clipboard.writeText(SUPPORT_EMAILS[i]).catch(() => {}); } catch (err) { /* the browser refused */ }
+    copiedUntil[i] = Date.now() + 5000;
+  }
+  function drawSupportFrame(title) {
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
+    fillRect(SET_X0, SET_Y0, SET_X1 - SET_X0, SET_Y1 - SET_Y0, COL.panel);
+    fillRect(SET_X0, SET_Y0, SET_X1 - SET_X0, 1, COL.panelEdge);
+    fillRect(SET_X0, SET_Y1 - 1, SET_X1 - SET_X0, 1, COL.panelEdge);
+    fillRect(SET_X0, SET_Y0, 1, SET_Y1 - SET_Y0, COL.panelEdge);
+    fillRect(SET_X1 - 1, SET_Y0, 1, SET_Y1 - SET_Y0, COL.panelEdge);
+    drawTextBox(title, 1, SET_X0, SET_X1, SET_Y0 + 6, SET_Y0 + 16, COL.text);
+  }
+  function drawSupport() {
+    drawSupportFrame('ПОДДЕРЖКА');
+    drawTextBox('ПОЧТА ДЛЯ ОБРАЩЕНИЙ', 1, SET_X0, SET_X1, 30, 38, dimTone());
+    // one card per e-mail: the address on top, the copy button under it
+    SUPPORT_EMAILS.forEach((e, i) => {
+      const y = 46 + i * 48;
+      fillRect(70, y, 180, 36, COL.panelEdge);
+      fillRect(71, y + 1, 178, 34, COL.row);
+      drawTextBox(e, 1, 70, 250, y + 5, y + 13, COL.text);
+      copyButton(110, y + 18, 210, y + 30, Date.now() < copiedUntil[i] ? 'СКОПИРОВАНО' : 'КОПИРОВАТЬ');
+    });
+    drawTextBox('ОТВЕТИМ В ТЕЧЕНИЕ 7 ДНЕЙ', 1, SET_X0, SET_X1, 138, 146, dimTone());
+    settingsButton(76, 160, 244, 174, 'НАЗАД');
+  }
+  function drawDocsList() {
+    drawSupportFrame('ДОКУМЕНТЫ');
+    settingsButton(76, 56, 244, 72, 'СОГЛАШЕНИЕ');
+    settingsButton(76, 80, 244, 96, 'ПОЛИТИКА');
+    settingsButton(76, 160, 244, 174, 'НАЗАД');
+  }
+  // the height of a document's text, to know how far it can scroll
+  function docHeight(body) {
+    let y = 0;
+    body.split('\n').forEach((p) => {
+      if (p.trim() === '') { y += 11; return; }
+      y += wrapText(p, 1, DOC_W).length * 11 + 4;
+    });
+    return y;
+  }
+  function docMaxScroll(doc) { return Math.max(0, docHeight(doc.body) - (DOC_BOTTOM - DOC_TOP)); }
+  function drawDocReader() {
+    const doc = DOCS[docsOpen];
+    drawSupportFrame(docsOpen === 0 ? 'СОГЛАШЕНИЕ' : 'ПОЛИТИКА');
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(DOC_X - 2, DOC_TOP, DOC_W + 4, DOC_BOTTOM - DOC_TOP);
+    ctx.clip();
+    let y = DOC_TOP - docsScroll;
+    doc.body.split('\n').forEach((p) => {
+      if (p.trim() === '') { y += 11; return; }
+      y = drawWrapped(p, 1, DOC_X, y, DOC_W, COL.text, 11) + 4;
+    });
+    ctx.restore();
+    settingsButton(76, 160, 244, 174, 'НАЗАД');
+  }
+  function handleInfoDown(gx, gy) {
+    if (supportOpen) {
+      if (inRect(gx, gy, 110, 64, 210, 76)) { copyEmail(0); return; }
+      if (inRect(gx, gy, 110, 112, 210, 124)) { copyEmail(1); return; }
+      if (inRect(gx, gy, 76, 160, 244, 174)) supportOpen = false;
+      return;
+    }
+    if (docsListOpen) {
+      if (inRect(gx, gy, 76, 56, 244, 72)) { docsListOpen = false; docsOpen = 0; docsScroll = 0; return; }
+      if (inRect(gx, gy, 76, 80, 244, 96)) { docsListOpen = false; docsOpen = 1; docsScroll = 0; return; }
+      if (inRect(gx, gy, 76, 160, 244, 174)) docsListOpen = false;
+      return;
+    }
+    if (docsOpen >= 0 && inRect(gx, gy, 76, 160, 244, 174)) { docsOpen = -1; docsListOpen = true; }
+  }
   function setSlider(name, gx) {
     const v = Math.max(0, Math.min(1, (gx - SLIDER_X0) / SLIDER_W));
     settings[name] = Math.round(v * 20) / 20;
@@ -2460,7 +2590,9 @@
     } catch (err) { /* the browser refused: nothing changes */ }
   }
   function handleSettingsDown(gx, gy) {
-    if (inRect(gx, gy, 76, 144, 244, 159)) { settingsOpen = false; resetStage = 0; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
+    if (inRect(gx, gy, 76, 144, 160, 158)) { supportOpen = true; return; }
+    if (inRect(gx, gy, 164, 144, 244, 158)) { docsListOpen = true; return; }
+    if (inRect(gx, gy, 76, 160, 244, 174)) { settingsOpen = false; resetStage = 0; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
     if (inRect(gx, gy, 196, 86, 248, 100)) { settings.animBg = !settings.animBg; return; }
     if (inRect(gx, gy, 196, 102, 248, 116)) { settings.shake = !settings.shake; return; }
     if (inRect(gx, gy, 76, 126, 244, 141)) {
@@ -2508,6 +2640,7 @@
     // by default the game opens on the whole screen: the browser allows it after the first tap
     if (!fullScreenAsked) { fullScreenAsked = true; if (!document.fullscreenElement) enterFullScreen(); }
     const [gx, gy] = toGame(e);
+    if (supportOpen || docsListOpen || docsOpen >= 0) { handleInfoDown(gx, gy); return; }
     if (settingsOpen) { handleSettingsDown(gx, gy); return; }   // the settings window blocks everything else
     if (rebirthOpen) { handleRebirthDown(gx, gy); return; }      // so does the rebirth window
     if (skinOffer) { handleSkinOfferDown(gx, gy); return; }
@@ -2613,6 +2746,11 @@
 
   let wheelPending = 0;   // wheel distance not yet scrolled: eased in update(), so the list glides
   canvas.addEventListener('wheel', (e) => {
+    if (docsOpen >= 0) {   // the document scrolls with the wheel
+      e.preventDefault();
+      docsScroll = Math.max(0, Math.min(docMaxScroll(DOCS[docsOpen]), docsScroll + e.deltaY * 0.5));
+      return;
+    }
     if (!panelOpen) return;
     const [gx, gy] = toGame(e);
     if (inRect(gx, gy, PX0, listTop(), PX1, listBottom())) {
@@ -2623,6 +2761,7 @@
 
   // ---------- update ----------
   function update(dt) {
+    if (loadingLeft > 0) loadingLeft = Math.max(0, loadingLeft - dt);
     if (wheelPending !== 0) {
       const step = wheelPending * Math.min(1, dt * 14);
       wheelPending -= step;
@@ -2716,7 +2855,7 @@
     // the timed ad: counts only while play goes on (not while an ad is open) and never with the ad-free purchase
     if (!premiumOwned.noads && !adOpen) {
       adPlayAcc += dt;
-      if (adPlayAcc >= AD_PLAY_SECONDS) { adPlayAcc = 0; showFullScreenAd(); }
+      if (adPlayAcc >= AD_PLAY_SECONDS) { adPlayAcc = 0; startLoading(); }
     }
     const today = mskDate();
     if (dailySecDate !== today) { dailySecDate = today; dailySec = 0; }
@@ -3259,7 +3398,7 @@
     // small line under the counter: automatic coins per second
     drawSmallText('+' + String(Math.floor(autoPerSec())) + ' В СЕК', cx, COUNTER_AUTO_Y, '#ffffff');   // whole numbers only: the font has no '.'
     drawSettingsButton();
-    drawFullScreenIcon();
+    if (document.fullscreenEnabled) drawFullScreenIcon();   // only where the browser allows fullscreen
     drawTopButton('ПРОГРЕСС', ...topRect('achievements'));
     if (dailyCanClaim() && Math.sin(cookT * 6) > 0) {
       const [ax0, ax1, ay0] = topRect('achievements');   // topRect gives [x0, x1, y0, y1]
@@ -3274,12 +3413,16 @@
     // Боня's bubble is drawn over the shop, so she can still send her message while it is open
     if (bonyaSpeechLeft > 0 && adBoost.double <= 0 && !speechMenuOpen()) drawBonyaBubble();
     if (settingsOpen) drawSettings();
+    if (supportOpen) drawSupport();
+    else if (docsListOpen) drawDocsList();
+    else if (docsOpen >= 0) drawDocReader();
     if (rebirthOpen) drawRebirth();
     if (progWin) drawProgWin();
     if (skinWin) drawSkinWin();
     if (premiumWin) drawPremiumWin();
     if (skinOffer) drawSkinOffer();
     if (ev && ev.type === 'appetite') drawAppetite();
+    if (loadingLeft > 0) drawLoading();
     if (boostMenuOpen) drawBoostMenu();
     ctx.restore();
   }
@@ -3439,6 +3582,43 @@
     });
   }
 
+  // ---------- VK storage: the save is kept on VK too, so the same progress shows on every platform ----------
+  // VK keeps values of up to 4096 characters, so the save goes in chunks; a save is sent at most once every 15 seconds
+  const VK_CHUNK = 3900;
+  let vkSaveTimer = null;
+  function vkSaveSoon() {
+    if (!window.vkBridge) return;
+    clearTimeout(vkSaveTimer);
+    vkSaveTimer = setTimeout(vkSaveNow, 15000);
+  }
+  function vkSaveNow() {
+    let raw = null;
+    try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
+    if (!raw) return;
+    const parts = [];
+    for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
+    vkBridge.send('VKWebAppStorageSet', { key: 'save_n', value: String(parts.length) }).catch(() => {});
+    parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: 'save_' + i, value: p }).catch(() => {}));
+  }
+  // at the start: if the VK copy is newer than this device's save, take it and reload once
+  function vkLoadCloud() {
+    vkBridge.send('VKWebAppStorageGet', { keys: ['save_n'] }).then((res) => {
+      const n = parseInt(res.keys[0].value, 10);
+      if (!(n > 0)) return null;
+      const keys = [];
+      for (let i = 0; i < n; i++) keys.push('save_' + i);
+      return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
+        const cloud = res2.keys.map((k) => k.value).join('');
+        let mine = 0, theirs = 0;
+        try { mine = (JSON.parse(localStorage.getItem(SAVE_KEY) || '{}').savedAt) || 0; } catch (e) { mine = 0; }
+        try { theirs = (JSON.parse(cloud).savedAt) || 0; } catch (e) { return; }
+        if (theirs > mine) {
+          localStorage.setItem(SAVE_KEY, cloud);
+          location.reload();
+        }
+      });
+    }).catch(() => {});
+  }
   // ---------- saving: progress and settings in localStorage (fails quietly if unavailable) ----------
   const SAVE_KEY = 'kucha-pryanikov-save-v1';
   function saveGame() {
@@ -3467,7 +3647,9 @@
         dailySecDate,
         totalBought,
         settings,
+        savedAt: Date.now(),
       }));
+      vkSaveSoon();
     } catch (err) {
       // storage blocked or full: keep playing without saving
     }
@@ -3544,6 +3726,15 @@
     }
   }
   loadGame();
+  if (window.vkBridge) vkLoadCloud();
+  // the sound stops when the app is hidden (VKWebAppViewHide) and comes back when it is shown again
+  if (window.vkBridge && vkBridge.subscribe) {
+    vkBridge.subscribe((e) => {
+      const type = e && e.detail && e.detail.type;
+      if (type === 'VKWebAppViewHide' && audioCtx) audioCtx.suspend();
+      if (type === 'VKWebAppViewRestore' && audioCtx) audioCtx.resume();
+    });
+  }
   setInterval(saveGame, 5000);
   window.addEventListener('pagehide', saveGame);
 

@@ -3,8 +3,6 @@
 <head>
   <meta charset="utf-8">
   <script>
-    // one link for every device: VK tells the platform in vk_platform; a phone goes to the portrait version,
-    // the same address parameters are kept, so the VK bridge still works there
     (function () {
       var m = /[?&]vk_platform=([^&]*)/.exec(location.search);
       var p = m ? decodeURIComponent(m[1]) : '';
@@ -45,7 +43,8 @@
       document.head.appendChild(s);
     }
   </script>
-  <script src="src/font-data.js?v=5"></script>
-  <script src="src/game.js?v=357"></script>
+  <script src="src/font-data.js?v=6"></script>
+  <script src="src/docs-text.js?v=4"></script>
+  <script src="src/game.js?v=376"></script>
 </body>
 </html>
