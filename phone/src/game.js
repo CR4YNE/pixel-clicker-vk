@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.331-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.332-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -892,7 +892,7 @@
     if (TEST_FREE_PREMIUM) return Promise.resolve({ ok: true });
     // the same VK payment form as on the desktop: the purchase is made in votes, the server confirms it
     if (!window.vkBridge) return Promise.resolve({ ok: false, msg: 'ОПЛАТА ТОЛЬКО В ВК' });
-    return vkBridge.send('VKWebAppOpenPayForm', { app_id: VK_APP_ID, action: 'pay-to-service', params: { item: id } })
+    return vkBridge.send('VKWebAppShowOrderBox', { type: 'item', item: id })
       .then(() => ({ ok: true }))
       .catch((e) => ({ ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: vkErrorCode(e) }));
   }

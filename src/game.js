@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.331-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.332-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -877,12 +877,12 @@
   // Payment goes through the VK platform; until it is connected, payProduct() reports that it is not available.
   // TEST MODE: while the game is not released, every premium item is free. Set to false before release.
   const TEST_FREE_PREMIUM = false;
-  // VK payments: the purchase is made in the VK payment form (votes); the server (vk-payments/worker.js) confirms it
+  // VK payments: the purchase is made for votes in the VK order box; the server (vk-payments/worker.js) confirms it
   const VK_APP_ID = 54907536;
   function payProduct(id) {
     if (TEST_FREE_PREMIUM) return Promise.resolve({ ok: true });
     if (!window.vkBridge) return Promise.resolve({ ok: false, msg: 'ОПЛАТА ТОЛЬКО В ВК' });
-    return vkBridge.send('VKWebAppOpenPayForm', { app_id: VK_APP_ID, action: 'pay-to-service', params: { item: id } })
+    return vkBridge.send('VKWebAppShowOrderBox', { type: 'item', item: id })
       .then(() => ({ ok: true }))
       .catch((e) => ({ ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: vkErrorCode(e) }));
   }
