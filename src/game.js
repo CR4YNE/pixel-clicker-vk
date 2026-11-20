@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.330-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.331-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -152,36 +152,36 @@
   }
   // ПРЕМИУМ (ян, пока без оплаты: кнопки заглушки) и бусты за рекламу (10 минут)
   const PREMIUM_ITEMS = [
-    { kind: 'premium', id: 'double', name: '2Х ДОХОД', line: 'НАВСЕГДА', price: '40 ГОЛОСОВ' },
-    { kind: 'premium', id: 'rebirth2', name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', line: 'НАВСЕГДА', price: '40 ГОЛОСОВ' },
-    { kind: 'premium', id: 'discount', name: 'СКИДКА 50% НА ВСЕ', line: 'КРОМЕ ПРЕМИУМА', price: '40 ГОЛОСОВ' },
-    { kind: 'premium', id: 'triple', name: '3Х ДОХОД', line: 'НАВСЕГДА', price: '65 ГОЛОСОВ' },
-    { kind: 'premium', id: 'autoclick', name: 'АВТО-КЛИК', line: '10 В СЕКУНДУ', price: '25 ГОЛОСОВ' },
-    { kind: 'premium', id: 'bundle', name: 'ПАКЕТ ВСЁ ВМЕСТЕ', line: 'НАВСЕГДА', price: '120 ГОЛОСОВ' },
-    { kind: 'premium', id: 'noads', name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', line: 'НАВСЕГДА', price: '95 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb1', add: 1, name: '+1 ПЕРЕРОЖДЕНИЕ', line: 'ВЫШЕ ДОХОД', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb2', add: 2, name: '+2 ПЕРЕРОЖДЕНИЯ', line: 'ВЫШЕ ДОХОД', price: '13 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb5', add: 5, name: '+5 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '25 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb10', add: 10, name: '+10 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '45 ГОЛОСОВ' },
+    { kind: 'premium', id: 'double', name: '2Х ДОХОД', line: 'НАВСЕГДА', price: '6 ГОЛОСОВ' },
+    { kind: 'premium', id: 'rebirth2', name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', line: 'НАВСЕГДА', price: '6 ГОЛОСОВ' },
+    { kind: 'premium', id: 'discount', name: 'СКИДКА 50% НА ВСЕ', line: 'КРОМЕ ПРЕМИУМА', price: '6 ГОЛОСОВ' },
+    { kind: 'premium', id: 'triple', name: '3Х ДОХОД', line: 'НАВСЕГДА', price: '10 ГОЛОСОВ' },
+    { kind: 'premium', id: 'autoclick', name: 'АВТО-КЛИК', line: '10 В СЕКУНДУ', price: '4 ГОЛОСОВ' },
+    { kind: 'premium', id: 'bundle', name: 'ПАКЕТ ВСЁ ВМЕСТЕ', line: 'НАВСЕГДА', price: '18 ГОЛОСОВ' },
+    { kind: 'premium', id: 'noads', name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', line: 'НАВСЕГДА', price: '14 ГОЛОСОВ' },
+    { kind: 'premium', id: 'reb1', add: 1, name: '+1 ПЕРЕРОЖДЕНИЕ', line: 'ВЫШЕ ДОХОД', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'reb2', add: 2, name: '+2 ПЕРЕРОЖДЕНИЯ', line: 'ВЫШЕ ДОХОД', price: '2 ГОЛОСОВ' },
+    { kind: 'premium', id: 'reb5', add: 5, name: '+5 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '4 ГОЛОСОВ' },
+    { kind: 'premium', id: 'reb10', add: 10, name: '+10 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '7 ГОЛОСОВ' },
     { kind: 'ad', id: 'double', name: '2Х ДОХОД', line: '10 МИНУТ', price: 'РЕКЛАМА' },
     { kind: 'ad', id: 'discount', name: 'СКИДКА 50% НА ВСЕ', line: '10 МИНУТ', price: 'РЕКЛАМА' },
-    { kind: 'premium', id: 'skin_royal', name: 'КОРОЛЕВСКИЙ ПРЯНИК', line: 'ЗОЛОТО И КОРОНА', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_ghost', name: 'ПРИЗРАЧНЫЙ ПРЯНИК', line: 'ДУХИ И ТУМАН', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_neontube', name: 'НЕОНОВЫЙ ПРЯНИК', line: 'ТРУБКА И СВЕЧЕНИЕ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_crystal', name: 'КРИСТАЛЛ ПРЯНИК', line: 'ЛЁД И СНЕЖИНКИ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_volcano', name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', line: 'ЛАВА И ИСКРЫ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_solar', name: 'СОЛНЕЧНЫЙ ПРЯНИК', line: '8 ПЛАНЕТ ВОКРУГ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_starry', name: 'ЗВЁЗДНЫЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ЛУНА', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_caramel', name: 'КАРАМЕЛЬНЫЙ ПРЯНИК', line: 'КАПЛИ И ЛУЖИЦА', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_gzhel', name: 'ГЖЕЛЬСКИЙ ПРЯНИК', line: 'СИНИЕ УЗОРЫ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_rainbow', name: 'РАДУЖНЫЙ ПРЯНИК', line: 'ДУГА И КОНФЕТТИ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_neon', name: 'КОСМИЧЕСКИЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ИСКРЫ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_sea', name: 'МОРСКОЙ ПРЯНИК', line: 'ПУЗЫРИ И РЫБКА', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_halloween', name: 'ХЭЛЛОУИНСКИЙ ПРЯНИК', line: 'ЛЕТУЧИЕ МЫШИ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_easter', name: 'ПАСХАЛЬНЫЙ ПРЯНИК', line: 'ЯЙЦА И ЛЕПЕСТКИ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_zefir', name: 'ЗЕФИРНЫЙ ПРЯНИК', line: 'ОБЛАКО И СЕРДЦА', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ ПРЯНИК', line: 'ЁЛКИ И ОЛЕНЬ', price: '7 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skins_all', name: 'ВСЕ СКИНЫ', line: 'СЕЙЧАС: 1 СКИН', price: '30 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_royal', name: 'КОРОЛЕВСКИЙ ПРЯНИК', line: 'ЗОЛОТО И КОРОНА', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_ghost', name: 'ПРИЗРАЧНЫЙ ПРЯНИК', line: 'ДУХИ И ТУМАН', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_neontube', name: 'НЕОНОВЫЙ ПРЯНИК', line: 'ТРУБКА И СВЕЧЕНИЕ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_crystal', name: 'КРИСТАЛЛ ПРЯНИК', line: 'ЛЁД И СНЕЖИНКИ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_volcano', name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', line: 'ЛАВА И ИСКРЫ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_solar', name: 'СОЛНЕЧНЫЙ ПРЯНИК', line: '8 ПЛАНЕТ ВОКРУГ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_starry', name: 'ЗВЁЗДНЫЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ЛУНА', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_caramel', name: 'КАРАМЕЛЬНЫЙ ПРЯНИК', line: 'КАПЛИ И ЛУЖИЦА', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_gzhel', name: 'ГЖЕЛЬСКИЙ ПРЯНИК', line: 'СИНИЕ УЗОРЫ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_rainbow', name: 'РАДУЖНЫЙ ПРЯНИК', line: 'ДУГА И КОНФЕТТИ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_neon', name: 'КОСМИЧЕСКИЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ИСКРЫ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_sea', name: 'МОРСКОЙ ПРЯНИК', line: 'ПУЗЫРИ И РЫБКА', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_halloween', name: 'ХЭЛЛОУИНСКИЙ ПРЯНИК', line: 'ЛЕТУЧИЕ МЫШИ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_easter', name: 'ПАСХАЛЬНЫЙ ПРЯНИК', line: 'ЯЙЦА И ЛЕПЕСТКИ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_zefir', name: 'ЗЕФИРНЫЙ ПРЯНИК', line: 'ОБЛАКО И СЕРДЦА', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ ПРЯНИК', line: 'ЁЛКИ И ОЛЕНЬ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skins_all', name: 'ВСЕ СКИНЫ', line: 'СЕЙЧАС: 1 СКИН', price: '5 ГОЛОСОВ' },
   ];
   const AD_BOOST_SECONDS = 600;
   // which skin each premium shop item shows in its purchase preview (a new skin: add it here too)

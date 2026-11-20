@@ -5,11 +5,11 @@
 
 // Цены товаров в голосах: id товара (как в игре) -> цена
 const PRICES = {
-  double: 25, triple: 65, autoclick: 25, bundle: 120, discount: 40, noads: 95,
-  reb1: 7, reb2: 13, reb5: 25, reb10: 45,
-  skin_royal: 7, skin_ghost: 7, skin_neontube: 7, skin_crystal: 7, skin_volcano: 7,
-  skin_solar: 7, skin_starry: 7, skin_caramel: 7, skin_gzhel: 7, skin_rainbow: 7,
-  skin_neon: 7, skin_sea: 7, skin_halloween: 7, skin_easter: 7, skin_zefir: 7, skin_newyear: 7,
+  double: 6, triple: 10, autoclick: 4, bundle: 18, discount: 6, noads: 14, skins_all: 5,
+  reb1: 1, reb2: 2, reb5: 4, reb10: 7,
+  skin_royal: 1, skin_ghost: 1, skin_neontube: 1, skin_crystal: 1, skin_volcano: 1,
+  skin_solar: 1, skin_starry: 1, skin_caramel: 1, skin_gzhel: 1, skin_rainbow: 1,
+  skin_neon: 1, skin_sea: 1, skin_halloween: 1, skin_easter: 1, skin_zefir: 1, skin_newyear: 1,
 };
 
 export default {
