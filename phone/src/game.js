@@ -2753,7 +2753,7 @@
     fillRect(76, 8, 1, 126, COL.panelEdge); fillRect(243, 8, 1, 126, COL.panelEdge);
     if (resetWin.stage === 1) {
       drawTextBox('СБРОС ПРОГРЕССА', 1, 76, 244, 14, 22, accent());
-      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ И СТАТИСТИКА'];
+      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'СТАТИСТИКА И ДОСТИЖЕНИЯ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ'];
       lines.forEach((t, i) => drawTextBox(t, 1, 80, 240, 28 + i * 10, 35 + i * 10, COL.text));
       settingsButton(80, 106, 160, 120, 'ДАЛЕЕ');
       settingsButton(164, 106, 240, 120, 'ОТМЕНА');
@@ -2784,6 +2784,12 @@
     rebirths = 0;
     cycleEarned = 0n;
     saveGame();
+    // statistics and achievements (the achievements are counted from these) start again
+    totalEarned = 0n;
+    playerClicks = 0;
+    playSec = 0;
+    totalBought = 0;
+    bestProkOneRebirth = 0;
   }
 
   // the whole screen: a tap in the settings asks the browser for it (browsers allow it only after a tap)

@@ -2709,7 +2709,7 @@
     fillRect(56, 16, 1, 150, COL.panelEdge); fillRect(263, 16, 1, 150, COL.panelEdge);
     if (resetWin.stage === 1) {
       drawTextBox('СБРОС ПРОГРЕССА', 1, 56, 264, 24, 32, accent());
-      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ И СТАТИСТИКА'];
+      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'СТАТИСТИКА И ДОСТИЖЕНИЯ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ'];
       lines.forEach((t, i) => drawTextBox(t, 1, 60, 260, 40 + i * 12, 48 + i * 12, COL.text));
       settingsButton(60, 140, 160, 156, 'ДАЛЕЕ');
       settingsButton(160, 140, 260, 156, 'ОТМЕНА');
@@ -2740,6 +2740,12 @@
     rebirths = 0;
     cycleEarned = 0n;
     saveGame();
+    // statistics and achievements (the achievements are counted from these) start again
+    totalEarned = 0n;
+    playerClicks = 0;
+    playSec = 0;
+    totalBought = 0;
+    bestProkOneRebirth = 0;
   }
 
   let fullScreenAsked = false;   // the first tap of the game asks for the whole screen once
