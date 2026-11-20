@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.336-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.337-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -44,7 +44,7 @@
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
   const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
-  const ROW_H = 28;             // three text lines per row, tight: more goods fit the sheet
+  const ROW_H = 30;             // three text lines per row; a 4 px gap between the rows
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
 
@@ -3292,8 +3292,8 @@
       const y = listTop() + i * ROW_H - Math.round(scroll);
       if (y + ROW_H < listTop() || y > listBottom()) return;
       const row = rowInfo(i, it);
-      fillRect(PX0 + 6, y, PX1 - PX0 - 12, ROW_H - 3, row.can ? COL.rowHi : COL.row);
-      if (row.can) fillRect(PX0 + 6, y, 2, ROW_H - 3, accent());   // affordable: bar on the left, not only colour
+      fillRect(PX0 + 6, y, PX1 - PX0 - 12, ROW_H - 4, row.can ? COL.rowHi : COL.row);
+      if (row.can) fillRect(PX0 + 6, y, 2, ROW_H - 4, accent());   // affordable: bar on the left, not only colour
       // three lines: name; what one purchase gives; status; price on the right
       drawText(it.name, 1, PX0 + 10, y + 2, COL.text, 'left');
       drawText(row.line1, 1, PX0 + 10, y + 10, accent(), 'left');
