@@ -3962,8 +3962,10 @@
   // ---------- loop ----------
   // the start screen: 1.5 s after each load, with the logo, the game's name and the developer
   // the launch check (п. 1.2.2 Правил): inside VK the game starts only when the server confirms VK's launch signature
-  const LAUNCH_CHECK_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/launch';
-  let launchState = /[?&]vk_/.test(location.search) ? 'checking' : 'ok';   // outside VK there is nothing to check
+  const LAUNCH_CHECK_URL = 'https://functions.yandexcloud.net/d4e8ajlqi4mjo1lgs395';   // Яндекс Облако: проверка запуска без VPN
+  // on the local test address (localhost) the check is off: the test launch parameters are not signed
+  const LOCAL_TEST = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  let launchState = /[?&]vk_/.test(location.search) && !LOCAL_TEST ? 'checking' : 'ok';   // outside VK there is nothing to check
   function checkLaunch(attempt) {
     // a timeout: a server that never answers must not keep the game on "проверка" forever
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
