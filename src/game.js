@@ -3826,13 +3826,10 @@
         const cloud = res2.keys.map((k) => k.value).join('');
         // the save with more earned progress wins: savedAt is refreshed by every local save, so it cannot tell which is newer
         const progress = (raw) => { try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; } };
-        // reload at most once per tab session: a repeated reload would loop (the splash screen appears again and again)
-        let reloadedBefore = false;
-        try { reloadedBefore = sessionStorage.getItem('kucha-cloud-reload') === '1'; } catch (e) { reloadedBefore = true; }
-        if (!reloadedBefore && progress(cloud) > progress(localStorage.getItem(SAVE_KEY))) {
-          try { sessionStorage.setItem('kucha-cloud-reload', '1'); } catch (e) { /* blocked: no reload */ }
+        // the cloud save is applied in place (no page reload: a reload showed the start screen again)
+        if (progress(cloud) > progress(localStorage.getItem(SAVE_KEY))) {
           localStorage.setItem(SAVE_KEY, cloud);
-          location.reload();
+          loadGame();
         }
       });
     }).catch(() => {});
