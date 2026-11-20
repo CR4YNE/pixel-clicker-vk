@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Куча Пряников: Кликер</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }   /* a sideways slider drag must not trigger the browser's back swipe */
+    body { display: flex; align-items: center; justify-content: center; }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script>
+    // the VK bridge is loaded only when the game runs inside VK (VK adds vk_* parameters to the address);
+    // elsewhere (for example, a plain browser or Yandex) the script is not loaded at all
+    if (/[?&]vk_/.test(location.search)) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/@vkontakte/vk-bridge@2.15.11/dist/browser.min.js';
+      s.onload = function () {
+        // tells VK that the game has started; must be sent within 30 seconds of the launch
+        try { if (window.vkBridge) vkBridge.send('VKWebAppInit', {}); } catch (err) { /* ignore */ }
+      };
+      document.head.appendChild(s);
+    }
+  </script>
+  <script src="src/font-data.js?v=6"></script>
+  <script src="src/docs-text.js?v=4"></script>
+  <script src="src/game.js?v=144"></script>
+</body>
+</html>
