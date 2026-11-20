@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.352-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.353-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -1182,7 +1182,7 @@
         if (data && data.result) onReward();
         else { rewardAdReadyAt = 0; showNotice(['РЕКЛАМЫ НЕТ']); }
       })
-      .catch((e) => { rewardAdOpen = false; rewardAdReadyAt = 0; showNotice(['РЕКЛАМА НЕ ПРОШЛА', 'КОД VK: ' + vkErrorCode(e)]); });
+      .catch((e) => { rewardAdOpen = false; rewardAdReadyAt = 0; showNotice(['РЕКЛАМА НЕ ДОСТУПНА', 'ДО ПРОВЕРКИ МОДЕРАЦИИ']); });
   }
   // the full-screen ad: only on a rebirth, during the loading screen (no timed ads during play)
   let adOpen = false;              // a full-screen ad is on the screen now
@@ -3758,10 +3758,10 @@
   // VK keeps values of up to 4096 characters, so the save goes in chunks; a save is sent at most once every 15 seconds
   const VK_CHUNK = 3900;
   let vkSaveTimer = null;
+  // a save is sent once per 15 seconds while playing (the timer is not restarted by every local save, so it does get sent)
   function vkSaveSoon() {
-    if (!window.vkBridge) return;
-    clearTimeout(vkSaveTimer);
-    vkSaveTimer = setTimeout(vkSaveNow, 15000);
+    if (!window.vkBridge || vkSaveTimer) return;
+    vkSaveTimer = setTimeout(() => { vkSaveTimer = null; vkSaveNow(); }, 15000);
   }
   function vkSaveNow() {
     let raw = null;
@@ -3911,11 +3911,13 @@
     vkBridge.subscribe((e) => {
       const type = e && e.detail && e.detail.type;
       if (type === 'VKWebAppViewHide' && audioCtx) audioCtx.suspend();
+      // the game is hidden or closed: the progress goes to VK at once
+      if (type === 'VKWebAppViewHide') { saveGame(); vkSaveNow(); }
       if (type === 'VKWebAppViewRestore' && audioCtx) audioCtx.resume();
     });
   }
   setInterval(saveGame, 5000);
-  window.addEventListener('pagehide', saveGame);
+  window.addEventListener('pagehide', () => { saveGame(); if (window.vkBridge) vkSaveNow(); });
 
   // ---------- loop ----------
   // the start screen: 1.5 s after each load, with the logo, the game's name and the developer
