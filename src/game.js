@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.350-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.351-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -469,6 +469,9 @@
   let premiumOwned = { double: false, triple: false, autoclick: false, rebirth2: false, discount: false, noads: false };
   let rebirthAdOff = false;   // no ad on a rebirth after a rebirth item was bought (saved). Was never declared: every save failed silently
   let adBoost = { double: 0, discount: 0 };   // seconds left, not saved
+  // the time left of a free ad in minutes and seconds, updated every frame
+  const adTimeLeft = (id) => { const s = Math.ceil(adBoost[id]); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const noticeLines = () => (typeof noticeWin.lines === 'function' ? noticeWin.lines() : noticeWin.lines);
   let adWatched = { double: false, discount: false };   // which rewarded ads were watched (saved)
   // перерождение: income is multiplied by 2 for each rebirth (4 with premium); progress resets, extras stay
   let rebirths = 0;              // how many rebirths were made (saved)
@@ -1167,7 +1170,7 @@
     if (premiumOwned.noads) { onReward(); return; }
     const now = Date.now();
     if (now < rewardAdReadyAt) {
-      showNotice(['РЕКЛАМА ЧЕРЕЗ ' + Math.ceil((rewardAdReadyAt - now) / 1000) + ' С']);
+      showNotice(() => ['РЕКЛАМА ЧЕРЕЗ ' + Math.ceil((rewardAdReadyAt - Date.now()) / 1000) + ' С']);
       return;
     }
     rewardAdReadyAt = now + 60000;
@@ -1193,8 +1196,8 @@
     fillRect(80, 64, 160, 1, COL.panelEdge); fillRect(80, 111, 160, 1, COL.panelEdge);
     fillRect(80, 64, 1, 48, COL.panelEdge); fillRect(239, 64, 1, 48, COL.panelEdge);
     // the text is centred between the top edge and the OK button (the centre is at y 82)
-    const n = noticeWin.lines.length, y0 = Math.round(82 - (10 * (n - 1) + 8) / 2);
-    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 81, 239, y0 + i * 10, y0 + i * 10 + 8, COL.text));
+    const n = noticeLines().length, y0 = Math.round(82 - (10 * (n - 1) + 8) / 2);
+    noticeLines().forEach((t, i) => drawTextBox(t, 1, 81, 239, y0 + i * 10, y0 + i * 10 + 8, COL.text));
     settingsButton(81, 100, 239, 111, 'ОК');   // full width, on the bottom edge of the window
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count; saved)
@@ -3259,7 +3262,7 @@
       line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : '';   // owned: КУПЛЕНО; not owned: nothing (the price is on the row)
     }
     // a free ad that is running shows the time left on the row (the row draws only this line)
-    const left = it.kind === 'ad' && adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + Math.ceil(adBoost[it.id] / 60) + ' МИН' : it.line;
+    const left = it.kind === 'ad' && adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + adTimeLeft(it.id) : it.line;
     return { line1: left, line2, price: it.kind === 'ad' ? '' : it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
   }
 
