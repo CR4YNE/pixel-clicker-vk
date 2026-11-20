@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.360-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.361-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -3781,10 +3781,9 @@
       for (let i = 0; i < n; i++) keys.push('save_' + i);
       return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
         const cloud = res2.keys.map((k) => k.value).join('');
-        let mine = 0, theirs = 0;
-        try { mine = (JSON.parse(localStorage.getItem(SAVE_KEY) || '{}').savedAt) || 0; } catch (e) { mine = 0; }
-        try { theirs = (JSON.parse(cloud).savedAt) || 0; } catch (e) { return; }
-        if (theirs > mine) {
+        // the save with more earned progress wins: savedAt is refreshed by every local save, so it cannot tell which is newer
+        const progress = (raw) => { try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; } };
+        if (progress(cloud) > progress(localStorage.getItem(SAVE_KEY))) {
           localStorage.setItem(SAVE_KEY, cloud);
           location.reload();
         }
@@ -3914,6 +3913,8 @@
       // the game is hidden or closed: the progress goes to VK at once
       if (type === 'VKWebAppViewHide') { saveGame(); vkSaveNow(); }
       if (type === 'VKWebAppViewRestore' && audioCtx) audioCtx.resume();
+      // back in the app: the save from the other device is taken if it has more progress
+      if (type === 'VKWebAppViewRestore') vkLoadCloud();
     });
   }
   setInterval(saveGame, 5000);
