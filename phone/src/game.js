@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.326-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.328-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -886,30 +886,69 @@
 
   // Payment goes through the VK platform; until it is connected, payProduct() reports that it is not available.
   // TEST MODE: while the game is not released, every premium item is free. Set to false before release.
-  const TEST_FREE_PREMIUM = true;
+  const TEST_FREE_PREMIUM = false;
   function payProduct(id) {
     if (TEST_FREE_PREMIUM) return Promise.resolve({ ok: true });
     return Promise.resolve({ ok: false, msg: 'ОПЛАТА ПОКА НЕДОСТУПНА' });
+  }
+  // the purchases the server has confirmed for this player (VK tells the server about every paid order)
+  const PURCHASES_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/purchases';
+  let grantedOrders = [];   // order ids already applied (saved): each paid order gives its item once
+  // gives one bought item (the same whether it was bought in the game or in the VK form)
+  function applyItem(id) {
+    const it = PREMIUM_ITEMS.find((x) => x.id === id);
+    if (!it) return;
+    if (it.add || it.id === 'rebirth2') rebirthAdOff = true;   // after buying any of these, no ad on a rebirth
+    if (it.add) rebirths += it.add;   // a rebirth pack adds its rebirths; progress is not reset
+    else premiumOwned[it.id] = true;
+    // the bundle gives everything in it at once
+    if (it.id === 'bundle') for (const k of ['double', 'triple', 'autoclick', 'discount']) premiumOwned[k] = true;
+    if (it.id === 'skins_all') unlockAllPremiumSkins();
+    else if (it.id.startsWith('skin_')) skinOwned[it.id.slice(5)] = true;
+  }
+  // asks the server for the confirmed purchases; each new one is applied once. Resolves with how many were new
+  function syncPurchases() {
+    if (!/[?&]vk_/.test(location.search)) return Promise.resolve(0);   // outside VK there are no purchases
+    return fetch(PURCHASES_URL + location.search)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j || !j.ok) return 0;
+        let added = 0;
+        for (const p of j.purchases) {
+          if (grantedOrders.includes(p.order_id)) continue;
+          applyItem(p.item);
+          grantedOrders.push(p.order_id);
+          added++;
+        }
+        if (added > 0) saveGame();
+        return added;
+      })
+      .catch(() => 0);
+  }
+  function finishBuy(it) {
+    saveGame();
+    premiumWin = { mode: 'done', idx: 0 };
+    premiumWin.idx = PREMIUM_ITEMS.findIndex((x) => x.kind === 'premium' && x.id === it.id);
+    sfxBuy();
+  }
+  // after the VK payment form the purchase arrives from the server: ask a few times
+  function waitForPurchase(it, left) {
+    syncPurchases().then((added) => {
+      if (added > 0) finishBuy(it);
+      else if (left > 1) setTimeout(() => waitForPurchase(it, left - 1), 2000);
+      else premiumWin = { mode: 'error', idx: PREMIUM_ITEMS.findIndex((x) => x.kind === 'premium' && x.id === it.id), msg: 'ПОКУПКА НЕ ПОДТВЕРЖДЕНА' };
+    });
   }
   function startPremiumPurchase() {
     const it = PREMIUM_ITEMS[premiumWin.idx];
     premiumWin = { mode: 'pending', idx: premiumWin.idx };
     payProduct(it.id).then((res) => {
-      if (res.ok) {
-        if (it.add || it.id === 'rebirth2') rebirthAdOff = true;   // after buying any of these, no ad on a rebirth
-        if (it.add) rebirths += it.add;   // a rebirth pack adds its rebirths; progress is not reset
-        else premiumOwned[it.id] = true;
-        // the bundle gives everything in it at once
-        if (it.id === 'bundle') for (const k of ['double', 'triple', 'autoclick', 'discount']) premiumOwned[k] = true;
-        if (it.id === 'skins_all') unlockAllPremiumSkins();
-        else if (it.id.startsWith('skin_')) skinOwned[it.id.slice(5)] = true;
-        saveGame();
-        premiumWin = { mode: 'done', idx: premiumWin.idx || 0 };
-        premiumWin.idx = PREMIUM_ITEMS.findIndex((x) => x.kind === 'premium' && x.id === it.id);
-        sfxBuy();
-      } else {
+      if (!res.ok) {
         premiumWin = { mode: 'error', idx: PREMIUM_ITEMS.findIndex((x) => x.kind === 'premium' && x.id === it.id), msg: res.msg };
+        return;
       }
+      if (TEST_FREE_PREMIUM) { applyItem(it.id); finishBuy(it); return; }   // test mode: no payment, the item is given at once
+      waitForPurchase(it, 10);
     });
   }
   function handlePremiumWinDown(gx, gy) {
@@ -3848,6 +3887,7 @@
         settings,
         restAcc: Math.floor(restAcc),
         restDue,
+        grantedOrders,
         savedAt: Date.now(),
       }));
       vkSaveSoon();
@@ -3915,6 +3955,7 @@
       }
       // the rest timer: the play time left before the rest button (saved)
       restAcc = Math.max(0, Math.min(REST_EVERY, Number(s.restAcc) || 0));
+      if (Array.isArray(s.grantedOrders)) grantedOrders = s.grantedOrders.map(String);
       restDue = !!s.restDue || restAcc >= REST_EVERY;
       if (s.settings) {
         settings.sound = Math.min(1, Math.max(0, Number(s.settings.sound) || 0));
@@ -3950,7 +3991,7 @@
   function checkLaunch(attempt) {
     fetch(LAUNCH_CHECK_URL + location.search)
       .then((r) => (r.ok ? r.json() : { ok: false }))
-      .then((j) => { launchState = j.ok ? 'ok' : 'denied'; })
+      .then((j) => { launchState = j.ok ? 'ok' : 'denied'; if (j.ok) syncPurchases(); })
       .catch(() => { if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
   }
   if (launchState === 'checking') checkLaunch(1);
