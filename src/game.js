@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.328-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.329-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -884,7 +884,13 @@
     if (!window.vkBridge) return Promise.resolve({ ok: false, msg: 'ОПЛАТА ТОЛЬКО В ВК' });
     return vkBridge.send('VKWebAppOpenPayForm', { app_id: VK_APP_ID, action: 'pay-to-service', params: { item: id } })
       .then(() => ({ ok: true }))
-      .catch(() => ({ ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА' }));
+      .catch((e) => ({ ok: false, msg: 'ОПЛАТА НЕ ПРОШЛА', code: vkErrorCode(e) }));
+  }
+  // the code VK gives for a refused payment, so the player can tell us what happened
+  function vkErrorCode(e) {
+    const c = e && e.error_data && e.error_data.error_code;
+    if (c !== undefined) return String(c);
+    return e && e.error_type ? String(e.error_type).toUpperCase() : 'НЕТ';
   }
   // the purchases the server has confirmed for this player (VK tells the server about every paid order)
   const PURCHASES_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/purchases';
@@ -939,7 +945,7 @@
     premiumWin = { mode: 'pending', idx: premiumWin.idx };
     payProduct(it.id).then((res) => {
       if (!res.ok) {
-        premiumWin = { mode: 'error', idx: PREMIUM_ITEMS.findIndex((x) => x.kind === 'premium' && x.id === it.id), msg: res.msg };
+        premiumWin = { mode: 'error', idx: PREMIUM_ITEMS.findIndex((x) => x.kind === 'premium' && x.id === it.id), msg: res.msg, code: res.code };
         return;
       }
       if (TEST_FREE_PREMIUM) { applyItem(it.id); finishBuy(it); return; }   // test mode: no payment, the item is given at once
@@ -1076,7 +1082,7 @@
     drawTextBox('ОШИБКА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
     drawText(info.name, 1, 62, 30, COL.text, 'left');
     drawText(premiumWin.msg || 'ПОКУПКА НЕ ПРОШЛА', 1, 62, 56, COL.text, 'left');
-    drawText('ПОПРОБУЙТЕ ПОЗЖЕ', 1, 62, 70, dimTone(), 'left');
+    drawText(premiumWin.code ? 'КОД VK: ' + premiumWin.code : 'ПОПРОБУЙТЕ ПОЗЖЕ', 1, 62, 70, dimTone(), 'left');
     settingsButton(60, 156, 260, 170, 'ОК');
   }
 
