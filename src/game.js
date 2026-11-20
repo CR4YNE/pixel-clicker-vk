@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.320-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.321-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2477,7 +2477,7 @@
     drawText('ТРЯСКА ЭКРАНА', 1, 76, 108, COL.text, 'left');
     fillRect(200, 104, 44, 10, settings.shake ? '#5c5096' : COL.track);
     fillRect(settings.shake ? 236 : 202, 105, 8, 8, COL.btnText);
-    settingsButton(76, 126, 244, 141, ['СБРОС ПРОГРЕССА', 'ТОЧНО СБРОСИТЬ', 'ТОЧНО ЭТО НЕОБРАТИМО'][resetStage]);
+    settingsButton(76, 126, 244, 141, ['СБРОС ПРОГРЕССА', 'ТОЧНО СБРОСИТЬ?', 'ТОЧНО? ЭТО НЕОБРАТИМО!'][resetStage]);
     // the support and documents tabs, and the close button under them
     settingsButton(76, 144, 160, 158, 'ПОДДЕРЖКА');
     settingsButton(164, 144, 244, 158, 'ДОКУМЕНТЫ');
