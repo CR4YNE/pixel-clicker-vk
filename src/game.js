@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.344-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.345-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -1179,7 +1179,7 @@
         if (data && data.result) onReward();
         else { rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМЫ НЕТ' }); }
       })
-      .catch(() => { rewardAdOpen = false; rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА НЕ ПРОШЛА' }); });
+      .catch((e) => { rewardAdOpen = false; rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА: КОД ' + vkErrorCode(e) }); });
   }
   // the full-screen ad: only on a rebirth, during the loading screen (no timed ads during play)
   let adOpen = false;              // a full-screen ad is on the screen now
