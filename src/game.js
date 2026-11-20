@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.361-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.362-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -3904,19 +3904,26 @@
     }
   }
   loadGame();
-  if (window.vkBridge) vkLoadCloud();
-  // the sound stops when the app is hidden (VKWebAppViewHide) and comes back when it is shown again
-  if (window.vkBridge && vkBridge.subscribe) {
-    vkBridge.subscribe((e) => {
-      const type = e && e.detail && e.detail.type;
-      if (type === 'VKWebAppViewHide' && audioCtx) audioCtx.suspend();
-      // the game is hidden or closed: the progress goes to VK at once
-      if (type === 'VKWebAppViewHide') { saveGame(); vkSaveNow(); }
-      if (type === 'VKWebAppViewRestore' && audioCtx) audioCtx.resume();
-      // back in the app: the save from the other device is taken if it has more progress
-      if (type === 'VKWebAppViewRestore') vkLoadCloud();
-    });
+  // the VK bridge script loads after this script has started: the VK part waits for it (checked every 0.1 s, up to 20 s)
+  function onVkBridge(fn, tries = 0) {
+    if (window.vkBridge) fn();
+    else if (tries < 200) setTimeout(() => onVkBridge(fn, tries + 1), 100);
   }
+  onVkBridge(() => {
+    vkLoadCloud();   // the save from the other device, if it has more progress
+    // the sound stops when the app is hidden (VKWebAppViewHide) and comes back when it is shown again
+    if (vkBridge.subscribe) {
+      vkBridge.subscribe((e) => {
+        const type = e && e.detail && e.detail.type;
+        if (type === 'VKWebAppViewHide' && audioCtx) audioCtx.suspend();
+        // the game is hidden or closed: the progress goes to VK at once
+        if (type === 'VKWebAppViewHide') { saveGame(); vkSaveNow(); }
+        if (type === 'VKWebAppViewRestore' && audioCtx) audioCtx.resume();
+        // back in the app: the save from the other device is taken if it has more progress
+        if (type === 'VKWebAppViewRestore') vkLoadCloud();
+      });
+    }
+  });
   setInterval(saveGame, 5000);
   window.addEventListener('pagehide', () => { saveGame(); if (window.vkBridge) vkSaveNow(); });
   // the sound stops when the page is hidden (a browser tab, or the app in the background) and comes back when it is shown
