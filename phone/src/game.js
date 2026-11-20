@@ -49,7 +49,7 @@
   const listBottom = () => (tab === 'premium' ? 122 : hasBuyRow() ? 105 : 123);   // the other tabs get 1 px more of the list
   const ROW_H = 20;             // two text lines per row, tight: more goods fit the sheet
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
-  const COST_GROWTH = 1.2;     // price = base * 1.15^owned
+  const COST_GROWTH = 1.15;   // price = base * 1.15^owned
 
   // the Latin letters of the e-mails: added to the game's pixel font in the same 6 by 8 style
   const LATIN_GLYPHS = {
@@ -105,6 +105,16 @@
   // КЛИК: each adds `add` coins per click for every bought one (order = by click income)
   // the names in the hint "КУПИ 5 ..." in the right form for five of them
   const FIVE = {
+    'ЛОЖКА': 'ЛОЖЕК',
+    'ВЕНЧИК': 'ВЕНЧИКОВ',
+    'ФОРМОЧКА': 'ФОРМОЧЕК',
+    'КИСТЬ': 'КИСТЕЙ',
+    'ДОСКА': 'ДОСОК',
+    'ТЕРКА': 'ТЕРОК',
+    'САХАРНИЦА': 'САХАРНИЦ',
+    'СКАЛКА': 'СКАЛОК',
+    'ПРОСЕИВАТЕЛЬ': 'ПРОСЕИВАТЕЛЕЙ',
+    'НОЖ': 'НОЖЕЙ',
     'СКАЛКА': 'СКАЛОК', 'ТЕСТО': 'ПОРЦИЙ ТЕСТА', 'ШОКОЛАД': 'ПЛИТОК ШОКОЛАДА', 'МУКА': 'МЕШКОВ МУКИ', 'ЯЙЦО': 'ЯИЦ',
     'МЁД': 'БАНОК МЁДА', 'СЛИВКИ': 'ПАКЕТОВ СЛИВОК', 'КОРИЦА': 'ПАЧЕК КОРИЦЫ', 'ИМБИРЬ': 'КУСКОВ ИМБИРЯ', 'ГЛАЗУРЬ': 'ЛОЖЕК ГЛАЗУРИ',
     'МИКСЕР': 'МИКСЕРОВ', 'ПЕЧЬ': 'ПЕЧЕЙ', 'ХОЛОДИЛЬНИК': 'ХОЛОДИЛЬНИКОВ', 'ПЛИТА': 'ПЛИТ', 'КОФЕМАШИНА': 'КОФЕМАШИН',
@@ -112,16 +122,16 @@
   };
   const fiveOf = (name) => FIVE[name] || name;
   const CLICK_UPGRADES = [
-    { name: 'СКАЛКА', base: 50n, add: 1n },
-    { name: 'ТЕСТО', base: 100n, add: 2n },
-    { name: 'ШОКОЛАД', base: 200n, add: 4n },
-    { name: 'МУКА', base: 400n, add: 8n },
-    { name: 'ЯЙЦО', base: 750n, add: 15n },
-    { name: 'МЁД', base: 1500n, add: 30n },
-    { name: 'СЛИВКИ', base: 3500n, add: 70n },
-    { name: 'КОРИЦА', base: 7500n, add: 150n },
-    { name: 'ИМБИРЬ', base: 15000n, add: 300n },
-    { name: 'ГЛАЗУРЬ', base: 37500n, add: 750n },
+    { name: 'ЛОЖКА', base: 50n, add: 1n },
+    { name: 'ВЕНЧИК', base: 100n, add: 2n },
+    { name: 'ФОРМОЧКА', base: 200n, add: 4n },
+    { name: 'КИСТЬ', base: 400n, add: 8n },
+    { name: 'ДОСКА', base: 750n, add: 15n },
+    { name: 'ТЕРКА', base: 1500n, add: 30n },
+    { name: 'САХАРНИЦА', base: 3500n, add: 70n },
+    { name: 'СКАЛКА', base: 7500n, add: 150n },
+    { name: 'ПРОСЕИВАТЕЛЬ', base: 15000n, add: 300n },
+    { name: 'НОЖ', base: 37500n, add: 750n },
   ];
   // ТЕХНИКА: each gives `rate` coins per second for every bought one
   const TECHNIKA = [
@@ -136,28 +146,30 @@
     { name: 'КОНВЕЙЕР', base: 90000n, rate: 1500 },
     { name: 'ФАБРИКА ПРЯНИКОВ', base: 210000n, rate: 3500 },
   ];
-  // ПРОКАЧКИ: 4 levels per technika, listed level by level. Level k doubles that technika (2, 4, 8, 16).
-  // Cost = 10 x technika base for level 1, then x8 per level. Each level needs the previous one.
+  // ПРОКАЧКИ (дерево, покупается ЖАРОМ, перерождение их не сбрасывает): 3 ветки по 5 узлов.
+  // ТЕСТО: +20% к силе тапа за узел, на полной ветке ещё +100%.
+  // ПЕЧЬ: +15% ко всем машинам за узел, на полной ветке ещё +100%.
+  // УДАЧА: +1% шанса крита за узел.
+  // Узлы по порядку: 1, 2, 4, 8, 16 жара.
+  const BRANCHES = [{ name: 'ТЕСТО' }, { name: 'ПЕЧЬ' }, { name: 'УДАЧА' }];
   const PROK_NAMES = [
-    ['СЕРЕБРЯНЫЙ ВЕНЧИК', 'ЗОЛОТОЙ ВЕНЧИК', 'ПЛАТИНОВЫЙ ВЕНЧИК', 'ТИТАНОВЫЙ ВЕНЧИК'],
-    ['СЕРЕБРЯНЫЙ ПРОТИВЕНЬ', 'ЗОЛОТОЙ ПРОТИВЕНЬ', 'ПЛАТИНОВЫЙ ПРОТИВЕНЬ', 'ТИТАНОВЫЙ ПРОТИВЕНЬ'],
-    ['СЕРЕБРЯНЫЙ ХЛАДАГЕНТ', 'ЗОЛОТОЙ ХЛАДАГЕНТ', 'ПЛАТИНОВЫЙ ХЛАДАГЕНТ', 'ТИТАНОВЫЙ ХЛАДАГЕНТ'],
-    ['СЕРЕБРЯНАЯ ЗАЖИГАЛКА', 'ЗОЛОТАЯ ЗАЖИГАЛКА', 'ПЛАТИНОВАЯ ЗАЖИГАЛКА', 'ТИТАНОВАЯ ЗАЖИГАЛКА'],
-    ['СЕРЕБРЯНЫЙ ФИЛЬТР', 'ЗОЛОТОЙ ФИЛЬТР', 'ПЛАТИНОВЫЙ ФИЛЬТР', 'ТИТАНОВЫЙ ФИЛЬТР'],
-    ['СЕРЕБРЯНЫЙ ВЕНТИЛЯТОР', 'ЗОЛОТОЙ ВЕНТИЛЯТОР', 'ПЛАТИНОВЫЙ ВЕНТИЛЯТОР', 'ТИТАНОВЫЙ ВЕНТИЛЯТОР'],
-    ['СЕРЕБРЯНАЯ НАСАДКА', 'ЗОЛОТАЯ НАСАДКА', 'ПЛАТИНОВАЯ НАСАДКА', 'ТИТАНОВАЯ НАСАДКА'],
-    ['СЕРЕБРЯНЫЙ КРЮК', 'ЗОЛОТОЙ КРЮК', 'ПЛАТИНОВЫЙ КРЮК', 'ТИТАНОВЫЙ КРЮК'],
-    ['СЕРЕБРЯНЫЙ РОЛИК', 'ЗОЛОТОЙ РОЛИК', 'ПЛАТИНОВЫЙ РОЛИК', 'ТИТАНОВЫЙ РОЛИК'],
-    ['СЕРЕБРЯНЫЙ СТАНОК', 'ЗОЛОТОЙ СТАНОК', 'ПЛАТИНОВЫЙ СТАНОК', 'ТИТАНОВЫЙ СТАНОК'],
+    ['МЕДОВОЕ ТЕСТО', 'ИМБИРНОЕ ТЕСТО', 'ВАНИЛЬНОЕ ТЕСТО', 'ПРЯНОЕ ТЕСТО', 'ВОЛШЕБНОЕ ТЕСТО'],
+    ['ДУБОВЫЕ ДРОВА', 'КИРПИЧНЫЙ СВОД', 'ТЕПЛЫЙ ЖАР', 'ЗОЛОТАЯ ЗАСЛОНКА', 'ВЕЧНЫЙ ОГОНЬ'],
+    ['ПОДКОВА', 'СЧАСТЛИВЫЙ КОЛОСОК', 'ЗВЁЗДНАЯ ПЫЛЬ', 'КЛЕВЕРНЫЙ ЛИСТ', 'ЗОЛОТОЙ ЛУЧ'],
+  ];
+  const PROK_EFFECT = [
+    ['ТАП +20%', 'ТАП +20%', 'ТАП +20%', 'ТАП +20%', 'ТАП +100% ВСЕГО'],
+    ['ЦЕХ +15%', 'ЦЕХ +15%', 'ЦЕХ +15%', 'ЦЕХ +15%', 'ЦЕХ +100% ВСЕГО'],
+    ['КРИТ +1%', 'КРИТ +1%', 'КРИТ +1%', 'КРИТ +1%', 'КРИТ +1%'],
   ];
   const PROKACHKI = [];
-  for (let k = 0; k < 4; k++) {
-    for (let j = 0; j < TECHNIKA.length; j++) {
+  for (let k = 0; k < 5; k++) {
+    for (let j = 0; j < BRANCHES.length; j++) {
       PROKACHKI.push({
         name: PROK_NAMES[j][k],
-        tech: j,
-        level: k,
-        cost: TECHNIKA[j].base * 10n * (8n ** BigInt(k)),
+        tech: j,           // the branch (0 ТЕСТО, 1 ПЕЧЬ, 2 УДАЧА)
+        level: k,          // the node in its branch (0..4)
+        cost: 1 << k,      // Жар (a plain number, like zakvaska): 1, 2, 4, 8, 16
       });
     }
   }
@@ -214,7 +226,7 @@
     bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА', 'НАВСЕГДА'] },
     triple: { name: '3Х ДОХОД', lines: ['ТРОЙНОЙ ДОХОД', 'УМНОЖАЕТСЯ С 2Х, НАВСЕГДА'] },
     autoclick: { name: 'АВТО-КЛИК', lines: ['10 В СЕКУНДУ', 'НАВСЕГДА'] },
-    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ ДАЁТ 4Х', 'ВМЕСТО 2Х, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ +60% ДОХОДА', 'ВМЕСТО +30%, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
     discount: { name: 'СКИДКА 50% НА ВСЕ', lines: ['ВСЕ УЛУЧШЕНИЯ ДЕШЕВЛЕ ВДВОЕ', 'КРОМЕ ПРЕМИУМА, НАВСЕГДА'] },
     skin_neon: { name: 'КОСМИЧЕСКИЙ', lines: ['ЗВЁЗДЫ И ИСКРЫ', 'НАВСЕГДА'] },
     skin_volcano: { name: 'ВУЛКАНИЧЕСКИЙ', lines: ['ЛАВА И ИСКРЫ', 'НАВСЕГДА'] },
@@ -235,7 +247,7 @@
     skins_all: { name: 'ВСЕ СКИНЫ', lines: ['ВЕСЬ АССОРТИМЕНТ СКИНОВ', 'НАВСЕГДА'] },   // the count of premium skins is shown in the purchase window
   };
   // for each technika, the global PROKACHKI indexes of its 4 upgrades (level 1..4)
-  const PROK_BY_TECH = TECHNIKA.map((_, j) => PROKACHKI.map((p, g) => (p.tech === j ? g : -1)).filter((g) => g >= 0));
+  const PROK_BY_TECH = BRANCHES.map((_, j) => PROKACHKI.map((p, g) => (p.tech === j ? g : -1)).filter((g) => g >= 0));   // by branch (name kept: used by the list)
 
   const canvas = document.getElementById('game');
   // phone: the screen is 180 x 320; the 320 x 180 scene is drawn into a buffer, and its middle 180 px show at the top
@@ -496,14 +508,16 @@
   let dailyPreview = null;       // the day (1..7) whose skin is shown in the preview, or null for the grid
   let totalBought = 0;           // technika and upgrade purchases (saved)
   let premiumWin = null;         // premium purchase window: {mode: 'confirm' | 'pending' | 'done' | 'error', idx, msg}
-  // coins needed in one cycle before the next rebirth (rebirth 1..12); after that x2.28 each time
-  const REBIRTH_NEED = [250000000n, 815000000n, 1956000000n, 4586000000n, 9032000000n, 21165000000n,
-    43790000000n, 84790000000n, 151640000000n, 244250000000n, 624670000000n, 1423200000000n];
+  // coins needed in one cycle before the next rebirth: 1 млрд, then ×2.5 for each rebirth made
+  let zakvaska = 0;              // the rebirth currency: earned on each rebirth, not reset by it (saved)
   function rebirthNeed() {
-    if (rebirths < REBIRTH_NEED.length) return REBIRTH_NEED[rebirths];
-    let v = REBIRTH_NEED[REBIRTH_NEED.length - 1];
-    for (let i = REBIRTH_NEED.length; i <= rebirths; i++) v = (v * 228n) / 100n;
+    let v = 1000000000n;
+    for (let i = 0; i < rebirths; i++) v = (v * 25n) / 10n;
     return v;
+  }
+  // Жар for the rebirth that is possible now: floor(sqrt(пряники за цикл / 10 млн))
+  function rebirthGain() {
+    return Math.floor(Math.sqrt(Number(cycleEarned) / 10000000));
   }
   let autoAcc = 0;               // fractional coins from technika
 
@@ -512,20 +526,53 @@
     CLICK_UPGRADES.forEach((u, i) => { p += u.add * BigInt(clickOwned[i]); });
     return p;
   }
-  // how many times a technika's output is multiplied by its prokachki (2 per level owned)
-  function techMult(j) {
-    let m = 1;
-    PROKACHKI.forEach((p, i) => { if (p.tech === j && prokOwned[i]) m *= 2; });
-    return m;
+  // how many nodes of a ПРОКАЧКИ branch are bought (0..5)
+  function branchOwned(b) {
+    return PROK_BY_TECH[b].filter((g) => prokOwned[g]).length;
   }
-  // each rebirth adds +100% to the income multiplier (+200% with the rebirth bonus): 1, 2, 3, 4...
+  // ПЕЧЬ: +15% to all machines per node, +100% more on a full branch
+  function pechMult() {
+    const n = branchOwned(1);
+    return 1 + 0.15 * n + (n === 5 ? 1 : 0);
+  }
+  // every machine gets the same ПЕЧЬ multiplier
+  function techMult(j) {
+    return pechMult();
+  }
+  // ТЕСТО: +20% to the tap per node, +100% more on a full branch
+  function tapMult() {
+    const n = branchOwned(0);
+    return 1 + 0.2 * n + (n === 5 ? 1 : 0);
+  }
+  // УДАЧА: crit chance 3%, +1% per node
+  function critChance() {
+    return 0.03 + 0.01 * branchOwned(2);
+  }
+  // the ad ×2 lasts 10 minutes (the ПРОКАЧКИ branch УДАЧА does not change it)
+  function adSeconds() {
+    return AD_BOOST_SECONDS;
+  }
+  // each rebirth adds +30% to all income (+60% with the rebirth bonus): ×1, ×1.3, ×1.6... (linear, so it stays fair)
+  function rebirthPer() {
+    return premiumOwned.rebirth2 ? 0.6 : 0.3;
+  }
   function rebirthMult() {
-    return Math.pow(premiumOwned.rebirth2 ? 4 : 2, rebirths);
+    return 1 + rebirthPer() * rebirths;
   }
   // premium 2x and ad 2x stack, rebirths add to them
   function incomeMult() {
     const premiumMult = (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1);   // 2x and 3x stack: both give 6x
     return premiumMult * (adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * rebirthMult();
+  }
+  // the income multiplier as whole hundredths (the multiplier can be 1.3, the big numbers are BigInt)
+  function incomeMultBig() {
+    return BigInt(Math.floor(incomeMult() * 100));
+  }
+  // synergy: every 10 technika of one kind give +5% to all technika, up to +50%
+  function synergyMult() {
+    let tens = 0;
+    TECHNIKA.forEach((t, j) => { tens += Math.floor(techOwned[j] / 10); });
+    return 1 + Math.min(0.5, 0.05 * tens);
   }
   function discountOn() {
     return premiumOwned.discount || adBoost.discount > 0;
@@ -533,11 +580,28 @@
   function autoPerSec() {
     let r = 0;
     TECHNIKA.forEach((t, j) => { r += t.rate * techOwned[j] * techMult(j) * 1; });
-    return r * incomeMult() * (glazeTech > 0 ? 2 : 1);
+    return r * synergyMult() * incomeMult() * (glazeTech > 0 ? 2 : 1);
   }
-  // one tap: its value times the income multipliers
+  // one tap: its value times the income multipliers and the ТЕСТО branch
   function clickGain() {
-    return clickPower() * BigInt(incomeMult());
+    return clickPower() * incomeMultBig() * BigInt(Math.round(tapMult() * 100)) / 10000n;
+  }
+  // РИТМ: быстрые тапы подряд (промежуток до 0.6 с) дают бонус, до ×3 (12 тапов подряд); простой 1 с — бонус гаснет
+  let ritmTaps = 0, lastTapMs = 0, critFlashT = 0;
+  function registerTap() {
+    const now = performance.now();
+    ritmTaps = now - lastTapMs <= 600 ? ritmTaps + 1 : 1;
+    lastTapMs = now;
+  }
+  function ritmMult() {
+    if (performance.now() - lastTapMs > 1000) return 1;
+    return 1 + Math.min(2, ritmTaps / 6);
+  }
+  // one tap's gain: the click power with the rhythm and, sometimes, a crit (×10)
+  function tapGain() {
+    let g = clickGain() * BigInt(Math.round(ritmMult() * 100)) / 100n;
+    if (Math.random() < critChance()) { g = g * 10n; critFlashT = 0.6; }
+    return g;
   }
   function priceOf(base, owned) {
     return BigInt(Math.floor(Number(base) * Math.pow(COST_GROWTH, owned)));
@@ -546,12 +610,10 @@
   function finalPrice(price) {
     return discountOn() ? price / 2n : price;
   }
-  // a prokachka level needs the technika at this level (number of technika bought) and the previous level
-  const PROK_TECH_LEVEL = [20, 35, 50, 65];
   const TECH_MAX = 100;         // every technika stops at level 100
+  // the tree needs no technika level any more: only the previous node of its branch
   function prokTechReady(i) {
-    const p = PROKACHKI[i];
-    return techOwned[p.tech] >= PROK_TECH_LEVEL[p.level];
+    return true;
   }
   function prokUnlocked(i) {
     const p = PROKACHKI[i];
@@ -561,7 +623,7 @@
   function priceNow(tab, index) {
     if (tab === 'click') return finalPrice(priceOf(CLICK_UPGRADES[index].base, clickOwned[index]));
     if (tab === 'tech') return finalPrice(priceOf(TECHNIKA[index].base, techOwned[index]));
-    if (tab === 'prok') return finalPrice(PROKACHKI[index].cost);
+    if (tab === 'prok') return PROKACHKI[index].cost;   // Жар: the discount does not apply
     return 0n;
   }
   function buy(tab, index) {
@@ -588,13 +650,22 @@
       const it = PREMIUM_ITEMS[index];
       if (it.kind === 'ad') {
         // the reward comes after the ad is shown (in VK); outside VK it comes at once
-        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); }));
+        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = adSeconds(); adWatched[it.id] = true; sfxBuy(); }));
         return true;
       }
       return false;
     }
-    if (tab === 'prok' && !prokUnlocked(index)) return false;
-    if (tab === 'prok' && prokOwned[index]) return false;
+    if (tab === 'prok') {
+      // ПРОКАЧКИ платятся жаром, по одной, по порядку в ветке
+      if (!prokUnlocked(index) || prokOwned[index]) return false;
+      const zcost = PROKACHKI[index].cost;
+      if (zakvaska < zcost) return false;
+      zakvaska -= zcost;
+      prokOwned[index] = true;
+      totalBought++;
+      sfxBuy();
+      return true;
+    }
     if ((tab === 'click' || tab === 'tech') && listLocked(tab, index)) return false;
     const cost = priceNow(tab, index);
     if (coins < cost) return false;
@@ -636,7 +707,8 @@
     // tired: the cookie does not count until the player rests
     if (restDue) { popups.push({ x: gx, y: gy - 10, t: 0, text: 'ОТДОХНИТЕ' }); return; }
     sfxClick();
-    const gain = clickGain() * (glazeClick > 0 ? 2n : 1n);
+    registerTap();
+    const gain = tapGain() * (glazeClick > 0 ? 2n : 1n);
     coins += gain;
     cycleEarned += gain;
     totalEarned += gain;
@@ -684,11 +756,12 @@
   function doRebirth() {
     sfxRebirth();
     bestProkOneRebirth = Math.max(bestProkOneRebirth, prokOwned.filter(Boolean).length);
+    zakvaska += rebirthGain();   // the rebirth currency is counted from this cycle, before the cycle is cleared
     rebirths += 1;
     coins = 0n;
     clickOwned = clickOwned.map(() => 0);
     techOwned = techOwned.map(() => 0);
-    prokOwned = prokOwned.map(() => false);
+    // ПРОКАЧКИ на Закваске после перерождения остаются
     adBoost = { double: 0, discount: 0 };
     autoAcc = 0;
     cycleEarned = 0n;
@@ -764,6 +837,7 @@
   // These virtual clicks are not counted as player clicks; they only show crumbs and "+N" popups.
   function updateMinute(dt) {
     minuteLeft = Math.max(0, minuteLeft - dt);
+    critFlashT = Math.max(0, critFlashT - dt);   // the "КРИТ!" word shows for 0.6 s after a crit tap
     const perClick = clickGain() * (glazeClick > 0 ? 2n : 1n);
     if (premiumOwned.autoclick && !restDue) {
       // the auto-click bonus: ten taps a second, each one paying out like a tap of the player
@@ -2318,7 +2392,7 @@
         ['ПРОКАЧЕК', String(prokOwned.filter(Boolean).length)],
         ['ЗА КЛИК', fmt(clickGain())],
         ['В СЕК', fmt(BigInt(Math.floor(autoPerSec())))],
-        ['МНОЖИТЕЛЬ', String(incomeMult()) + 'Х'],
+        ['МНОЖИТЕЛЬ', String(Math.round(incomeMult() * 100)) + '%'],
         ['ВРЕМЯ', fmtTime(playSec)],
       ];
       rows.forEach(([name, value], i) => {
@@ -2382,29 +2456,32 @@
     drawTextBox('ПЕРЕРОЖДЕНИЕ', 1, REB_X0, REB_X1, 10, 20, COL.text);
     const need = rebirthNeed();
     const ready = coins >= need;
-    const per = premiumOwned.rebirth2 ? 4 : 2;
-    const nowMult = Math.pow(per, rebirths);
-    const afterMult = Math.pow(per, rebirths + 1);
+    const perPct = Math.round(rebirthPer() * 100);   // +30% for each rebirth (+60% with the bonus)
     // short lines, each one on its own row, starting 2 px from the frame
     drawText('СЕЙЧАС: ' + rebirths, 1, 74, 26, COL.text, 'left');
-    drawText('ДОХОД: ' + nowMult + 'Х, ПОСЛЕ: ' + afterMult + 'Х', 1, 74, 36, accent(), 'left');
+    drawText('ДОХОД: +' + Math.round(perPct * rebirths) + '%, ПОСЛЕ: +' + Math.round(perPct * (rebirths + 1)) + '%', 1, 74, 36, accent(), 'left');
     drawText('СБРОС: ПРЯНИКИ, ТЕХНИКА,', 1, 74, 48, COL.text, 'left');
-    drawText('ПРОКАЧКИ, УЛУЧШЕНИЯ', 1, 74, 58, COL.text, 'left');
+    drawText('УЛУЧШЕНИЯ КЛИКА', 1, 74, 58, COL.text, 'left');
     drawText('ОСТАНЕТСЯ: ПРЕМИУМ,', 1, 74, 68, COL.text, 'left');
-    drawText('РЕКЛАМА, НАСТРОЙКИ', 1, 74, 78, COL.text, 'left');
-    drawText('В НАЛИЧИИ: ' + fmt(coins) + '/' + fmt(need), 1, 74, 88, ready ? accent() : COL.text, 'left');
+    drawText('ПРОКАЧКИ, ЖАР', 1, 74, 78, COL.text, 'left');
+    drawText('ЖАР: ' + zakvaska + ', ПОСЛЕ: ' + (zakvaska + rebirthGain()), 1, 74, 88, accent(), 'left');
+    drawText('В НАЛИЧИИ: ' + fmt(coins) + '/' + fmt(need), 1, 74, 98, ready ? accent() : COL.text, 'left');
     settingsButton(74, 110, 246, 122, rebirthLabel());   // the same spacing as in the settings: 4 px to the close button
     settingsButton(74, 124, 246, 136, 'ЗАКРЫТЬ');
   }
 
-  // short form for the shop: from millions 1.01М, billions МЛД, trillions ТРЛ. The top counter is not shortened.
+  // short form for the shop and the prices: full numbers below a million; then 2 decimals and the suffix
+  // МЛН million, МЛР billion, ТРЛ trillion, КВД quadrillion, КВН quintillion, СКС sextillion, СПТ septillion, ОКТ octillion, НОН nonillion, ДЕЦ decillion
+  // (uppercase: the pixel font has no lowercase letters)
   function fmt(v) {
     const n = BigInt(v);
     if (n < 1000000n) return n.toString();
-    const x = Number(n);
-    if (x < 1e9) return (x / 1e6).toFixed(2) + 'М';
-    if (x < 1e12) return (x / 1e9).toFixed(2) + 'МЛД';
-    return (x / 1e12).toFixed(2) + 'ТРЛ';
+    const FMT_SUFFIX = [[10n ** 33n, 'ДЕЦ'], [10n ** 30n, 'НОН'], [10n ** 27n, 'ОКТ'], [10n ** 24n, 'СПТ'], [10n ** 21n, 'СКС'],
+      [10n ** 18n, 'КВН'], [10n ** 15n, 'КВД'], [10n ** 12n, 'ТРЛ'], [10n ** 9n, 'МЛР'], [10n ** 6n, 'МЛН']];
+    for (const [d, s] of FMT_SUFFIX) {
+      if (n >= d) return (Number(n * 100n / d) / 100).toFixed(2) + s;
+    }
+    return n.toString();
   }
 
   // ---------- buy amount: 1, 10, 100 or МАКС (only for КЛИК and ТЕХНИКА, which can be bought many times) ----------
@@ -2452,7 +2529,7 @@
   function tabHasNew(id) {
     if (id === 'click') return CLICK_UPGRADES.some((u, i) => clickOwned[i] === 0 && !listLocked('click', i) && coins >= priceNow('click', i));
     if (id === 'tech') return TECHNIKA.some((t, j) => techOwned[j] === 0 && !listLocked('tech', j) && coins >= priceNow('tech', j));
-    if (id === 'prok') return PROKACHKI.some((p, g) => !prokOwned[g] && prokUnlocked(g) && coins >= priceNow('prok', g));
+    if (id === 'prok') return PROKACHKI.some((p, g) => !prokOwned[g] && prokUnlocked(g) && zakvaska >= priceNow('prok', g));
     if (id === 'premium') return !(adWatched.double && adWatched.discount);
     return false;
   }
@@ -2499,7 +2576,7 @@
   function items() {
     if (tab === 'click') return CLICK_UPGRADES;
     if (tab === 'tech') return TECHNIKA;
-    if (tab === 'prok') return prokSel === null ? TECHNIKA : PROK_BY_TECH[prokSel].map((g) => PROKACHKI[g]);
+    if (tab === 'prok') return prokSel === null ? BRANCHES : PROK_BY_TECH[prokSel].map((g) => PROKACHKI[g]);
     return premiumItemsFor(premiumSection);
   }
   function maxScroll() {
@@ -2781,6 +2858,7 @@
     adBoost = { double: 0, discount: 0 };
     autoAcc = 0;                 // premium purchases are kept on reset
     rebirths = 0;
+    zakvaska = 0;
     cycleEarned = 0n;
     saveGame();
   }
@@ -3352,10 +3430,10 @@
       const owned = clickOwned[i];
       const p = plan('click', i);
       const amt = BigInt(p.n || 1);     // how many would be bought now: the gain shown is for all of them
-      const mult = BigInt(incomeMult()); // rebirths, premium and ad boosts: what a click really gives
+      const mult = incomeMultBig(); // rebirths, premium and ad boosts (in hundredths): what a click really gives
       return {
-        line1: '+' + fmt(it.add * amt * mult) + ' ЗА КЛИК',
-        line2: 'ЕСТЬ ' + owned + ': +' + fmt(it.add * BigInt(owned) * mult) + ' ВСЕГО',
+        line1: '+' + fmt(it.add * amt * mult / 100n) + ' ЗА КЛИК',
+        line2: 'ЕСТЬ ' + owned + ': +' + fmt(it.add * BigInt(owned) * mult / 100n) + ' ВСЕГО',
         price: fmt(p.cost),
         can: p.canOne,
       };
@@ -3364,7 +3442,7 @@
       const owned = techOwned[i];
       if (owned >= TECH_MAX) {
         return {
-          line1: '+' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',   // total this technika brings
+          line1: '+' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * synergyMult())) * incomeMultBig() / 100n) + ' В СЕК',   // total this technika brings
           line2: 'МАКС',
           price: '',
           can: false,
@@ -3373,8 +3451,8 @@
       const p = plan('tech', i);
       const amt = p.n || 1;             // how many would be bought now: the gain shown is for all of them
       return {
-        line1: '+' + fmt(BigInt(Math.floor(it.rate * amt * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',
-        line2: 'ЕСТЬ ' + owned + ': +' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',
+        line1: '+' + fmt(BigInt(Math.floor(it.rate * amt * techMult(i) * synergyMult())) * incomeMultBig() / 100n) + ' В СЕК',
+        line2: 'ЕСТЬ ' + owned + ': +' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * synergyMult())) * incomeMultBig() / 100n) + ' В СЕК',
         price: fmt(p.cost),
         can: p.canOne,
       };
@@ -3384,7 +3462,7 @@
       const j = i;
       const cnt = PROK_BY_TECH[j].filter((g) => prokOwned[g]).length;
       return {
-        line1: 'КУПЛЕНО: ' + cnt + ' ИЗ 4',
+        line1: 'КУПЛЕНО: ' + cnt + ' ИЗ 5',
         line2: 'ЖМИ, ЧТОБЫ ОТКРЫТЬ',
         price: '',                  // no price on this row: the whole row opens the list
         can: false,
@@ -3395,16 +3473,14 @@
       const owned = prokOwned[g];
       const unlocked = prokUnlocked(g);
       const price = priceNow('prok', g);
-      let line2 = 'ДОХОД 2 РАЗА';
-      if (owned) line2 = 'КУПЛЕНО: ДОХОД 2 РАЗА';
-      else if (!prokTechReady(g)) line2 = 'НУЖЕН УР. ' + PROK_TECH_LEVEL[it.level] + ' ТЕХНИКИ';
+      let line2 = 'ДОСТУПНО';
+      if (owned) line2 = 'КУПЛЕНО';
       else if (!unlocked) line2 = 'СНАЧАЛА ПРЕДЫДУЩИЙ';
-      const SHORT = { 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАН', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИКА' };   // keeps the price on the same line
       return {
-        line1: SHORT[TECHNIKA[it.tech].name] || TECHNIKA[it.tech].name,
+        line1: PROK_EFFECT[it.tech][it.level],
         line2,
-        price: owned ? 'ЕСТЬ' : fmt(price),
-        can: !owned && unlocked && coins >= price,
+        price: owned ? 'ЕСТЬ' : fmt(price) + ' ЖАР',   // ЖАР: the rebirth currency
+        can: !owned && unlocked && zakvaska >= price,
       };
     }
     // premium and ad rows
@@ -3703,6 +3779,11 @@
     // the hint: yellow like the bonus lines; shown before the first tap and after a minute without taps
     // the hint sits on the floor right under the cookie
     if ((!everTapped || animT > 60) && !(ev && ev.type === 'appetite')) drawText('КЛИКАЙ', 1, cx, 149, accent(), 'center');   // not on top of the appetite text   // above the shop sheet, so it stays visible
+    // the rhythm and the crit: shown under the cookie while they work
+    if (everTapped && !(ev && ev.type === 'appetite')) {
+      if (critFlashT > 0) drawText('КРИТ!', 1, cx, 149, accent(), 'center');
+      else if (ritmMult() > 1.01) drawText('РИТМ +' + Math.round((ritmMult() - 1) * 100) + '%', 1, cx, 149, accent(), 'center');
+    }
     // the appearance button at the bottom, where the hint used to be (only while the shop is closed)
 
     // top-row buttons first, so the open shop panel covers them where they overlap
@@ -3926,10 +4007,28 @@
     let raw = null;
     try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
     if (!raw) return;
-    const parts = [];
-    for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
-    vkBridge.send('VKWebAppStorageSet', { key: 'save_n', value: String(parts.length) }).catch(() => {});
-    parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: 'save_' + i, value: p }).catch(() => {}));
+    // never overwrite a save with more progress: read the cloud copy first, write only if this device is not behind
+    const write = () => {
+      const parts = [];
+      for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
+      vkBridge.send('VKWebAppStorageSet', { key: 'save_n', value: String(parts.length) }).catch(() => {});
+      parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: 'save_' + i, value: p }).catch(() => {}));
+    };
+    vkBridge.send('VKWebAppStorageGet', { keys: ['save_n'] }).then((res) => {
+      const n = parseInt(res.keys[0].value, 10);
+      if (!(n > 0)) return write();
+      const keys = [];
+      for (let i = 0; i < n; i++) keys.push('save_' + i);
+      return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
+        const cloud = res2.keys.map((k) => k.value).join('');
+        if (vkProgress(cloud) > vkProgress(raw)) return;   // the cloud is ahead: keep it, the next start takes it
+        write();
+      });
+    }).catch(() => {});
+  }
+  // the progress of a save for the comparisons: the total coins earned (BigInt)
+  function vkProgress(raw) {
+    try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; }
   }
   // at the start: if the VK copy is newer than this device's save, take it and reload once
   function vkLoadCloud() {
@@ -3965,6 +4064,7 @@
         adWatched,
         adBoost: { double: adBoost.double, discount: adBoost.discount },   // the ad bonuses keep their time left
         rebirths,
+        zakvaska,
         cycleEarned: cycleEarned.toString(),
         totalEarned: totalEarned.toString(),
         playerClicks,
@@ -4017,6 +4117,7 @@
       if (s.adWatched) adWatched = { double: !!s.adWatched.double, discount: !!s.adWatched.discount };
       if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
       rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
+      zakvaska = Math.max(0, Math.floor(Number(s.zakvaska) || 0));
       totalEarned = BigInt(s.totalEarned || '0');
       playerClicks = Math.max(0, Math.floor(Number(s.playerClicks) || 0));
       playSec = Math.max(0, Number(s.playSec) || 0);
@@ -4361,5 +4462,12 @@
     get ev() { return ev ? { type: ev.type, t: ev.t, taps: ev.taps, done: ev.done, pies: ev.pies } : null; },
     get mult() { return incomeMult(); },
     get cycleEarned() { return cycleEarned.toString(); },
+    get zakvaska() { return zakvaska; },
+    get tapMult() { return tapMult(); },
+    get pechMult() { return pechMult(); },
+    get critChance() { return critChance(); },
+    get adSeconds() { return adSeconds(); },
+    get ritm() { return ritmMult(); },
+    get rebirthNeed() { return rebirthNeed().toString(); },
   };
 })();

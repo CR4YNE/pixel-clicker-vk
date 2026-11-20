@@ -47,7 +47,7 @@
   const rowH = () => (tab === 'premium' && (premiumSection === 'bonus' || premiumSection === 'skins') ? 22 : 31);   // three lines per row; the premium bonus and skin rows have two lines, so they are 9 px shorter
   const gapH = () => 3;    // the space between the rows (the background is shorter by this)
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
-  const COST_GROWTH = 1.2;     // price = base * 1.15^owned
+  const COST_GROWTH = 1.15;   // price = base * 1.15^owned
 
   // the Latin letters of the e-mails: added to the game's pixel font in the same 6 by 8 style
   const LATIN_GLYPHS = {
@@ -99,63 +99,56 @@
     thumb: '#6e64a0',
   };
 
-  // ---------- data (placeholder names; numbers are first-pass balance) ----------
-  // КЛИК: each adds `add` coins per click for every bought one (order = by click income)
+  // ---------- data: economy v4 (docs/economy-v4.md); the numbers are first-pass, to be tuned ----------
+  // ингредиенты: МУКА, МЁД, КОРИЦА, ИМБИРЬ (counters; keys below)
+  const ING_KEYS = ['flour', 'honey', 'cinnamon', 'ginger'];
   // the names in the hint "КУПИ 5 ..." in the right form for five of them
-  const FIVE = {
-    'СКАЛКА': 'СКАЛОК', 'ТЕСТО': 'ПОРЦИЙ ТЕСТА', 'ШОКОЛАД': 'ПЛИТОК ШОКОЛАДА', 'МУКА': 'МЕШКОВ МУКИ', 'ЯЙЦО': 'ЯИЦ',
-    'МЁД': 'БАНОК МЁДА', 'СЛИВКИ': 'ПАКЕТОВ СЛИВОК', 'КОРИЦА': 'ПАЧЕК КОРИЦЫ', 'ИМБИРЬ': 'КУСКОВ ИМБИРЯ', 'ГЛАЗУРЬ': 'ЛОЖЕК ГЛАЗУРИ',
-    'МИКСЕР': 'МИКСЕРОВ', 'ПЕЧЬ': 'ПЕЧЕЙ', 'ХОЛОДИЛЬНИК': 'ХОЛОДИЛЬНИКОВ', 'ПЛИТА': 'ПЛИТ', 'КОФЕМАШИНА': 'КОФЕМАШИН',
-    'КОНВЕКТОМАТ': 'КОНВЕКТОМАТОВ', 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАНОВ', 'ТЕСТОМЕС': 'ТЕСТОМЕСОВ', 'КОНВЕЙЕР': 'КОНВЕЙЕРОВ', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИК ПРЯНИКОВ',
-  };
+  const FIVE = { 'УЧЕНИК': 'УЧЕНИКОВ', 'КУХАРЬ': 'КУХАРЕЙ', 'МАСТЕР': 'МАСТЕРОВ', 'ШЕФ': 'ШЕФОВ', 'ГУРУ': 'ГУРУ' };
   const fiveOf = (name) => FIVE[name] || name;
-  const CLICK_UPGRADES = [
-    { name: 'СКАЛКА', base: 50n, add: 1n },
-    { name: 'ТЕСТО', base: 100n, add: 2n },
-    { name: 'ШОКОЛАД', base: 200n, add: 4n },
-    { name: 'МУКА', base: 400n, add: 8n },
-    { name: 'ЯЙЦО', base: 750n, add: 15n },
-    { name: 'МЁД', base: 1500n, add: 30n },
-    { name: 'СЛИВКИ', base: 3500n, add: 70n },
-    { name: 'КОРИЦА', base: 7500n, add: 150n },
-    { name: 'ИМБИРЬ', base: 15000n, add: 300n },
-    { name: 'ГЛАЗУРЬ', base: 37500n, add: 750n },
+  // ПЕКАРИ: they only gather ingredients (rate per second, one baker); the next kind opens after 5 of the one before
+  const BAKERS = [
+    { name: 'УЧЕНИК', base: 50n, rate: 0.5 },
+    { name: 'КУХАРЬ', base: 300n, rate: 1.5 },
+    { name: 'МАСТЕР', base: 1500n, rate: 4 },
+    { name: 'ШЕФ', base: 8000n, rate: 10 },
+    { name: 'ГУРУ', base: 40000n, rate: 25 },
   ];
-  // ТЕХНИКА: each gives `rate` coins per second for every bought one
-  const TECHNIKA = [
-    { name: 'МИКСЕР', base: 60n, rate: 1 },
-    { name: 'ПЕЧЬ', base: 240n, rate: 4 },
-    { name: 'ХОЛОДИЛЬНИК', base: 600n, rate: 10 },
-    { name: 'ПЛИТА', base: 1500n, rate: 25 },
-    { name: 'КОФЕМАШИНА', base: 3600n, rate: 60 },
-    { name: 'КОНВЕКТОМАТ', base: 7500n, rate: 125 },
-    { name: 'ШОКОЛАДНЫЙ ФОНТАН', base: 18000n, rate: 300 },
-    { name: 'ТЕСТОМЕС', base: 42000n, rate: 700 },
-    { name: 'КОНВЕЙЕР', base: 90000n, rate: 1500 },
-    { name: 'ФАБРИКА ПРЯНИКОВ', base: 210000n, rate: 3500 },
+  const BAKER_MAX = 50;          // per kind
+  // ПЕЧИ: 10 kinds, 10 ovens per kind at most; one batch takes OVEN_TIME seconds per oven
+  const OVENS = [];
+  for (let k = 0; k < 10; k++) OVENS.push({ name: 'ПЕЧЬ ' + (k + 1), base: 25n });
+  const OVEN_MAX = 10;           // per kind
+  const OVEN_TIME = 8;           // seconds for one batch
+  // РЕЦЕПТЫ: the batch burns its ingredients and gives pryaniki (price); ПРОСТОЙ is open at the start
+  const RECIPES = [
+    { name: 'ПРОСТОЙ', cost: { flour: 2, honey: 1, cinnamon: 0, ginger: 0 }, price: 4 },
+    { name: 'КОРИЧНЫЙ', cost: { flour: 2, honey: 1, cinnamon: 1, ginger: 0 }, price: 15 },
+    { name: 'ИМБИРНЫЙ', cost: { flour: 2, honey: 1, cinnamon: 1, ginger: 1 }, price: 60 },
   ];
-  // ПРОКАЧКИ: 4 levels per technika, listed level by level. Level k doubles that technika (2, 4, 8, 16).
-  // Cost = 10 x technika base for level 1, then x8 per level. Each level needs the previous one.
+  // ПРОКАЧКИ (дерево, покупается ЖАРОМ, перерождение их не сбрасывает): 3 ветки по 5 узлов.
+  // СБОР: +20% к сбору ингредиентов тапами и пекарями за узел, на полной ветке ещё +100%.
+  // ПЕЧИ: +10% к скорости печей за узел, на полной ветке ещё +50%.
+  // УДАЧА: +1% шанса крита за узел; на полной ветке крит даёт +15 ингредиентов вместо +10.
+  // Узлы по порядку: 1, 2, 4, 8, 16 жара.
+  const BRANCHES = [{ name: 'СБОР' }, { name: 'ПЕЧИ' }, { name: 'УДАЧА' }];
   const PROK_NAMES = [
-    ['СЕРЕБРЯНЫЙ ВЕНЧИК', 'ЗОЛОТОЙ ВЕНЧИК', 'ПЛАТИНОВЫЙ ВЕНЧИК', 'ТИТАНОВЫЙ ВЕНЧИК'],
-    ['СЕРЕБРЯНЫЙ ПРОТИВЕНЬ', 'ЗОЛОТОЙ ПРОТИВЕНЬ', 'ПЛАТИНОВЫЙ ПРОТИВЕНЬ', 'ТИТАНОВЫЙ ПРОТИВЕНЬ'],
-    ['СЕРЕБРЯНЫЙ ХЛАДАГЕНТ', 'ЗОЛОТОЙ ХЛАДАГЕНТ', 'ПЛАТИНОВЫЙ ХЛАДАГЕНТ', 'ТИТАНОВЫЙ ХЛАДАГЕНТ'],
-    ['СЕРЕБРЯНАЯ ЗАЖИГАЛКА', 'ЗОЛОТАЯ ЗАЖИГАЛКА', 'ПЛАТИНОВАЯ ЗАЖИГАЛКА', 'ТИТАНОВАЯ ЗАЖИГАЛКА'],
-    ['СЕРЕБРЯНЫЙ ФИЛЬТР', 'ЗОЛОТОЙ ФИЛЬТР', 'ПЛАТИНОВЫЙ ФИЛЬТР', 'ТИТАНОВЫЙ ФИЛЬТР'],
-    ['СЕРЕБРЯНЫЙ ВЕНТИЛЯТОР', 'ЗОЛОТОЙ ВЕНТИЛЯТОР', 'ПЛАТИНОВЫЙ ВЕНТИЛЯТОР', 'ТИТАНОВЫЙ ВЕНТИЛЯТОР'],
-    ['СЕРЕБРЯНАЯ НАСАДКА', 'ЗОЛОТАЯ НАСАДКА', 'ПЛАТИНОВАЯ НАСАДКА', 'ТИТАНОВАЯ НАСАДКА'],
-    ['СЕРЕБРЯНЫЙ КРЮК', 'ЗОЛОТОЙ КРЮК', 'ПЛАТИНОВЫЙ КРЮК', 'ТИТАНОВЫЙ КРЮК'],
-    ['СЕРЕБРЯНЫЙ РОЛИК', 'ЗОЛОТОЙ РОЛИК', 'ПЛАТИНОВЫЙ РОЛИК', 'ТИТАНОВЫЙ РОЛИК'],
-    ['СЕРЕБРЯНЫЙ СТАНОК', 'ЗОЛОТОЙ СТАНОК', 'ПЛАТИНОВЫЙ СТАНОК', 'ТИТАНОВЫЙ СТАНОК'],
+    ['МЕДОВОЕ ТЕСТО', 'ИМБИРНОЕ ТЕСТО', 'ВАНИЛЬНОЕ ТЕСТО', 'ПРЯНОЕ ТЕСТО', 'ВОЛШЕБНОЕ ТЕСТО'],
+    ['ДУБОВЫЕ ДРОВА', 'КИРПИЧНЫЙ СВОД', 'ТЕПЛЫЙ ЖАР', 'ЗОЛОТАЯ ЗАСЛОНКА', 'ВЕЧНЫЙ ОГОНЬ'],
+    ['ПОДКОВА', 'СЧАСТЛИВЫЙ КОЛОСОК', 'ЗВЁЗДНАЯ ПЫЛЬ', 'КЛЕВЕРНЫЙ ЛИСТ', 'ЗОЛОТОЙ ЛУЧ'],
+  ];
+  const PROK_EFFECT = [
+    ['СБОР +20%', 'СБОР +20%', 'СБОР +20%', 'СБОР +20%', 'СБОР +100% ВСЕГО'],
+    ['ПЕЧИ +10%', 'ПЕЧИ +10%', 'ПЕЧИ +10%', 'ПЕЧИ +10%', 'ПЕЧИ +50% ВСЕГО'],
+    ['КРИТ +1%', 'КРИТ +1%', 'КРИТ +1%', 'КРИТ +1%', 'КРИТ +5 ИНГР'],
   ];
   const PROKACHKI = [];
-  for (let k = 0; k < 4; k++) {
-    for (let j = 0; j < TECHNIKA.length; j++) {
+  for (let k = 0; k < 5; k++) {
+    for (let j = 0; j < BRANCHES.length; j++) {
       PROKACHKI.push({
         name: PROK_NAMES[j][k],
-        tech: j,
-        level: k,
-        cost: TECHNIKA[j].base * 10n * (8n ** BigInt(k)),
+        tech: j,           // the branch (0 ТЕСТО, 1 ПЕЧЬ, 2 УДАЧА)
+        level: k,          // the node in its branch (0..4)
+        cost: 1 << k,   // Жар (a plain number, like zakvaska): 1, 2, 4, 8, 16
       });
     }
   }
@@ -212,7 +205,7 @@
     bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА', 'НАВСЕГДА'] },
     triple: { name: '3Х ДОХОД', lines: ['ТРОЙНОЙ ДОХОД', 'УМНОЖАЕТСЯ С 2Х, НАВСЕГДА'] },
     autoclick: { name: 'АВТО-КЛИК', lines: ['10 В СЕКУНДУ', 'НАВСЕГДА'] },
-    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ ДАЁТ 4Х', 'ВМЕСТО 2Х, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ +60% ДОХОДА', 'ВМЕСТО +30%, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
     discount: { name: 'СКИДКА 50% НА ВСЕ', lines: ['ВСЕ УЛУЧШЕНИЯ ДЕШЕВЛЕ ВДВОЕ', 'КРОМЕ ПРЕМИУМА, НАВСЕГДА'] },
     skin_neon: { name: 'КОСМИЧЕСКИЙ ПРЯНИК', lines: ['ЗВЁЗДЫ И ИСКРЫ', 'НАВСЕГДА'] },
     skin_volcano: { name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', lines: ['ЛАВА И ИСКРЫ', 'НАВСЕГДА'] },
@@ -233,7 +226,7 @@
     skins_all: { name: 'ВСЕ СКИНЫ', lines: ['ВЕСЬ АССОРТИМЕНТ СКИНОВ', 'НАВСЕГДА'] },   // the count of premium skins is shown in the purchase window
   };
   // for each technika, the global PROKACHKI indexes of its 4 upgrades (level 1..4)
-  const PROK_BY_TECH = TECHNIKA.map((_, j) => PROKACHKI.map((p, g) => (p.tech === j ? g : -1)).filter((g) => g >= 0));
+  const PROK_BY_TECH = BRANCHES.map((_, j) => PROKACHKI.map((p, g) => (p.tech === j ? g : -1)).filter((g) => g >= 0));   // by branch (name kept: used by the list)
 
   const canvas = document.getElementById('game');
   canvas.width = W;
@@ -462,9 +455,12 @@
   loadSkin('classic');
 
   // ---------- economy ----------
-  let coins = 0n;
-  let clickOwned = CLICK_UPGRADES.map(() => 0);
-  let techOwned = TECHNIKA.map(() => 0);
+  let coins = 0n;                // ПРЯНИКИ (BigInt, saved): paid by the ovens; buys bakers and ovens
+  let ingr = { flour: 0, honey: 0, cinnamon: 0, ginger: 0 };   // МУКА, МЁД, КОРИЦА, ИМБИРЬ (saved)
+  let bakerOwned = BAKERS.map(() => 0);   // saved
+  let ovenOwned = OVENS.map(() => 0);     // saved
+  let ovenRecipe = OVENS.map(() => 0);    // recipe index per oven kind (saved)
+  let recipeOpen = RECIPES.map((r, i) => i === 0);   // recipe flags: only ПРОСТОЙ at the start (saved)
   let prokOwned = PROKACHKI.map(() => false);
   let premiumOwned = { double: false, triple: false, autoclick: false, rebirth2: false, discount: false, noads: false };
   let rebirthAdOff = false;   // no ad on a rebirth after a rebirth item was bought (saved). Was never declared: every save failed silently
@@ -492,48 +488,166 @@
   let dailyPreview = null;       // the day (1..7) whose skin is shown in the preview, or null for the grid
   let totalBought = 0;           // technika and upgrade purchases (saved)
   let premiumWin = null;         // premium purchase window: {mode: 'confirm' | 'pending' | 'done' | 'error', idx, msg}
-  // coins needed in one cycle before the next rebirth (rebirth 1..12); after that x2.28 each time
-  const REBIRTH_NEED = [250000000n, 815000000n, 1956000000n, 4586000000n, 9032000000n, 21165000000n,
-    43790000000n, 84790000000n, 151640000000n, 244250000000n, 624670000000n, 1423200000000n];
+  // coins needed in one cycle before the next rebirth: 1 млрд, then ×2.5 for each rebirth made
+  let zakvaska = 0;              // the rebirth currency: earned on each rebirth, not reset by it (saved)
   function rebirthNeed() {
-    if (rebirths < REBIRTH_NEED.length) return REBIRTH_NEED[rebirths];
-    let v = REBIRTH_NEED[REBIRTH_NEED.length - 1];
-    for (let i = REBIRTH_NEED.length; i <= rebirths; i++) v = (v * 228n) / 100n;
+    let v = 1000000000n;
+    for (let i = 0; i < rebirths; i++) v = (v * 25n) / 10n;
     return v;
   }
-  let autoAcc = 0;               // fractional coins from technika
-
-  function clickPower() {
-    let p = 1n;
-    CLICK_UPGRADES.forEach((u, i) => { p += u.add * BigInt(clickOwned[i]); });
-    return p;
+  // Жар for the rebirth that is possible now: floor(sqrt(пряники за цикл / 10 млн))
+  function rebirthGain() {
+    return Math.floor(Math.sqrt(Number(cycleEarned) / 10000000));
   }
-  // how many times a technika's output is multiplied by its prokachki (2 per level owned)
-  function techMult(j) {
-    let m = 1;
-    PROKACHKI.forEach((p, i) => { if (p.tech === j && prokOwned[i]) m *= 2; });
-    return m;
+  let bakerAcc = 0;                  // fractional ingredients from bakers (not saved)
+  let tapAcc = 0;                    // fractional ingredients of the tap bonus, carried between taps (not saved)
+  let ovenAccs = OVENS.map(() => 0); // baking seconds per oven kind; at most one ready batch per oven (not saved)
+  let ovenPryAcc = 0;                // fractional pryaniki from batches (not saved)
+  let critFlashT = 0;                // the "КРИТ!" word: seconds left (not saved)
+  // one ingredient roll: МУКА 60%, МЁД 25%, КОРИЦА 12%, ИМБИРЬ 3%
+  function rollIngredient() {
+    const r = Math.random();
+    return r < 0.6 ? 'flour' : r < 0.85 ? 'honey' : r < 0.97 ? 'cinnamon' : 'ginger';
   }
-  // each rebirth adds +100% to the income multiplier (+200% with the rebirth bonus): 1, 2, 3, 4...
+  function branchOwned(b) {
+    return PROK_BY_TECH[b].filter((g) => prokOwned[g]).length;
+  }
+  // СБОР (branch 0): +20% to taps and bakers per node, +100% more on a full branch
+  function gatherMult() {
+    const n = branchOwned(0);
+    return 1 + 0.2 * n + (n === 5 ? 1 : 0);
+  }
+  // ПЕЧИ (branch 1): +10% oven speed per node, +50% more on a full branch
+  function ovenSpeed() {
+    const n = branchOwned(1);
+    return 1 + 0.1 * n + (n === 5 ? 0.5 : 0);
+  }
+  // УДАЧА (branch 2): crit 3% +1% per node; a full branch makes a crit give 15 ingredients instead of 10
+  function critChance() {
+    return 0.03 + 0.01 * branchOwned(2);
+  }
+  function critGain() {
+    return branchOwned(2) === 5 ? 15 : 10;
+  }
+  // the ad ×2 lasts 10 minutes (ПРОКАЧКИ do not change it)
+  function adSeconds() {
+    return AD_BOOST_SECONDS;
+  }
+  // premium 2x and 3x stack, the ad 2x and the quest 2x stack with them; rebirths add to them
+  function adIncomeMult() {
+    const premiumMult = (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1);
+    return premiumMult * (adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1);
+  }
+  // each rebirth adds +20% to the price of every batch (linear): ×1, ×1.2, ×1.4...; premium ×2 bonus gives +40% each
+  function rebirthPer() {
+    return premiumOwned.rebirth2 ? 0.4 : 0.2;
+  }
   function rebirthMult() {
-    return Math.pow(premiumOwned.rebirth2 ? 4 : 2, rebirths);
+    return 1 + rebirthPer() * rebirths;
   }
-  // premium 2x and ad 2x stack, rebirths add to them
   function incomeMult() {
-    const premiumMult = (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1);   // 2x and 3x stack: both give 6x
-    return premiumMult * (adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * rebirthMult();
+    return rebirthMult() * adIncomeMult();
   }
+  // synergy: every 10 ovens of one kind give +5% to the price of all batches, up to +50%
+  function synergyMult() {
+    let tens = 0;
+    ovenOwned.forEach((n) => { tens += Math.floor(n / 10); });
+    return 1 + Math.min(0.5, 0.05 * tens);
+  }
+  // the 50% discount: from premium or from the ad
   function discountOn() {
     return premiumOwned.discount || adBoost.discount > 0;
   }
+  // ingredients per second from all bakers (with the СБОР bonus)
+  function bakerRate() {
+    let r = 0;
+    BAKERS.forEach((b, i) => { r += b.rate * bakerOwned[i]; });
+    return r * gatherMult();
+  }
+  // pryaniki per second of n ovens of kind k when they bake without waiting (the counter line and the stats)
+  function ovenYield(k, n) {
+    return (n * ovenSpeed() * RECIPES[ovenRecipe[k]].price * synergyMult() * incomeMult() * (glazeTech > 0 ? 2 : 1)) / OVEN_TIME;
+  }
   function autoPerSec() {
     let r = 0;
-    TECHNIKA.forEach((t, j) => { r += t.rate * techOwned[j] * techMult(j) * 1; });
-    return r * incomeMult() * (glazeTech > 0 ? 2 : 1);
+    OVENS.forEach((o, k) => { r += ovenYield(k, ovenOwned[k]); });
+    return r;
   }
-  // one tap: its value times the income multipliers
-  function clickGain() {
-    return clickPower() * BigInt(incomeMult());
+  // one tap: its ingredients (the СБОР bonus carries over between taps: 1.2 gives 1, 1, 1, 1, 2, ...)
+  function tapIngredients() {
+    tapAcc += gatherMult() * (glazeClick > 0 ? 2 : 1);
+    let n = 0;
+    while (tapAcc >= 1) {
+      tapAcc -= 1;
+      ingr[rollIngredient()] += 1;
+      n++;
+    }
+    return n;
+  }
+  // a tap on the cookie: a crit (3%) gives 10 more random ingredients; flash = show the КРИТ! word
+  function doTap(flash) {
+    let n = tapIngredients();
+    if (Math.random() < critChance()) {
+      const extra = critGain();
+      for (let k = 0; k < extra; k++) ingr[rollIngredient()] += 1;
+      n += extra;
+      if (flash) critFlashT = 0.6;
+    }
+    return n;
+  }
+  // bakers gather while the player is not tired
+  function updateBakers(dt) {
+    bakerAcc += bakerRate() * dt;
+    const whole = Math.floor(bakerAcc);
+    bakerAcc -= whole;
+    for (let k = 0; k < whole; k++) ingr[rollIngredient()] += 1;
+  }
+  // a batch of kind k can start when the ingredients of its recipe are in stock
+  function batchReady(k) {
+    const cost = RECIPES[ovenRecipe[k]].cost;
+    return ING_KEYS.every((key) => ingr[key] >= cost[key]);
+  }
+  function bakeBatch(k) {
+    const rec = RECIPES[ovenRecipe[k]];
+    ING_KEYS.forEach((key) => { ingr[key] -= rec.cost[key]; });   // the batch burns its ingredients
+    ovenPryAcc += rec.price * synergyMult() * incomeMult() * (glazeTech > 0 ? 2 : 1);
+    const whole = Math.floor(ovenPryAcc);
+    if (whole > 0) {
+      ovenPryAcc -= whole;
+      coins += BigInt(whole);
+      cycleEarned += BigInt(whole);
+      totalEarned += BigInt(whole);
+    }
+  }
+  // ovens: each oven bakes a batch in OVEN_TIME seconds (faster with ПЕЧИ); a batch waits until its ingredients are there
+  function updateOvens(dt) {
+    ovenOwned.forEach((n, k) => {
+      if (n === 0) { ovenAccs[k] = 0; return; }
+      ovenAccs[k] += n * ovenSpeed() * dt;
+      while (ovenAccs[k] >= OVEN_TIME && batchReady(k)) {
+        ovenAccs[k] -= OVEN_TIME;
+        bakeBatch(k);
+      }
+      ovenAccs[k] = Math.min(ovenAccs[k], OVEN_TIME * n);   // waiting: at most one ready batch per oven
+    });
+  }
+  // the recipe of an oven kind: only open recipes can be chosen (the ЖАР tree opens them)
+  function setRecipe(k, r) {
+    if (!OVENS[k] || !RECIPES[r] || !recipeOpen[r]) return false;
+    ovenRecipe[k] = r;
+    return true;
+  }
+  // a rebirth clears the cycle: pryaniki, ingredients, bakers and ovens (ПРОКАЧКИ, ЖАР and open recipes stay)
+  function resetCycle() {
+    coins = 0n;
+    ingr = { flour: 0, honey: 0, cinnamon: 0, ginger: 0 };
+    bakerOwned = BAKERS.map(() => 0);
+    ovenOwned = OVENS.map(() => 0);
+    ovenRecipe = OVENS.map(() => 0);
+    bakerAcc = 0;
+    tapAcc = 0;
+    ovenPryAcc = 0;
+    ovenAccs = OVENS.map(() => 0);
   }
   function priceOf(base, owned) {
     return BigInt(Math.floor(Number(base) * Math.pow(COST_GROWTH, owned)));
@@ -544,10 +658,9 @@
   }
   // a prokachka level needs the technika at this level (number of technika bought) and the previous level
   const PROK_TECH_LEVEL = [20, 35, 50, 65];
-  const TECH_MAX = 100;         // every technika stops at level 100
+  // the tree needs no technika level any more: only the previous node of its branch
   function prokTechReady(i) {
-    const p = PROKACHKI[i];
-    return techOwned[p.tech] >= PROK_TECH_LEVEL[p.level];
+    return true;
   }
   function prokUnlocked(i) {
     const p = PROKACHKI[i];
@@ -555,24 +668,24 @@
     return p.level === 0 || prokOwned[PROKACHKI.findIndex((q) => q.tech === p.tech && q.level === p.level - 1)];
   }
   function priceNow(tab, index) {
-    if (tab === 'click') return finalPrice(priceOf(CLICK_UPGRADES[index].base, clickOwned[index]));
-    if (tab === 'tech') return finalPrice(priceOf(TECHNIKA[index].base, techOwned[index]));
-    if (tab === 'prok') return finalPrice(PROKACHKI[index].cost);
+    if (tab === 'click') return finalPrice(priceOf(BAKERS[index].base, bakerOwned[index]));
+    if (tab === 'tech') return finalPrice(priceOf(OVENS[index].base, ovenOwned[index]));
+    if (tab === 'prok') return PROKACHKI[index].cost;   // Жар: the discount does not apply
     return 0n;
   }
   function buy(tab, index) {
     if (tab === 'click' || tab === 'tech') {
       if (listLocked(tab, index)) return false;   // a locked item cannot be bought, not even in bulk
-      // buys as many as the amount allows and the coins pay for (fewer if the coins run out)
-      const cap = tab === 'tech' ? TECH_MAX - techOwned[index] : Infinity;
+      // buys as many as the amount allows and the pryaniki pay for (fewer if they run out)
+      const owned = tab === 'click' ? bakerOwned : ovenOwned;
+      const cap = (tab === 'click' ? BAKER_MAX : OVEN_MAX) - owned[index];
       const limit = Math.min(buyMode === 'max' ? BUY_MAX_STEPS : buyMode, cap);
       let bought = 0;
       for (let k = 0; k < limit; k++) {
         const cost = priceNow(tab, index);
         if (coins < cost) break;
         coins -= cost;
-        if (tab === 'click') clickOwned[index] += 1;
-        else techOwned[index] += 1;
+        owned[index] += 1;
         bought++;
         totalBought++;
       }
@@ -584,23 +697,23 @@
       const it = PREMIUM_ITEMS[index];
       if (it.kind === 'ad') {
         // the reward comes after the ad is shown (in VK); outside VK it comes at once
-        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); }));
+        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = adSeconds(); adWatched[it.id] = true; sfxBuy(); }));
         return true;
       }
       return false;
     }
-    if (tab === 'prok' && !prokUnlocked(index)) return false;
-    if (tab === 'prok' && prokOwned[index]) return false;
-    if ((tab === 'click' || tab === 'tech') && listLocked(tab, index)) return false;
-    const cost = priceNow(tab, index);
-    if (coins < cost) return false;
-    coins -= cost;
-    if (tab === 'click') clickOwned[index] += 1;
-    else if (tab === 'tech') techOwned[index] += 1;
-    else prokOwned[index] = true;
-    totalBought++;
-    sfxBuy();
-    return true;
+    if (tab === 'prok') {
+      // ПРОКАЧКИ платятся жаром, по одной, по порядку в ветке
+      if (!prokUnlocked(index) || prokOwned[index]) return false;
+      const zcost = PROKACHKI[index].cost;
+      if (zakvaska < zcost) return false;
+      zakvaska -= zcost;
+      prokOwned[index] = true;
+      totalBought++;
+      sfxBuy();
+      return true;
+    }
+    return false;
   }
 
   // ---------- UI state ----------
@@ -629,10 +742,7 @@
     // tired: the cookie does not count until the player rests
     if (restDue) { popups.push({ x: gx, y: gy - 10, t: 0, text: 'ОТДОХНИТЕ' }); return; }
     sfxClick();
-    const gain = clickGain() * (glazeClick > 0 ? 2n : 1n);
-    coins += gain;
-    cycleEarned += gain;
-    totalEarned += gain;
+    const n = doTap(true);   // the tap gives ingredients (not pryaniki)
     playerClicks += 1;
     if (ev && ev.type === 'quest' && !ev.done) {   // every tap on the cookie counts for the quest
       ev.taps += 1;
@@ -641,7 +751,7 @@
     animT = 0;
     everTapped = true;
     if (settings.shake) shakeT = 0.12;   // screen shake is off unless the player turns it on
-    popups.push({ x: gx, y: gy - 10, t: 0, text: '+' + String(gain) });   // at the tapped pixel, 10 px above it
+    popups.push({ x: gx, y: gy - 10, t: 0, text: '+' + String(n) });   // at the tapped pixel, 10 px above it
     for (let k = 0; k < 8; k++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 60 + Math.random() * 80;
@@ -677,13 +787,11 @@
   function doRebirth() {
     sfxRebirth();
     bestProkOneRebirth = Math.max(bestProkOneRebirth, prokOwned.filter(Boolean).length);
+    zakvaska += rebirthGain();   // the rebirth currency is counted from this cycle, before the cycle is cleared
     rebirths += 1;
-    coins = 0n;
-    clickOwned = clickOwned.map(() => 0);
-    techOwned = techOwned.map(() => 0);
-    prokOwned = prokOwned.map(() => false);
+    resetCycle();   // пряники, ингредиенты, пекари и печи
+    // ПРОКАЧКИ и ЖАР после перерождения остаются
     adBoost = { double: 0, discount: 0 };
-    autoAcc = 0;
     cycleEarned = 0n;
     rebirthOpen = false;
     if (!rebirthAdOff) startLoading();   // the ad on a rebirth, shown during a loading screen, unless a rebirth item was bought
@@ -753,31 +861,28 @@
   }
   // cooking minute: the cookie clicks by itself 25 times a second. No window, the player can keep buying.
   // These virtual clicks are not counted as player clicks; they only show crumbs and "+N" popups.
+  // cooking minute: the cookie gathers by itself 25 times a second for 60 s. No window, the player can keep buying.
+  // These virtual taps are not counted as player clicks; they only show crumbs and "+N" popups.
   function updateMinute(dt) {
     minuteLeft = Math.max(0, minuteLeft - dt);
-    const perClick = clickGain() * (glazeClick > 0 ? 2n : 1n);
+    critFlashT = Math.max(0, critFlashT - dt);   // the "КРИТ!" word shows for 0.6 s after a crit tap
     if (premiumOwned.autoclick && !restDue) {
-      // the auto-click bonus: ten taps a second, each one paying out like a tap of the player
+      // the auto-click bonus: ten taps a second, each one gathering like a tap of the player
       autoTapAcc += 10 * dt;
       while (autoTapAcc >= 1) {
         autoTapAcc -= 1;
-        const pay = clickGain() * (glazeClick > 0 ? 2n : 1n);
-        coins += pay;
-        cycleEarned += pay;
-        totalEarned += pay;
-        popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + fmt(pay) });   // every auto tap shows its +N
+        const n = doTap(false);
+        popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + String(n) });
         const sa = Math.random() * Math.PI * 2;
         sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(sa) * 50, vy: Math.sin(sa) * 50 - 30, t: 0 });
       }
     }
-    minuteAcc += minuteLeft > 0 ? 25 * dt : 0;   // the cooking minute only                             // 25 virtual presses a second
+    minuteAcc += minuteLeft > 0 ? 25 * dt : 0;   // the cooking minute only
     while (minuteAcc >= 1) {
-      // every virtual press pays out, shows its own "+N" and crumbs
+      // every virtual press gathers ingredients and shows its own "+N" and crumbs
       minuteAcc -= 1;
-      coins += perClick;
-      cycleEarned += perClick;
-      totalEarned += perClick;
-      popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + fmt(perClick) });   // middle of the screen, away from the counter
+      const n = doTap(false);
+      popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + String(n) });   // middle of the screen, away from the counter
       const a = Math.random() * Math.PI * 2;
       const sp = 40 + Math.random() * 60;
       sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, t: 0 });
@@ -2117,15 +2222,15 @@
     addAch('СДЕЛАТЬ ' + g + ' КЛИКОВ ВРУЧНУЮ', () => playerClicks, g));
   [1e6, 1e9, 1e12].forEach((g) =>
     addAch('ЗАРАБОТАТЬ ' + fmt(BigInt(g)), () => Number(totalEarned), g));
-  [1, 10, 25, 50, 100, 200, 300, 500, 1000, 2500, 5000, 10000].forEach((g) =>
-    addAch('КУПИТЬ ВСЕГО ' + g + ' ТЕХНИКИ', () => techOwned.reduce((x, y) => x + y, 0), g));
+  [1, 5, 10, 25, 50, 100].forEach((g) =>
+    addAch('КУПИТЬ ВСЕГО ' + g + ' ПЕЧЕЙ', () => ovenOwned.reduce((x, y) => x + y, 0), g));
   [1, 5, 10, 20, 40].forEach((g) =>
     addAch('КУПИТЬ ' + g + ' ПРОКАЧЕК', () => prokOwned.filter(Boolean).length, g));
   addAch('ВСЕ ' + PROKACHKI.length + ' ПРОКАЧЕК ЗА ПЕРЕРОЖДЕНИЕ', () => Math.max(bestProkOneRebirth, prokOwned.filter(Boolean).length), PROKACHKI.length);
-  [10, 25, 50, 100].forEach((g) =>
-    addAch('ТЕХНИКА ДОСТИГЛА УРОВНЯ ' + g, () => Math.max(...techOwned), g));
-  [100, 1000, 2500, 5000, 10000].forEach((g) =>
-    addAch('КУПИТЬ УЛУЧШЕНИЙ КЛИКА: ' + g, () => clickOwned.reduce((x, y) => x + y, 0), g));
+  [5, 10].forEach((g) =>
+    addAch('ПЕЧЕЙ ОДНОГО ВИДА: ' + g, () => Math.max(...ovenOwned), g));
+  [10, 50, 100, 200].forEach((g) =>
+    addAch('КУПИТЬ ПЕКАРЕЙ: ' + g, () => bakerOwned.reduce((x, y) => x + y, 0), g));
   // playing time, in minutes
   [[10, '10 МИНУТ'], [30, '30 МИНУТ'], [60, '1 ЧАС'], [120, '2 ЧАСА'], [240, '4 ЧАСА'],
     [600, '10 ЧАСОВ'], [1440, '24 ЧАСА'], [3000, '50 ЧАСОВ'], [6000, '100 ЧАСОВ']].forEach(([g, label]) =>
@@ -2275,11 +2380,11 @@
         ['ПЕРЕРОЖДЕНИЙ', String(rebirths)],
         ['КЛИКОВ ВРУЧНУЮ', String(playerClicks)],
         ['ПОКУПОК', String(totalBought)],
-        ['ТЕХНИКИ КУПЛЕНО', String(techOwned.reduce((a, b) => a + b, 0))],
+        ['ПЕЧЕЙ КУПЛЕНО', String(ovenOwned.reduce((a, b) => a + b, 0))],
         ['ПРОКАЧЕК КУПЛЕНО', String(prokOwned.filter(Boolean).length)],
-        ['ДОХОД ЗА КЛИК', fmt(clickGain())],
+        ['СБОР ЗА ТАП', String(Math.round(gatherMult() * 100)) + '%'],
         ['ДОХОД В СЕКУНДУ', fmt(BigInt(Math.floor(autoPerSec())))],
-        ['МНОЖИТЕЛЬ', String(incomeMult()) + 'Х'],
+        ['МНОЖИТЕЛЬ', String(Math.round(incomeMult() * 100)) + '%'],
         ['ВРЕМЯ В ИГРЕ', fmtTime(playSec)],
       ];
       rows.forEach(([name, value], i) => {
@@ -2344,28 +2449,31 @@
 
     const need = rebirthNeed();
     const ready = coins >= need;
-    const per = premiumOwned.rebirth2 ? 4 : 2;
-    const nowMult = Math.pow(per, rebirths);
-    const afterMult = Math.pow(per, rebirths + 1);
+    const perPct = Math.round(rebirthPer() * 100);   // +20% to the price of every batch for each rebirth (+40% with the premium bonus)
     drawText('ПЕРЕРОЖДЕНИЙ СЕЙЧАС: ' + rebirths, 1, 60, 22 + REB_DY, COL.text, 'left');
-    drawText('ДОХОД: ' + nowMult + 'Х, ПОСЛЕ: ' + afterMult + 'Х', 1, 60, 32 + REB_DY, accent(), 'left');
-    drawText('СБРОСИТСЯ: ПРЯНИКИ, ТЕХНИКА,', 1, 60, 46 + REB_DY, COL.text, 'left');
-    drawText('ПРОКАЧКИ, УЛУЧШЕНИЯ', 1, 60, 56 + REB_DY, COL.text, 'left');
+    drawText('ДОХОД: +' + Math.round(perPct * rebirths) + '%, ПОСЛЕ: +' + Math.round(perPct * (rebirths + 1)) + '%', 1, 60, 32 + REB_DY, accent(), 'left');
+    drawText('ЖАР: ' + zakvaska + ', ПОСЛЕ: ' + (zakvaska + rebirthGain()), 1, 60, 108 + REB_DY, accent(), 'left');
+    drawText('СБРОСИТСЯ: ПРЯНИКИ, ИНГРЕДИЕНТЫ,', 1, 60, 46 + REB_DY, COL.text, 'left');
+    drawText('ПЕКАРИ, ПЕЧИ', 1, 60, 56 + REB_DY, COL.text, 'left');
     drawText('ОСТАНЕТСЯ: ПРЕМИУМ, РЕКЛАМА,', 1, 60, 70 + REB_DY, COL.text, 'left');
-    drawText('НАСТРОЙКИ', 1, 60, 80 + REB_DY, COL.text, 'left');
+    drawText('ПРОКАЧКИ, ЖАР, НАСТРОЙКИ', 1, 60, 80 + REB_DY, COL.text, 'left');
     drawText('В НАЛИЧИИ: ' + fmt(coins) + ' / ' + fmt(need), 1, 60, 96 + REB_DY, ready ? accent() : COL.text, 'left');
     settingsButton(60, 140, 260, 154, ready ? 'ПЕРЕРОЖДЕНИЕ' : 'ЕЩЁ ' + fmt(need - coins));
     settingsButton(60, 156, 260, 170, 'ЗАКРЫТЬ');
   }
 
-  // short form for the shop: from millions 1.01М, billions МЛД, trillions ТРЛ. The top counter is not shortened.
+  // short form for the shop and the prices: full numbers below a million; then 2 decimals and the suffix
+  // МЛН million, МЛР billion, ТРЛ trillion, КВД quadrillion, КВН quintillion, СКС sextillion, СПТ septillion, ОКТ octillion, НОН nonillion, ДЕЦ decillion
+  // (uppercase: the pixel font has no lowercase letters)
   function fmt(v) {
     const n = BigInt(v);
     if (n < 1000000n) return n.toString();
-    const x = Number(n);
-    if (x < 1e9) return (x / 1e6).toFixed(2) + 'М';
-    if (x < 1e12) return (x / 1e9).toFixed(2) + 'МЛД';
-    return (x / 1e12).toFixed(2) + 'ТРЛ';
+    const FMT_SUFFIX = [[10n ** 33n, 'ДЕЦ'], [10n ** 30n, 'НОН'], [10n ** 27n, 'ОКТ'], [10n ** 24n, 'СПТ'], [10n ** 21n, 'СКС'],
+      [10n ** 18n, 'КВН'], [10n ** 15n, 'КВД'], [10n ** 12n, 'ТРЛ'], [10n ** 9n, 'МЛР'], [10n ** 6n, 'МЛН']];
+    for (const [d, s] of FMT_SUFFIX) {
+      if (n >= d) return (Number(n * 100n / d) / 100).toFixed(2) + s;
+    }
+    return n.toString();
   }
 
   // ---------- buy amount: 1, 10, 100 or МАКС (only for КЛИК and ТЕХНИКА, which can be bought many times) ----------
@@ -2381,19 +2489,18 @@
     const x = PX0 + 6 + i * 37;
     return [x, 144, x + 35, 158];
   }
-  // a click upgrade or a technika opens after 5 of the one before it (the first one is always open)
+  // a baker opens after 5 of the kind before it (the first one is always open); ovens are all open
   const UNLOCK_PREV = 5;
   function listLocked(tabId, i) {
-    if (i === 0) return false;
-    const own = tabId === 'click' ? clickOwned : techOwned;
-    return own[i - 1] < UNLOCK_PREV;
+    if (tabId !== 'click' || i === 0) return false;
+    return bakerOwned[i - 1] < UNLOCK_PREV;
   }
   // what one tap buys in a repeatable tab: how many (n) and the total price; canOne = the first one is affordable
   function plan(tab, i) {
     if ((tab === 'click' || tab === 'tech') && listLocked(tab, i)) return { n: 0, cost: 0n, canOne: false };
-    const base = tab === 'click' ? CLICK_UPGRADES[i].base : TECHNIKA[i].base;
-    const owned = tab === 'click' ? clickOwned[i] : techOwned[i];
-    const cap = tab === 'tech' ? TECH_MAX - owned : Infinity;     // technika stops at its maximum level
+    const base = tab === 'click' ? BAKERS[i].base : OVENS[i].base;
+    const owned = tab === 'click' ? bakerOwned[i] : ovenOwned[i];
+    const cap = (tab === 'click' ? BAKER_MAX : OVEN_MAX) - owned;   // a kind stops at its maximum
     const limit = Math.min(buyMode === 'max' ? BUY_MAX_STEPS : buyMode, cap);
     if (limit <= 0) return { n: 0, cost: 0n, canOne: false };
     let n = 0, sum = 0n;
@@ -2411,9 +2518,9 @@
   // the blinking dot: a tab has something new to buy (never bought and affordable), or, for ПРЕМИУМ,
   // some rewarded ad is still not watched
   function tabHasNew(id) {
-    if (id === 'click') return CLICK_UPGRADES.some((u, i) => clickOwned[i] === 0 && !listLocked('click', i) && coins >= priceNow('click', i));
-    if (id === 'tech') return TECHNIKA.some((t, j) => techOwned[j] === 0 && !listLocked('tech', j) && coins >= priceNow('tech', j));
-    if (id === 'prok') return PROKACHKI.some((p, g) => !prokOwned[g] && prokUnlocked(g) && coins >= priceNow('prok', g));
+    if (id === 'click') return BAKERS.some((b, i) => bakerOwned[i] === 0 && !listLocked('click', i) && coins >= priceNow('click', i));
+    if (id === 'tech') return OVENS.some((o, k) => ovenOwned[k] === 0 && coins >= priceNow('tech', k));
+    if (id === 'prok') return PROKACHKI.some((p, g) => !prokOwned[g] && prokUnlocked(g) && zakvaska >= priceNow('prok', g));
     if (id === 'premium') return !(adWatched.double && adWatched.discount);
     return false;
   }
@@ -2458,9 +2565,9 @@
     return [x0, y0, x0 + 72, y0 + 12];
   }
   function items() {
-    if (tab === 'click') return CLICK_UPGRADES;
-    if (tab === 'tech') return TECHNIKA;
-    if (tab === 'prok') return prokSel === null ? TECHNIKA : PROK_BY_TECH[prokSel].map((g) => PROKACHKI[g]);
+    if (tab === 'click') return BAKERS;
+    if (tab === 'tech') return OVENS;
+    if (tab === 'prok') return prokSel === null ? BRANCHES : PROK_BY_TECH[prokSel].map((g) => PROKACHKI[g]);
     return premiumItemsFor(premiumSection);
   }
   function maxScroll() {
@@ -2730,13 +2837,12 @@
     } else if (inRect(gx, gy, 160, 120, 260, 136)) resetWin = null;
   }
   function resetAll() {
-    coins = 0n;
-    clickOwned = clickOwned.map(() => 0);
-    techOwned = techOwned.map(() => 0);
+    resetCycle();
     prokOwned = prokOwned.map(() => false);
     adBoost = { double: 0, discount: 0 };
-    autoAcc = 0;                 // premium purchases are kept on reset
+    recipeOpen = RECIPES.map((r, i) => i === 0);
     rebirths = 0;
+    zakvaska = 0;
     cycleEarned = 0n;
     saveGame();
   }
@@ -3048,18 +3154,8 @@
     if (panelT < target) panelT = Math.min(target, panelT + step);
     else if (panelT > target) panelT = Math.max(target, panelT - step);
 
-    // generators
-    const perSec = restDue ? 0 : autoPerSec();   // no passive income while tired
-    if (perSec > 0) {
-      autoAcc += perSec * dt;
-      const whole = Math.floor(autoAcc);
-      if (whole > 0) {
-        coins += BigInt(whole);
-        cycleEarned += BigInt(whole);
-        totalEarned += BigInt(whole);
-        autoAcc -= whole;
-      }
-    }
+    // bakers gather ingredients and ovens bake batches; both rest while the player is tired
+    if (!restDue) { updateBakers(dt); updateOvens(dt); }
 
     for (const p of popups) { p.t += dt; p.y -= 30 * dt; }
     if (adBoost.double > 0) adBoost.double = Math.max(0, adBoost.double - dt);
@@ -3235,35 +3331,30 @@
 
   // text and price for one row of the current tab
   function rowInfo(i, it) {
-    if (tab === 'click' && listLocked('click', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(CLICK_UPGRADES[i - 1].name), price: '', can: false };
-    if (tab === 'tech' && listLocked('tech', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(TECHNIKA[i - 1].name), price: '', can: false };
+    if (tab === 'click' && listLocked('click', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(BAKERS[i - 1].name), price: '', can: false };
     if (tab === 'click') {
-      const owned = clickOwned[i];
+      // a baker: the ingredients its kind gathers in 10 seconds (for the amount that would be bought now)
+      const owned = bakerOwned[i];
       const p = plan('click', i);
-      const amt = BigInt(p.n || 1);     // how many would be bought now: the gain shown is for all of them
-      const mult = BigInt(incomeMult()); // rebirths, premium and ad boosts: what a click really gives
+      const amt = p.n || 1;
       return {
-        line1: '+' + fmt(it.add * amt * mult) + ' ЗА КЛИК',
-        line2: 'ЕСТЬ ' + owned + ': +' + fmt(it.add * BigInt(owned) * mult) + ' ВСЕГО',
+        line1: '+' + Math.round(it.rate * amt * gatherMult() * 10) + ' ИНГР ЗА 10С',
+        line2: 'ЕСТЬ ' + owned,
         price: fmt(p.cost),
         can: p.canOne,
       };
     }
     if (tab === 'tech') {
-      const owned = techOwned[i];
-      if (owned >= TECH_MAX) {
-        return {
-          line1: '+' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',   // total this technika brings
-          line2: 'МАКС',
-          price: '',
-          can: false,
-        };
+      // an oven kind: the pryaniki per second of the ovens (for the amount that would be bought now)
+      const owned = ovenOwned[i];
+      if (owned >= OVEN_MAX) {
+        return { line1: '+' + fmt(Math.floor(ovenYield(i, owned))) + ' В СЕК', line2: 'МАКС', price: '', can: false };
       }
       const p = plan('tech', i);
-      const amt = p.n || 1;             // how many would be bought now: the gain shown is for all of them
+      const amt = p.n || 1;
       return {
-        line1: '+' + fmt(BigInt(Math.floor(it.rate * amt * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',
-        line2: 'ЕСТЬ ' + owned + ': +' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',
+        line1: '+' + fmt(Math.floor(ovenYield(i, amt))) + ' В СЕК',
+        line2: 'ЕСТЬ ' + owned + ': +' + fmt(Math.floor(ovenYield(i, owned))) + ' В СЕК',
         price: fmt(p.cost),
         can: p.canOne,
       };
@@ -3273,7 +3364,7 @@
       const j = i;
       const cnt = PROK_BY_TECH[j].filter((g) => prokOwned[g]).length;
       return {
-        line1: 'КУПЛЕНО: ' + cnt + ' ИЗ 4',
+        line1: 'КУПЛЕНО: ' + cnt + ' ИЗ 5',
         line2: 'ЖМИ, ЧТОБЫ ОТКРЫТЬ',
         price: '',                  // no price on this row: the whole row opens the list
         can: false,
@@ -3284,16 +3375,14 @@
       const owned = prokOwned[g];
       const unlocked = prokUnlocked(g);
       const price = priceNow('prok', g);
-      let line2 = 'ДОХОД 2 РАЗА';
-      if (owned) line2 = 'КУПЛЕНО: ДОХОД 2 РАЗА';
-      else if (!prokTechReady(g)) line2 = 'НУЖЕН УР. ' + PROK_TECH_LEVEL[it.level] + ' ТЕХНИКИ';
+      let line2 = 'ДОСТУПНО';
+      if (owned) line2 = 'КУПЛЕНО';
       else if (!unlocked) line2 = 'СНАЧАЛА ПРЕДЫДУЩИЙ';
-      const SHORT = { 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАН', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИКА' };   // keeps the price on the same line
       return {
-        line1: SHORT[TECHNIKA[it.tech].name] || TECHNIKA[it.tech].name,
+        line1: PROK_EFFECT[it.tech][it.level],
         line2,
-        price: owned ? 'ЕСТЬ' : fmt(price),
-        can: !owned && unlocked && coins >= price,
+        price: owned ? 'ЕСТЬ' : fmt(price) + ' ЖАР',   // ЖАР: the rebirth currency
+        can: !owned && unlocked && zakvaska >= price,
       };
     }
     // premium and ad rows
@@ -3569,6 +3658,8 @@
     // the hint: yellow like the bonus lines; shown before the first tap and after a minute without taps
     // the hint sits on the floor right under the cookie
     if ((!everTapped || animT > 60) && !panelOpen) drawText('КЛИКАЙ', 1, cx, 149, accent(), 'center');   // hidden while the shop is open
+    // the crit: shown under the cookie for 0.6 s after it
+    if (!panelOpen && everTapped && critFlashT > 0) drawText('КРИТ!', 1, cx, 149, accent(), 'center');
     // the bonus tab: drawn before the buttons; its menu is drawn on top of the screen, like the other menus
     drawBoostLine();
     // the appearance button at the left wall: always shown, also while the shop is open
@@ -3794,10 +3885,28 @@
     let raw = null;
     try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
     if (!raw) return;
-    const parts = [];
-    for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
-    vkBridge.send('VKWebAppStorageSet', { key: 'save_n', value: String(parts.length) }).catch(() => {});
-    parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: 'save_' + i, value: p }).catch(() => {}));
+    // never overwrite a save with more progress: read the cloud copy first, write only if this device is not behind
+    const write = () => {
+      const parts = [];
+      for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
+      vkBridge.send('VKWebAppStorageSet', { key: 'save_n', value: String(parts.length) }).catch(() => {});
+      parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: 'save_' + i, value: p }).catch(() => {}));
+    };
+    vkBridge.send('VKWebAppStorageGet', { keys: ['save_n'] }).then((res) => {
+      const n = parseInt(res.keys[0].value, 10);
+      if (!(n > 0)) return write();
+      const keys = [];
+      for (let i = 0; i < n; i++) keys.push('save_' + i);
+      return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
+        const cloud = res2.keys.map((k) => k.value).join('');
+        if (vkProgress(cloud) > vkProgress(raw)) return;   // the cloud is ahead: keep it, the next start takes it
+        write();
+      });
+    }).catch(() => {});
+  }
+  // the progress of a save for the comparisons: the total coins earned (BigInt)
+  function vkProgress(raw) {
+    try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; }
   }
   // at the start: if the VK copy is newer than this device's save, take it and reload once
   function vkLoadCloud() {
@@ -3822,10 +3931,13 @@
   function saveGame() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        v: 2,
+        v: 3,
         coins: coins.toString(),
-        clickOwned,
-        techOwned,
+        ingr,
+        bakerOwned,
+        ovenOwned,
+        ovenRecipe,
+        recipeOpen,
         prokOwned,
         premiumOwned,
         rebirthAdOff,
@@ -3833,6 +3945,7 @@
         adWatched,
         adBoost: { double: adBoost.double, discount: adBoost.discount },   // the ad bonuses keep their time left
         rebirths,
+        zakvaska,
         cycleEarned: cycleEarned.toString(),
         totalEarned: totalEarned.toString(),
         playerClicks,
@@ -3876,15 +3989,22 @@
       if (s.skinAdViews && typeof s.skinAdViews === 'object') {
         for (const k of SKINS) skinAdViews[k.id] = Math.max(0, Math.floor(Number(s.skinAdViews[k.id]) || 0));
       }
-      coins = BigInt(s.coins || '0');
-      if (Array.isArray(s.clickOwned) && s.clickOwned.length === clickOwned.length) clickOwned = s.clickOwned.map(Number);
-      if (Array.isArray(s.techOwned) && s.techOwned.length === techOwned.length) techOwned = s.techOwned.map(Number);
+      // the economy v4 is save version 3; older saves keep only the rebirths and ПРОКАЧКИ
+      if (s.v === 3) {
+        coins = BigInt(s.coins || '0');
+        if (s.ingr && typeof s.ingr === 'object') for (const k of ING_KEYS) ingr[k] = Math.max(0, Math.floor(Number(s.ingr[k]) || 0));
+        if (Array.isArray(s.bakerOwned) && s.bakerOwned.length === bakerOwned.length) bakerOwned = s.bakerOwned.map((n) => Math.min(BAKER_MAX, Math.max(0, Math.floor(Number(n) || 0))));
+        if (Array.isArray(s.ovenOwned) && s.ovenOwned.length === ovenOwned.length) ovenOwned = s.ovenOwned.map((n) => Math.min(OVEN_MAX, Math.max(0, Math.floor(Number(n) || 0))));
+        if (Array.isArray(s.recipeOpen) && s.recipeOpen.length === recipeOpen.length) recipeOpen = s.recipeOpen.map((b, i) => i === 0 || !!b);
+        if (Array.isArray(s.ovenRecipe) && s.ovenRecipe.length === ovenRecipe.length) ovenRecipe = s.ovenRecipe.map((r) => (RECIPES[r] && recipeOpen[r] ? Number(r) : 0));
+      }
       if (Array.isArray(s.prokOwned) && s.prokOwned.length === prokOwned.length) prokOwned = s.prokOwned.map(Boolean);
       bestProkOneRebirth = Math.max(0, Math.floor(Number(s.bestProkOneRebirth) || 0));
       rebirthAdOff = !!s.rebirthAdOff || !!(s.premiumOwned && s.premiumOwned.rebirth2);
       if (s.adWatched) adWatched = { double: !!s.adWatched.double, discount: !!s.adWatched.discount };
       if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
       rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
+      zakvaska = Math.max(0, Math.floor(Number(s.zakvaska) || 0));
       totalEarned = BigInt(s.totalEarned || '0');
       playerClicks = Math.max(0, Math.floor(Number(s.playerClicks) || 0));
       playSec = Math.max(0, Number(s.playSec) || 0);
@@ -4035,9 +4155,13 @@
   window.KUCHA = {
     version: VERSION,
     get coins() { return coins.toString(); },
-    get owned() { return { click: clickOwned.slice(), tech: techOwned.slice(), prok: prokOwned.slice() }; },
+    get ingredients() { return { flour: ingr.flour, honey: ingr.honey, cinnamon: ingr.cinnamon, ginger: ingr.ginger }; },
+    get bakers() { return bakerOwned.reduce((a, b) => a + b, 0); },
+    get ovens() { return ovenOwned.reduce((a, b) => a + b, 0); },
+    get owned() { return { bakers: bakerOwned.slice(), ovens: ovenOwned.slice(), recipes: ovenRecipe.slice(), recipeOpen: recipeOpen.slice(), prok: prokOwned.slice() }; },
     get perSec() { return autoPerSec(); },
     get rebirths() { return rebirths; },
+    setRecipe(kind, r) { return setRecipe(kind, r); },
     event(type, pies) { if (type === 'appetite') ev = { type: 'appetite', t: 0, pies: pies !== false }; if (type === 'quest') ev = { type: 'quest', t: 60, taps: 0, done: null }; if (type === 'minute') minuteLeft = 60; },
     get menus() { return { shop: panelOpen, settings: settingsOpen, rebirth: rebirthOpen, progress: progWin ? progWin.tab : null, premium: !!premiumWin }; },
     get glaze() { return { click: glazeClick, tech: glazeTech, name: glazeName }; },
@@ -4045,6 +4169,14 @@
     get minuteLeft() { return minuteLeft; },
     get ev() { return ev ? { type: ev.type, t: ev.t, taps: ev.taps, done: ev.done, pies: ev.pies } : null; },
     get mult() { return incomeMult(); },
+    get synergy() { return synergyMult(); },
     get cycleEarned() { return cycleEarned.toString(); },
+    get zakvaska() { return zakvaska; },
+    get tapMult() { return gatherMult(); },
+    get pechMult() { return ovenSpeed(); },
+    get critChance() { return critChance(); },
+    get critGain() { return critGain(); },
+    get adSeconds() { return adSeconds(); },
+    get rebirthNeed() { return rebirthNeed().toString(); },
   };
 })();
