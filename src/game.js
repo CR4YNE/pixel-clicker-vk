@@ -3033,10 +3033,7 @@
     }
     playSec += dt;
     // the rest: every 10 minutes of play the rest button appears under the shop; ads and the loading screen do not count
-    if (!restDue && !adOpen && !rewardAdOpen && loadingLeft <= 0) {
-      restAcc += dt;
-      if (restAcc >= REST_EVERY) { restDue = true; popups.push({ x: 160, y: 100, t: 0, text: 'ВЫ УСТАЛИ' }); }
-    }
+    // the rest feature is switched off: the rest timer does not run
     const today = mskDate();
     if (dailySecDate !== today) { dailySecDate = today; dailySec = 0; }
     dailySec += dt;
@@ -3939,7 +3936,7 @@
       // the rest timer: the play time left before the rest button (saved)
       restAcc = Math.max(0, Math.min(REST_EVERY, Number(s.restAcc) || 0));
       if (Array.isArray(s.grantedOrders)) grantedOrders = s.grantedOrders.map(String);
-      restDue = !!s.restDue || restAcc >= REST_EVERY;
+      restDue = false;   // the rest feature is switched off
       if (s.settings) {
         settings.sound = Math.min(1, Math.max(0, Number(s.settings.sound) || 0));
         settings.music = Math.min(1, Math.max(0, Number(s.settings.music) || 0));
