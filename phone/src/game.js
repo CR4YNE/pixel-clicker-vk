@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.365-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.366-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -4096,22 +4096,31 @@
   // the launch check (п. 1.2.2 Правил): inside VK the game starts only when the server confirms VK's launch signature
   const LAUNCH_CHECK_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/launch';
   let launchState = /[?&]vk_/.test(location.search) ? 'checking' : 'ok';   // outside VK there is nothing to check
+  let launchCode = '';   // the last answer for the check: the HTTP status, or why the request failed (shown on the gate)
   function checkLaunch(attempt) {
     // a timeout: a server that never answers must not keep the game on "проверка" forever
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 8000);
     fetch(LAUNCH_CHECK_URL + location.search, ctl ? { signal: ctl.signal } : undefined)
-      .then((r) => (r.ok ? r.json() : { ok: false }))
+      .then((r) => { launchCode = String(r.status); return r.ok ? r.json() : { ok: false }; })
       .then((j) => { clearTimeout(timer); launchState = j.ok ? 'ok' : 'denied'; if (j.ok) syncPurchases(); })
-      .catch(() => { clearTimeout(timer); if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
+      .catch((e) => {
+        clearTimeout(timer);
+        launchCode = e && e.name === 'AbortError' ? 'ТАЙМАУТ' : 'ОШИБКА';
+        if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied';
+      });
   }
   if (launchState === 'checking') checkLaunch(1);
   // the launch check covers the whole phone screen: a page element over everything, not a part of the canvas
   function updateLaunchGate() {
     const g = document.getElementById('launch-gate');
     if (!g) return;
-    g.style.display = launchState === 'ok' ? 'none' : 'flex';
-    document.getElementById('launch-text').textContent = launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН' : 'ПРОВЕРКА ЗАПУСКА...';
+    // written only when the value changes: rewriting the text every frame made it flicker on the phone
+    const shown = launchState === 'ok' ? 'none' : 'flex';
+    if (g.style.display !== shown) g.style.display = shown;
+    const t = document.getElementById('launch-text');
+    const text = launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН, КОД: ' + launchCode : 'ПРОВЕРКА ЗАПУСКА...';
+    if (t && t.textContent !== text) t.textContent = text;
   }
   let splashT = 2.5;
   function drawSplash() {
