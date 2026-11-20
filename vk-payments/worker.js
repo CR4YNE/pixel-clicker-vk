@@ -41,6 +41,13 @@ export default {
       return json({ response: { title: 'Куча Пряников: ' + itemId, price, item_id: itemId, photo_url: '' } });
     }
     if (type === 'get_item_test') return json({ response: { title: 'test', price: 1, item_id: itemId, photo_url: '' } });
+    // тестовая покупка от VK (голоса не списываются): записываем, чтобы игра могла проверить весь путь покупки
+    if (type === 'order_status_change_test') {
+      const order_id = params.order_id;
+      const date = Math.floor(Date.now() / 1000);
+      await recordPurchase(env, params.user_id, { order_id: String(order_id), item: itemId, date });
+      return json({ response: { order_id, app_order_id: order_id, date } });
+    }
     if (type === 'order_status_change' && params.status === 'chargeable') {
       if (price === undefined) return json({ error: { error_code: 20, error_msg: 'unknown item' } });
       const order_id = params.order_id;
