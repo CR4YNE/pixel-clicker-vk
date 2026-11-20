@@ -2752,7 +2752,7 @@
     fillRect(76, 8, 1, 126, COL.panelEdge); fillRect(243, 8, 1, 126, COL.panelEdge);
     if (resetWin.stage === 1) {
       drawTextBox('СБРОС ПРОГРЕССА', 1, 76, 244, 14, 22, accent());
-      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, МОНЕТЫ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ', 'НАСТРОЙКИ И СТАТИСТИКА'];
+      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ И СТАТИСТИКА'];
       lines.forEach((t, i) => drawTextBox(t, 1, 80, 240, 28 + i * 10, 35 + i * 10, COL.text));
       settingsButton(80, 106, 160, 120, 'ДАЛЕЕ');
       settingsButton(164, 106, 240, 120, 'ОТМЕНА');
@@ -3207,7 +3207,7 @@
   let kitchenImg = null;
   const kitchenLoader = new Image();
   kitchenLoader.onload = () => { kitchenImg = kitchenLoader; };
-  kitchenLoader.src = 'art/kitchen-bg.png?v=16';   // ?v: a new background is picked up without a hard reload
+  kitchenLoader.src = 'art/kitchen-bg.png?v=17';   // ?v: a new background is picked up without a hard reload
 
   // cook animation: four frames at 4 fps (art/cook-0..3.png, drawn at x 80, y 80 over the background)
   const COOK_X = 80, COOK_Y = 80, COOK_FPS = 4;
@@ -4097,10 +4097,13 @@
   const LAUNCH_CHECK_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/launch';
   let launchState = /[?&]vk_/.test(location.search) ? 'checking' : 'ok';   // outside VK there is nothing to check
   function checkLaunch(attempt) {
-    fetch(LAUNCH_CHECK_URL + location.search)
+    // a timeout: a server that never answers must not keep the game on "проверка" forever
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 8000);
+    fetch(LAUNCH_CHECK_URL + location.search, ctl ? { signal: ctl.signal } : undefined)
       .then((r) => (r.ok ? r.json() : { ok: false }))
-      .then((j) => { launchState = j.ok ? 'ok' : 'denied'; if (j.ok) syncPurchases(); })
-      .catch(() => { if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
+      .then((j) => { clearTimeout(timer); launchState = j.ok ? 'ok' : 'denied'; if (j.ok) syncPurchases(); })
+      .catch(() => { clearTimeout(timer); if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
   }
   if (launchState === 'checking') checkLaunch(1);
   // the launch check covers the whole phone screen: a page element over everything, not a part of the canvas
