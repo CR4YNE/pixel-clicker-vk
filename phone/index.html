@@ -21,6 +21,8 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <!-- the launch check covers the whole screen (shown by the game while the server checks the launch) -->
+  <div id="launch-gate" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,8,24,0.9);color:#ffe9a8;font:14px sans-serif;letter-spacing:1px;z-index:10;"><span id="launch-text"></span></div>
   <script>
     // the VK bridge is loaded only when the game runs inside VK (VK adds vk_* parameters to the address);
     // elsewhere (for example, a plain browser or Yandex) the script is not loaded at all
@@ -36,6 +38,6 @@
   </script>
   <script src="src/font-data.js?v=6"></script>
   <script src="src/docs-text.js?v=4"></script>
-  <script src="src/game.js?v=183"></script>
+  <script src="src/game.js?v=184"></script>
 </body>
 </html>

@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.362-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.363-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -4077,9 +4077,12 @@
       .catch(() => { if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
   }
   if (launchState === 'checking') checkLaunch(1);
-  function drawLaunchGate() {
-    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.9)');
-    drawTextBox(launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН' : 'ПРОВЕРКА ЗАПУСКА...', 1, 0, W, H / 2 - 8, H / 2 + 2, COL.text);
+  // the launch check covers the whole phone screen: a page element over everything, not a part of the canvas
+  function updateLaunchGate() {
+    const g = document.getElementById('launch-gate');
+    if (!g) return;
+    g.style.display = launchState === 'ok' ? 'none' : 'flex';
+    document.getElementById('launch-text').textContent = launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН' : 'ПРОВЕРКА ЗАПУСКА...';
   }
   let splashT = 2.5;
   function drawSplash() {
@@ -4234,7 +4237,7 @@
     ctx.fillRect(0, 0, W, 320);
     render();
     if (splashT > 0) drawSplash();
-    if (launchState !== 'ok') drawLaunchGate();   // on top of everything, the consent window included
+    updateLaunchGate();   // on top of everything, the consent window included
     screenCtx.imageSmoothingEnabled = false;
     screenCtx.fillStyle = '#000';
     screenCtx.fillRect(0, 0, PHONE_W, PHONE_H);
