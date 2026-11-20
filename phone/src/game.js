@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.346-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.347-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -1151,7 +1151,7 @@
     if (premiumOwned.noads) { onReward(); return; }
     const now = Date.now();
     if (now < rewardAdReadyAt) {
-      popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА ЧЕРЕЗ ' + Math.ceil((rewardAdReadyAt - now) / 1000) + ' С' });
+      showNotice(['РЕКЛАМА ЧЕРЕЗ ' + Math.ceil((rewardAdReadyAt - now) / 1000) + ' С']);
       return;
     }
     rewardAdReadyAt = now + 60000;
@@ -1161,13 +1161,23 @@
       .then((data) => {
         rewardAdOpen = false;
         if (data && data.result) onReward();
-        else { rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМЫ НЕТ' }); }
+        else { rewardAdReadyAt = 0; showNotice(['РЕКЛАМЫ НЕТ']); }
       })
-      .catch((e) => { rewardAdOpen = false; rewardAdReadyAt = 0; popups.push({ x: 160, y: 100, t: 0, text: 'РЕКЛАМА: КОД ' + vkErrorCode(e) }); });
+      .catch((e) => { rewardAdOpen = false; rewardAdReadyAt = 0; showNotice(['РЕКЛАМА НЕ ПРОШЛА', 'КОД VK: ' + vkErrorCode(e)]); });
   }
   // the full-screen ad: only on a rebirth, during the loading screen (no timed ads during play)
   let adOpen = false;              // a full-screen ad is on the screen now
   let rewardAdOpen = false;        // a rewarded ad is on the screen now (it does not count toward the rest timer)
+  // a message in the middle of the screen with an OK button (the ad messages use it)
+  let noticeWin = null;            // {lines} while it is open
+  function showNotice(lines) { noticeWin = { lines }; }
+  function drawNotice() {
+    fillRect(76, 36, 168, 72, COL.panel);
+    fillRect(76, 36, 168, 1, COL.panelEdge); fillRect(76, 107, 168, 1, COL.panelEdge);
+    fillRect(76, 36, 1, 72, COL.panelEdge); fillRect(243, 36, 1, 72, COL.panelEdge);
+    noticeWin.lines.forEach((t, i) => drawTextBox(t, 1, 76, 244, 46 + i * 10, 54 + i * 10, COL.text));
+    settingsButton(74, 110, 246, 124, 'ОК');
+  }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count)
   let restDue = false;             // the rest button is shown under the shop
   const REST_EVERY = 600;          // 10 minutes of play between rests
@@ -2800,6 +2810,8 @@
   function handleTapDown(e) {
     e.preventDefault();
     if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
+    const [ngx, ngy] = toGame(e);
+    if (noticeWin) { if (inRect(ngx, ngy - SHEET_DY, 74, 110, 246, 124)) noticeWin = null; return; }   // the message takes the taps until OK
     if (splashT > 0) return;                  // the start screen takes no taps
     // the documents scroll by dragging them (in the consent window too), inside their text area
     if (docsOpen >= 0) {
@@ -3678,6 +3690,7 @@
     if (ev && ev.type === 'appetite') drawAppetite();
     if (loadingLeft > 0) drawLoading();
     if (consentOpen) { inSheet(drawConsent); if (docsOpen >= 0) inSheet(drawDocReader); }   // the first-launch window is the top layer
+    if (noticeWin) inSheet(drawNotice);
     if (boostMenuOpen) inSheet(drawBoostMenu);   // the same place as the other menus: the sheet under the scene
     if (restDue && !anyMenuOpenNow() && !consentOpen && loadingLeft <= 0) drawRestButton();
     if (!anyMenuOpenNow() && !consentOpen && document.fullscreenEnabled) drawFullScreenIconAt(FS_BL_X, FS_BL_Y, FS_BL_S);   // only where the browser allows fullscreen
