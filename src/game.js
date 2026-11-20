@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.348-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.349-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -3252,13 +3252,13 @@
     if (it.kind === 'soon') return { line1: it.line, line2: 'ЖДИТЕ ОБНОВЛЕНИЙ', price: '', can: false };
     let line2;
     if (it.kind === 'ad') {
-      line2 = adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + Math.ceil(adBoost[it.id] / 60) + ' МИН' : 'ЗА ПРОСМОТР: 10 МИНУТ';
+      line2 = 'РЕКЛАМА';   // the third line of an ad row: the ad itself
     } else {
       line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : '';   // owned: КУПЛЕНО; not owned: nothing (the price is on the row)
     }
     // a free ad that is running shows the time left on the row (the row draws only this line)
     const left = it.kind === 'ad' && adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + Math.ceil(adBoost[it.id] / 60) + ' МИН' : it.line;
-    return { line1: left, line2, price: it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
+    return { line1: left, line2, price: it.kind === 'ad' ? '' : it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
   }
 
   function drawPanel() {
