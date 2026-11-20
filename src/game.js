@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.345-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.346-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -44,7 +44,7 @@
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
   const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
-  const rowH = () => (tab === 'premium' ? 22 : 31);   // three lines per row, with 1 px between the lines; the premium rows have two lines, so they are 9 px shorter
+  const rowH = () => (tab === 'premium' && (premiumSection === 'bonus' || premiumSection === 'skins') ? 22 : 31);   // three lines per row; the premium bonus and skin rows have two lines, so they are 9 px shorter
   const gapH = () => 3;    // the space between the rows (the background is shorter by this)
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
   const COST_GROWTH = 1.2;     // price = base * 1.15^owned
