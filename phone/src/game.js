@@ -914,7 +914,7 @@
     return e && e.error_type ? String(e.error_type).toUpperCase() : 'НЕТ';
   }
   // the purchases the server has confirmed for this player (VK tells the server about every paid order)
-  const PURCHASES_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/purchases';
+  const PURCHASES_URL = 'https://functions.yandexcloud.net/d4e8ajlqi4mjo1lgs395';   // Яндекс Облако: список покупок (op=purchases)
   let grantedOrders = [];   // order ids already applied (saved): each paid order gives its item once
   // gives one bought item (the same whether it was bought in the game or in the VK form)
   function applyItem(id) {
@@ -931,7 +931,7 @@
   // asks the server for the confirmed purchases; each new one is applied once. Resolves with how many were new
   function syncPurchases() {
     if (!/[?&]vk_/.test(location.search)) return Promise.resolve(0);   // outside VK there are no purchases
-    return fetch(PURCHASES_URL + location.search)
+    return fetch(PURCHASES_URL + location.search + '&op=purchases')
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!j || !j.ok) return 0;
