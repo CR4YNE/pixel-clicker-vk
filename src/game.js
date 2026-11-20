@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.351-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.352-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -580,11 +580,11 @@
       return bought > 0;
     }
     if (tab === 'premium' || tab === 'ad') {
-      // placeholders: payments and the ad SDK are not connected yet
+      // the rewarded ad: asked first (ДА), then shown by VK; without VK nothing is shown
       const it = PREMIUM_ITEMS[index];
       if (it.kind === 'ad') {
         // the reward comes after the ad is shown (in VK); outside VK it comes at once
-        showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); });
+        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); }));
         return true;
       }
       return false;
@@ -1189,7 +1189,13 @@
   let rewardAdOpen = false;        // a rewarded ad is on the screen now (it does not count toward the rest timer)
   // a message in the middle of the screen with an OK button (the ad messages use it)
   let noticeWin = null;            // {lines} while it is open
-  function showNotice(lines) { noticeWin = { lines }; }
+  // onYes: the window asks a question (ДА / НЕТ); without it the window has one button (ОК)
+  function showNotice(lines, onYes) { noticeWin = { lines, onYes: onYes || null }; }
+  // a rewarded ad starts only after the player's own YES, and the message names the reward
+  function askAd(reward, go) {
+    if (premiumOwned.noads || Date.now() < rewardAdReadyAt) go();   // no ad with the ad-free purchase; a cooldown message comes from go
+    else showNotice(['СМОТРЕТЬ РЕКЛАМУ?', reward], go);
+  }
   function drawNotice() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
     fillRect(80, 64, 160, 48, COL.panel);
@@ -1198,7 +1204,12 @@
     // the text is centred between the top edge and the OK button (the centre is at y 82)
     const n = noticeLines().length, y0 = Math.round(82 - (10 * (n - 1) + 8) / 2);
     noticeLines().forEach((t, i) => drawTextBox(t, 1, 81, 239, y0 + i * 10, y0 + i * 10 + 8, COL.text));
-    settingsButton(81, 100, 239, 111, 'ОК');   // full width, on the bottom edge of the window
+    if (noticeWin.onYes) {   // a question: two buttons, ДА and НЕТ, on the bottom edge
+      settingsButton(81, 100, 159, 111, 'ДА');
+      settingsButton(161, 100, 239, 111, 'НЕТ');
+    } else {
+      settingsButton(81, 100, 239, 111, 'ОК');   // full width, on the bottom edge of the window
+    }
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count; saved)
   let restDue = false;             // the rest button is shown under the shop (saved)
@@ -1226,7 +1237,7 @@
       .finally(() => { adOpen = false; });
   }
   function watchSkinAd(id) {
-    showRewardAd(() => grantSkinView(id));
+    askAd('ПРОГРЕСС К СКИНУ', () => showRewardAd(() => grantSkinView(id)));
   }
   function grantSkinView(id) {
     const k = SKINS.find((s) => s.id === id);
@@ -2755,7 +2766,13 @@
     e.preventDefault();
     if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
     const [ngx, ngy] = toGame(e);
-    if (noticeWin) { if (inRect(ngx, ngy, 81, 100, 239, 111)) noticeWin = null; return; }   // the message takes the taps until OK
+    if (noticeWin) {
+      if (noticeWin.onYes) {
+        if (inRect(ngx, ngy, 81, 100, 159, 111)) { const yes = noticeWin.onYes; noticeWin = null; yes(); }
+        else if (inRect(ngx, ngy, 161, 100, 239, 111)) noticeWin = null;
+      } else if (inRect(ngx, ngy, 81, 100, 239, 111)) noticeWin = null;
+      return;
+    }   // the message takes the taps until OK
     if (splashT > 0) return;                  // the start screen takes no taps
     if (consentOpen) { const [cgx, cgy] = toGame(e); handleConsentDown(cgx, cgy); return; }   // the first-launch window comes before the info window
     startMusicOnce();

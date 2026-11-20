@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.351-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.352-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -584,11 +584,11 @@
       return bought > 0;
     }
     if (tab === 'premium' || tab === 'ad') {
-      // placeholders: payments and the ad SDK are not connected yet
+      // the rewarded ad: asked first (ДА), then shown by VK; without VK nothing is shown
       const it = PREMIUM_ITEMS[index];
       if (it.kind === 'ad') {
         // the reward comes after the ad is shown (in VK); outside VK it comes at once
-        showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); });
+        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); }));
         return true;
       }
       return false;
@@ -1173,7 +1173,13 @@
   let rewardAdOpen = false;        // a rewarded ad is on the screen now (it does not count toward the rest timer)
   // a message in the middle of the screen with an OK button (the ad messages use it)
   let noticeWin = null;            // {lines} while it is open
-  function showNotice(lines) { noticeWin = { lines }; }
+  // onYes: the window asks a question (ДА / НЕТ); without it the window has one button (ОК)
+  function showNotice(lines, onYes) { noticeWin = { lines, onYes: onYes || null }; }
+  // a rewarded ad starts only after the player's own YES, and the message names the reward
+  function askAd(reward, go) {
+    if (premiumOwned.noads || Date.now() < rewardAdReadyAt) go();   // no ad with the ad-free purchase; a cooldown message comes from go
+    else showNotice(['СМОТРЕТЬ РЕКЛАМУ?', reward], go);
+  }
   function drawNotice() {
     fillRect(84, 46, 152, 50, COL.panel);
     fillRect(84, 46, 152, 1, COL.panelEdge); fillRect(84, 95, 152, 1, COL.panelEdge);
@@ -1181,7 +1187,12 @@
     // the text is centred between the top edge and the OK button (the centre is at y 66)
     const n = noticeLines().length, y0 = Math.round(66 - (10 * (n - 1) + 8) / 2);
     noticeLines().forEach((t, i) => drawTextBox(t, 1, 85, 235, y0 + i * 10, y0 + i * 10 + 8, COL.text));
-    settingsButton(85, 86, 235, 95, 'ОК');   // full width, on the bottom edge of the window
+    if (noticeWin.onYes) {   // a question: two buttons, ДА and НЕТ, on the bottom edge
+      settingsButton(85, 86, 159, 95, 'ДА');
+      settingsButton(161, 86, 235, 95, 'НЕТ');
+    } else {
+      settingsButton(85, 86, 235, 95, 'ОК');   // full width, on the bottom edge of the window
+    }
   }
   let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count)
   let restDue = false;             // the rest button is shown under the shop
@@ -1209,7 +1220,7 @@
       .finally(() => { adOpen = false; });
   }
   function watchSkinAd(id) {
-    showRewardAd(() => grantSkinView(id));
+    askAd('ПРОГРЕСС К СКИНУ', () => showRewardAd(() => grantSkinView(id)));
   }
   function grantSkinView(id) {
     const k = SKINS.find((s) => s.id === id);
@@ -2816,7 +2827,13 @@
     e.preventDefault();
     if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
     const [ngx, ngy] = toGame(e);
-    if (noticeWin) { if (inRect(ngx, ngy - SHEET_DY, 85, 86, 235, 95)) noticeWin = null; return; }   // the message takes the taps until OK
+    if (noticeWin) {
+      if (noticeWin.onYes) {
+        if (inRect(ngx, ngy - SHEET_DY, 85, 86, 159, 95)) { const yes = noticeWin.onYes; noticeWin = null; yes(); }
+        else if (inRect(ngx, ngy - SHEET_DY, 161, 86, 235, 95)) noticeWin = null;
+      } else if (inRect(ngx, ngy - SHEET_DY, 85, 86, 235, 95)) noticeWin = null;
+      return;
+    }   // the message takes the taps until OK
     if (splashT > 0) return;                  // the start screen takes no taps
     // the documents scroll by dragging them (in the consent window too), inside their text area
     if (docsOpen >= 0) {
