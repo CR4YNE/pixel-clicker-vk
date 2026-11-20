@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.342-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.343-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -43,7 +43,7 @@
   // the tabs with the buy-amount row (КЛИК, ТЕХНИКА) keep the close button higher; the other tabs get it lower and a bigger list
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
-  const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
+  const listBottom = () => (hasBuyRow() ? 142 : tab === 'premium' ? 149 : 158);   // the list runs down to the buy row (or to the close button); the premium list is 9 px shorter
   const rowH = () => 31;   // three lines per row, with 1 px between the lines
   const gapH = () => 3;    // the space between the rows (the background is shorter by this)
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
