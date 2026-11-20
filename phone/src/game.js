@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.366-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.367-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -4097,20 +4097,34 @@
   const LAUNCH_CHECK_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/launch';
   let launchState = /[?&]vk_/.test(location.search) ? 'checking' : 'ok';   // outside VK there is nothing to check
   let launchCode = '';   // the last answer for the check: the HTTP status, or why the request failed (shown on the gate)
+  // XMLHttpRequest with its own timeout: it works in the old browsers inside VK, where fetch can hang without an answer
   function checkLaunch(attempt) {
-    // a timeout: a server that never answers must not keep the game on "проверка" forever
-    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = setTimeout(() => { if (ctl) ctl.abort(); }, 8000);
-    fetch(LAUNCH_CHECK_URL + location.search, ctl ? { signal: ctl.signal } : undefined)
-      .then((r) => { launchCode = String(r.status); return r.ok ? r.json() : { ok: false }; })
-      .then((j) => { clearTimeout(timer); launchState = j.ok ? 'ok' : 'denied'; if (j.ok) syncPurchases(); })
-      .catch((e) => {
-        clearTimeout(timer);
-        launchCode = e && e.name === 'AbortError' ? 'ТАЙМАУТ' : 'ОШИБКА';
-        if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied';
-      });
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', LAUNCH_CHECK_URL + location.search, true);
+    xhr.timeout = 8000;
+    // a failed try is repeated (up to 4 tries); the last code stays on the gate
+    const retry = (code) => {
+      launchCode = code;
+      if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000);
+      else { launchState = 'denied'; updateLaunchGate(); }
+    };
+    xhr.onload = () => {
+      launchCode = String(xhr.status);
+      let ok = false;
+      if (xhr.status === 200) { try { ok = JSON.parse(xhr.responseText).ok === true; } catch (e) { ok = false; } }
+      launchState = ok ? 'ok' : 'denied';
+      updateLaunchGate();   // the gate is updated here, not only in the frame loop
+      if (ok) syncPurchases();
+    };
+    xhr.onerror = () => retry('ОШИБКА');
+    xhr.ontimeout = () => retry('ТАЙМАУТ');
+    xhr.send();
   }
-  if (launchState === 'checking') checkLaunch(1);
+  if (launchState === 'checking') {
+    checkLaunch(1);
+    // the last guard: whatever happens, the gate does not stay on "проверка" for more than 20 seconds
+    setTimeout(() => { if (launchState === 'checking') { launchState = 'denied'; if (!launchCode) launchCode = 'ТАЙМАУТ'; updateLaunchGate(); } }, 20000);
+  }
   // the launch check covers the whole phone screen: a page element over everything, not a part of the canvas
   function updateLaunchGate() {
     const g = document.getElementById('launch-gate');
