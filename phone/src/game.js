@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.364-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.365-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -3574,7 +3574,7 @@
   // the Z letters: a little pixel Z rising from her head and fading out
     for (const age of bonyaZs) {
       const life = age / BONYA_Z_LIFE;
-      const zx = BONYA_X + 29 + Math.floor(life * 4), zy = BONYA_Y - 1 - Math.floor(life * 14);
+      const zx = BONYA_X + 29 + Math.floor(life * 4), zy = BONYA_Y + SCENE_UP - 1 - Math.floor(life * 14);   // the scene is drawn SCENE_UP higher on the screen, Bonya is not
       const zRows = ['#####', '...#.', '..#..', '.#...', '#####'];   // a 5x5 pixel Z, 1 px per cell
       ctx.globalAlpha = 1 - life;
       ctx.fillStyle = COL.text;
