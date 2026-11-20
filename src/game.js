@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.323-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.325-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2683,6 +2683,7 @@
   });
   function handleTapDown(e) {
     e.preventDefault();
+    if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
     if (splashT > 0) return;                  // the start screen takes no taps
     if (consentOpen) { const [cgx, cgy] = toGame(e); handleConsentDown(cgx, cgy); return; }   // the first-launch window comes before the info window
     startMusicOnce();
@@ -3826,6 +3827,20 @@
 
   // ---------- loop ----------
   // the start screen: 1.5 s after each load, with the logo, the game's name and the developer
+  // the launch check (п. 1.2.2 Правил): inside VK the game starts only when the server confirms VK's launch signature
+  const LAUNCH_CHECK_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/launch';
+  let launchState = /[?&]vk_/.test(location.search) ? 'checking' : 'ok';   // outside VK there is nothing to check
+  function checkLaunch(attempt) {
+    fetch(LAUNCH_CHECK_URL + location.search)
+      .then((r) => (r.ok ? r.json() : { ok: false }))
+      .then((j) => { launchState = j.ok ? 'ok' : 'denied'; })
+      .catch(() => { if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
+  }
+  if (launchState === 'checking') checkLaunch(1);
+  function drawLaunchGate() {
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.9)');
+    drawTextBox(launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН' : 'ПРОВЕРКА ЗАПУСКА...', 1, 0, W, H / 2 - 8, H / 2 + 2, COL.text);
+  }
   let splashT = 2.5;
   function drawSplash() {
     const SPLASH_T = 2.5;
@@ -3872,6 +3887,7 @@
     update(dt);
     render();
     if (splashT > 0) drawSplash();
+    if (launchState !== 'ok') drawLaunchGate();   // on top of everything, the consent window included
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

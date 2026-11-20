@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.323-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.325-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -2741,6 +2741,7 @@
   });
   function handleTapDown(e) {
     e.preventDefault();
+    if (launchState !== 'ok') return;   // not started yet, or not confirmed by the server
     if (splashT > 0) return;                  // the start screen takes no taps
     // the documents scroll by dragging them (in the consent window too), inside their text area
     if (docsOpen >= 0) {
@@ -3943,6 +3944,20 @@
 
   // ---------- loop ----------
   // the start screen: 1.5 s after each load, with the logo, the game's name and the developer
+  // the launch check (п. 1.2.2 Правил): inside VK the game starts only when the server confirms VK's launch signature
+  const LAUNCH_CHECK_URL = 'https://pryanik-vk-pay.billkamikadze.workers.dev/launch';
+  let launchState = /[?&]vk_/.test(location.search) ? 'checking' : 'ok';   // outside VK there is nothing to check
+  function checkLaunch(attempt) {
+    fetch(LAUNCH_CHECK_URL + location.search)
+      .then((r) => (r.ok ? r.json() : { ok: false }))
+      .then((j) => { launchState = j.ok ? 'ok' : 'denied'; })
+      .catch(() => { if (attempt < 3) setTimeout(() => checkLaunch(attempt + 1), 3000); else launchState = 'denied'; });
+  }
+  if (launchState === 'checking') checkLaunch(1);
+  function drawLaunchGate() {
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.9)');
+    drawTextBox(launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН' : 'ПРОВЕРКА ЗАПУСКА...', 1, 0, W, H / 2 - 8, H / 2 + 2, COL.text);
+  }
   let splashT = 2.5;
   function drawSplash() {
     const SPLASH_T = 2.5;
@@ -4096,6 +4111,7 @@
     ctx.fillRect(0, 0, W, 320);
     render();
     if (splashT > 0) drawSplash();
+    if (launchState !== 'ok') drawLaunchGate();   // on top of everything, the consent window included
     screenCtx.imageSmoothingEnabled = false;
     screenCtx.fillStyle = '#000';
     screenCtx.fillRect(0, 0, PHONE_W, PHONE_H);
