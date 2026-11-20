@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.367-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.369-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -485,6 +485,7 @@
   let shopReturn = false;        // the shop was open when another menu opened: it comes back when that menu closes
   let skinWin = false;           // the appearance window (ВНЕШНИЙ ВИД)
   let totalEarned = 0n;          // coins earned in all time (saved)
+  let resetAt = 0;               // when the progress was last reset (ms, saved): a save with a later reset always wins the cloud comparison
   let playerClicks = 0;          // taps on the cookie by the player (saved)
   let playSec = 0;               // seconds played (saved)
   // daily reward: 7 days in a row, one claim per Moscow day, needs 5 minutes played that day
@@ -713,7 +714,7 @@
   let minuteAcc = 0;             // fractional coins from the cooking minute
   let minuteLeft = 0;            // seconds left of the cooking minute
   const APPETITE_T = 30;         // how long the glowing plate stays
-  const PIE_SRC = [206, 160, 59, 18];   // the pies board in the kitchen picture, with the shadow under it     // the pies board in the kitchen picture
+  const PIE_SRC = [206, 160, 59, 16];   // the pies board in the kitchen picture with its shadow, rows 160-175: without the table's bottom edge (176-177), which the phone table does not have
   const PIE_BOX = [topRect('settings')[0] + 13, 160, topRect('settings')[0] + 13 + 59, 178];   // the pies board: centred over the appearance button, right above the menu
   const CAKE_SRC = [268, 152, 46, 24];   // the cake in the kitchen picture, with the shadow under it    // the cake in the kitchen picture (it was off the screen, at the right edge)
   const CAKE_BOX = [188, 154, 234, 178];   // on the right: the same 16 px from the right wall as the pies board from the left one  // the cake on the table, between the pies board and Bonya (2 px lower than before)
@@ -2784,13 +2785,15 @@
     autoAcc = 0;                 // premium purchases are kept on reset
     rebirths = 0;
     cycleEarned = 0n;
-    saveGame();
     // statistics and achievements (the achievements are counted from these) start again
     totalEarned = 0n;
     playerClicks = 0;
     playSec = 0;
     totalBought = 0;
     bestProkOneRebirth = 0;
+    resetAt = Date.now();        // this save is now newer than any copy made before the reset
+    saveGame();                  // saved only after everything above is cleared
+    if (window.vkBridge) vkSaveNow();   // the cloud gets the reset at once, not in 15 s
   }
 
   // the whole screen: a tap in the settings asks the browser for it (browsers allow it only after a tap)
@@ -3536,15 +3539,18 @@
     drawTableFront();
     if (kitchenImg) {
       // the floor behind the cake's new place (the old picture there was the table and the wall of its old place)
-      ctx.drawImage(kitchenImg, 100, 154, 46, 12, CAKE_BOX[0], 154, 46, 12);
+      // taken from x 108: 80 px (5 whole tiles) left of the cake's place, so the tiles line up with the floor around
+      ctx.drawImage(kitchenImg, CAKE_BOX[0] - 80, 154, 46, 12, CAKE_BOX[0], 154, 46, 12);
       if (!cutCake) cutCake = buildCut(CAKE_SRC, CAKE_SRC[0] - 3) || kitchenImg;
       if (cutCake === kitchenImg) ctx.drawImage(kitchenImg, CAKE_SRC[0], CAKE_SRC[1], CAKE_SRC[2], CAKE_SRC[3], CAKE_BOX[0], CAKE_BOX[1], CAKE_SRC[2], CAKE_SRC[3]);
       else ctx.drawImage(cutCake, CAKE_BOX[0], CAKE_BOX[1]);
     }
     if (kitchenImg) {
-      if (!cutPie) cutPie = kitchenImg;   // the pies board is drawn as it is
-      if (cutPie === kitchenImg) ctx.drawImage(kitchenImg, PIE_SRC[0], PIE_SRC[1], PIE_SRC[2], PIE_SRC[3], PIE_BOX[0], PIE_BOX[1], PIE_SRC[2], PIE_SRC[3]);
-      else ctx.drawImage(cutPie, PIE_BOX[0], PIE_BOX[1]);
+      // the pies board without the floor around it in the picture (that floor would not line up with the tiles here):
+      // the board itself from row 163, its handle (the last 6 px) from row 165; the floor above stays the one drawn in place
+      const [px0, py0, pw, ph] = PIE_SRC, bodyW = pw - 6, dx = PIE_BOX[0] - px0, dy = PIE_BOX[1] - py0;
+      ctx.drawImage(kitchenImg, px0, 163, bodyW, py0 + ph - 163, px0 + dx, 163 + dy, bodyW, py0 + ph - 163);
+      ctx.drawImage(kitchenImg, px0 + bodyW, 165, 6, py0 + ph - 165, px0 + bodyW + dx, 165 + dy, 6, py0 + ph - 165);
     }
     const cookIdx = settings.animBg ? ((Math.floor(cookT * COOK_FPS) % 4) + 4) % 4 : 0;   // off = still frame; never negative
     const cookFrame = cookFrames[cookIdx];
@@ -3945,14 +3951,19 @@
       for (let i = 0; i < n; i++) keys.push('save_' + i);
       return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
         const cloud = res2.keys.map((k) => k.value).join('');
-        if (vkProgress(cloud) > vkProgress(raw)) return;   // the cloud is ahead: keep it, the next start takes it
+        if (saveAhead(cloud, raw)) return;   // the cloud is ahead: keep it, the next start takes it
         write();
       });
     }).catch(() => {});
   }
-  // the progress of a save for the comparisons: the total coins earned (BigInt)
-  function vkProgress(raw) {
-    try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; }
+  // which of two saves is ahead: the one reset later wins (a reset must not be undone by an older copy with more coins);
+  // with the same reset, the one with more coins earned in all time. Returns true if `a` is ahead of `b`.
+  function saveAhead(a, b) {
+    const rank = (raw) => {
+      try { const s = JSON.parse(raw || '{}'); return [Number(s.resetAt) || 0, BigInt(s.totalEarned || '0')]; } catch (e) { return [-1, -1n]; }
+    };
+    const [ra, ea] = rank(a), [rb, eb] = rank(b);
+    return ra !== rb ? ra > rb : ea > eb;
   }
   // at the start: if the VK copy is newer than this device's save, take it and reload once
   function vkLoadCloud() {
@@ -3963,10 +3974,9 @@
       for (let i = 0; i < n; i++) keys.push('save_' + i);
       return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
         const cloud = res2.keys.map((k) => k.value).join('');
-        // the save with more earned progress wins: savedAt is refreshed by every local save, so it cannot tell which is newer
-        const progress = (raw) => { try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; } };
+        // the later reset wins, then more earned progress: savedAt is refreshed by every local save, so it cannot tell which is newer
         // the cloud save is applied in place (no page reload: a reload showed the start screen again)
-        if (progress(cloud) > progress(localStorage.getItem(SAVE_KEY))) {
+        if (saveAhead(cloud, localStorage.getItem(SAVE_KEY))) {
           localStorage.setItem(SAVE_KEY, cloud);
           loadGame();
         }
@@ -3991,6 +4001,7 @@
         rebirths,
         cycleEarned: cycleEarned.toString(),
         totalEarned: totalEarned.toString(),
+        resetAt,
         playerClicks,
         playSec: Math.floor(playSec),
         dailyDay,
@@ -4042,6 +4053,7 @@
       if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
       rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
       totalEarned = BigInt(s.totalEarned || '0');
+      resetAt = Number(s.resetAt) || 0;
       playerClicks = Math.max(0, Math.floor(Number(s.playerClicks) || 0));
       playSec = Math.max(0, Number(s.playSec) || 0);
       dailyDay = Math.min(7, Math.max(0, Math.floor(Number(s.dailyDay) || 0)));
@@ -4267,7 +4279,7 @@
     }
   }
   const CUT_HALO = true;    // only the cake: its darker pixels than the table around it become transparent
-  let cutCake = null, cutPie = null;
+  let cutCake = null;
   // the colour of the floor (the blue tiles), averaged once from the kitchen picture
   let floorCol = null;
   function floorRGB() {
@@ -4292,10 +4304,11 @@
   function drawTableFront() {
     const rows = tableWoodRows();
     if (!rows || !rows.length) return;
-    // the right part of the table top (where the old bread board was) is closed with the floor, the blue tiles
-    for (let y = 163; y < 166; y++) {
-      const c = floorRGB();
-      fillRect(206, y, W - 206, 1, 'rgb(' + c[0] + ', ' + c[1] + ', ' + c[2] + ')');
+    // the right part of the table top (where the old bread board was) is closed with the real floor rows 163-165
+    // (tiles and the table's light edge), copied from x 110: a whole number of 16 px tiles to the left, so the tiles line up
+    for (let sx = 206; sx < W; sx += 96) {
+      const w = Math.min(96, W - sx);
+      ctx.drawImage(kitchenImg, 110, 163, w, 3, sx, 163, w, 3);
     }
     for (let y = 166; y < 180; y++) {
       const t = ((y - 166) / 13) * (rows.length - 1);

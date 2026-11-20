@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.367-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.369-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -481,6 +481,7 @@
   let shopReturn = false;        // the shop was open when another menu opened: it comes back when that menu closes
   let skinWin = false;           // the appearance window (ВНЕШНИЙ ВИД)
   let totalEarned = 0n;          // coins earned in all time (saved)
+  let resetAt = 0;               // when the progress was last reset (ms, saved): a save with a later reset always wins the cloud comparison
   let playerClicks = 0;          // taps on the cookie by the player (saved)
   let playSec = 0;               // seconds played (saved)
   // daily reward: 7 days in a row, one claim per Moscow day, needs 5 minutes played that day
@@ -2739,13 +2740,15 @@
     autoAcc = 0;                 // premium purchases are kept on reset
     rebirths = 0;
     cycleEarned = 0n;
-    saveGame();
     // statistics and achievements (the achievements are counted from these) start again
     totalEarned = 0n;
     playerClicks = 0;
     playSec = 0;
     totalBought = 0;
     bestProkOneRebirth = 0;
+    resetAt = Date.now();        // this save is now newer than any copy made before the reset
+    saveGame();                  // saved only after everything above is cleared
+    if (window.vkBridge) vkSaveNow();   // the cloud gets the reset at once, not in 15 s
   }
 
   let fullScreenAsked = false;   // the first tap of the game asks for the whole screen once
@@ -3812,14 +3815,19 @@
       for (let i = 0; i < n; i++) keys.push('save_' + i);
       return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
         const cloud = res2.keys.map((k) => k.value).join('');
-        if (vkProgress(cloud) > vkProgress(raw)) return;   // the cloud is ahead: keep it, the next start takes it
+        if (saveAhead(cloud, raw)) return;   // the cloud is ahead: keep it, the next start takes it
         write();
       });
     }).catch(() => {});
   }
-  // the progress of a save for the comparisons: the total coins earned (BigInt)
-  function vkProgress(raw) {
-    try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; }
+  // which of two saves is ahead: the one reset later wins (a reset must not be undone by an older copy with more coins);
+  // with the same reset, the one with more coins earned in all time. Returns true if `a` is ahead of `b`.
+  function saveAhead(a, b) {
+    const rank = (raw) => {
+      try { const s = JSON.parse(raw || '{}'); return [Number(s.resetAt) || 0, BigInt(s.totalEarned || '0')]; } catch (e) { return [-1, -1n]; }
+    };
+    const [ra, ea] = rank(a), [rb, eb] = rank(b);
+    return ra !== rb ? ra > rb : ea > eb;
   }
   // at the start: if the VK copy is newer than this device's save, take it and reload once
   function vkLoadCloud() {
@@ -3830,10 +3838,9 @@
       for (let i = 0; i < n; i++) keys.push('save_' + i);
       return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
         const cloud = res2.keys.map((k) => k.value).join('');
-        // the save with more earned progress wins: savedAt is refreshed by every local save, so it cannot tell which is newer
-        const progress = (raw) => { try { return BigInt((JSON.parse(raw || '{}').totalEarned) || '0'); } catch (e) { return -1n; } };
+        // the later reset wins, then more earned progress: savedAt is refreshed by every local save, so it cannot tell which is newer
         // the cloud save is applied in place (no page reload: a reload showed the start screen again)
-        if (progress(cloud) > progress(localStorage.getItem(SAVE_KEY))) {
+        if (saveAhead(cloud, localStorage.getItem(SAVE_KEY))) {
           localStorage.setItem(SAVE_KEY, cloud);
           loadGame();
         }
@@ -3858,6 +3865,7 @@
         rebirths,
         cycleEarned: cycleEarned.toString(),
         totalEarned: totalEarned.toString(),
+        resetAt,
         playerClicks,
         playSec: Math.floor(playSec),
         dailyDay,
@@ -3909,6 +3917,7 @@
       if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
       rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
       totalEarned = BigInt(s.totalEarned || '0');
+      resetAt = Number(s.resetAt) || 0;
       playerClicks = Math.max(0, Math.floor(Number(s.playerClicks) || 0));
       playSec = Math.max(0, Number(s.playSec) || 0);
       dailyDay = Math.min(7, Math.max(0, Math.floor(Number(s.dailyDay) || 0)));
