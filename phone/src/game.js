@@ -180,7 +180,7 @@
     { kind: 'premium', id: 'discount', name: 'СКИДКА 50% НА ВСЕ', line: 'КРОМЕ ПРЕМИУМА', price: '6 ГОЛОСОВ' },
     { kind: 'premium', id: 'triple', name: '3Х ДОХОД', line: 'НАВСЕГДА', price: '10 ГОЛОСОВ' },
     { kind: 'premium', id: 'autoclick', name: 'АВТО-КЛИК', line: '10 В СЕКУНДУ', price: '4 ГОЛОСОВ' },
-    { kind: 'premium', id: 'bundle', name: 'ПАКЕТ ВСЁ ВМЕСТЕ', line: 'НАВСЕГДА', price: '18 ГОЛОСОВ' },
+    { kind: 'premium', id: 'bundle', name: 'ПАКЕТ ВСЁ ВМЕСТЕ', line: 'НАВСЕГДА', price: '30 ГОЛОСОВ' },
     { kind: 'premium', id: 'noads', name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', line: 'НАВСЕГДА', price: '14 ГОЛОСОВ' },
     { kind: 'premium', id: 'reb1', add: 1, name: '+1 ПЕРЕРОЖДЕНИЕ', line: 'ВЫШЕ ДОХОД', price: '1 ГОЛОСОВ' },
     { kind: 'premium', id: 'reb2', add: 2, name: '+2 ПЕРЕРОЖДЕНИЯ', line: 'ВЫШЕ ДОХОД', price: '2 ГОЛОСОВ' },
@@ -223,7 +223,7 @@
     reb5: { name: '+5 ПЕРЕРОЖДЕНИЙ', lines: ['+5 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
     reb10: { name: '+10 ПЕРЕРОЖДЕНИЙ', lines: ['+10 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
     noads: { name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', lines: ['БЕЗ РЕКЛАМЫ КАЖДЫЕ 7 МИН, БОНУСЫ ЗА РЕКЛАМУ БЕЗ ПРОСМОТРА', 'НАВСЕГДА'] },
-    bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА', 'НАВСЕГДА'] },
+    bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА, БЕЗ РЕКЛАМЫ, 2Х ПЕРЕРОЖДЕНИЯ', 'НАВСЕГДА, БЕЗ ПЕРЕРОЖДЕНИЙ И СКИНОВ'] },
     triple: { name: '3Х ДОХОД', lines: ['ТРОЙНОЙ ДОХОД', 'УМНОЖАЕТСЯ С 2Х, НАВСЕГДА'] },
     autoclick: { name: 'АВТО-КЛИК', lines: ['10 В СЕКУНДУ', 'НАВСЕГДА'] },
     rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ +60% ДОХОДА', 'ВМЕСТО +30%, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
@@ -998,7 +998,8 @@
     if (it.add) rebirths += it.add;   // a rebirth pack adds its rebirths; progress is not reset
     else premiumOwned[it.id] = true;
     // the bundle gives everything in it at once
-    if (it.id === 'bundle') for (const k of ['double', 'triple', 'autoclick', 'discount']) premiumOwned[k] = true;
+    if (it.id === 'bundle') for (const k of ['double', 'triple', 'autoclick', 'discount', 'noads', 'rebirth2']) premiumOwned[k] = true;
+    if (it.id === 'bundle') rebirthAdOff = true;   // the bonus of rebirths comes with no ad on a rebirth, as in its own purchase
     if (it.id === 'skins_all') unlockAllPremiumSkins();
     else if (it.id.startsWith('skin_')) skinOwned[it.id.slice(5)] = true;
   }

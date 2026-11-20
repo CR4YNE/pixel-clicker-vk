@@ -13,7 +13,7 @@ const crypto = require('crypto');
 
 // цены товаров в голосах (та же таблица, что на сервере раньше)
 const PRICES = {
-  double: 6, triple: 10, autoclick: 4, bundle: 18, discount: 6, noads: 14, skins_all: 5,
+  double: 6, triple: 10, autoclick: 4, bundle: 30, discount: 6, noads: 14, skins_all: 5,
   reb1: 1, reb2: 2, reb5: 4, reb10: 7,
   skin_royal: 1, skin_ghost: 1, skin_neontube: 1, skin_crystal: 1, skin_volcano: 1,
   skin_solar: 1, skin_starry: 1, skin_caramel: 1, skin_gzhel: 1, skin_rainbow: 1,
