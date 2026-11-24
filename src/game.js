@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.369-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.370-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -2225,6 +2225,8 @@
   }
   function drawDaily() {
     if (dailyPreview) { drawDailyPreview(); return; }
+    // a day whose skin is already owned has nothing to give: it passes by itself, with no offer
+    if (dailyCanClaim() && skinOwned[(SKINS[dailyNext().next] || {}).id]) dailyClaim();
     const s = dailyNext();
     const cellW = 38, cellGap = 2, x0 = Math.round((W - (7 * cellW + 6 * cellGap)) / 2);
     drawTextBox('НАГРАДА ЗА ДЕНЬ', 1, PROG_X0, PROG_X1, 32, 42, COL.text);
@@ -2448,7 +2450,8 @@
       // after the bundle nothing is left to buy: the section is empty ("ТОВАРОВ НЕТ")
       if (premiumOwned.skins_all) return [];
       // a bought skin leaves the shop
-      return PREMIUM_ITEMS.filter((x) => x.id === 'skins_all' || (x.id.startsWith('skin_') && !premiumOwned[x.id]))
+      // an owned skin (bought, won or opened in the appearance list) also leaves the shop
+      return PREMIUM_ITEMS.filter((x) => x.id === 'skins_all' || (x.id.startsWith('skin_') && !premiumOwned[x.id] && !skinOwned[x.id.slice(5)]))
         .sort((a, b) => (a.id === 'skins_all' ? -1 : b.id === 'skins_all' ? 1 : 0));
     }
     return [{ kind: 'soon', id: 'bg', name: 'НОВЫЕ ФОНЫ', line: 'ПОЯВЯТСЯ ПОЗЖЕ', price: '' }];

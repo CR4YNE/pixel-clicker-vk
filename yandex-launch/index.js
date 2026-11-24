@@ -10,11 +10,13 @@
 //   STORAGE_KEY_ID        — ID ключа сервисного аккаунта (доступ к бакету)
 //   STORAGE_KEY_SECRET    — секрет ключа сервисного аккаунта
 const crypto = require('crypto');
+// картинка товара для окна оплаты ВК (публичная ссылка, без входа)
+const PHOTO_URL = 'https://raw.githubusercontent.com/CR4YNE/pixel-clicker-vk/main/art/logo-c-transparent.png';
 
 // цены товаров в голосах (та же таблица, что на сервере раньше)
 const PRICES = {
   double: 6, triple: 10, autoclick: 4, bundle: 30, discount: 6, noads: 14, skins_all: 5,
-  reb1: 1, reb2: 2, reb5: 4, reb10: 7,
+  rebirth2: 6, reb1: 1, reb2: 2, reb5: 4, reb10: 7,
   skin_royal: 1, skin_ghost: 1, skin_neontube: 1, skin_crystal: 1, skin_volcano: 1,
   skin_solar: 1, skin_starry: 1, skin_caramel: 1, skin_gzhel: 1, skin_rainbow: 1,
   skin_neon: 1, skin_sea: 1, skin_halloween: 1, skin_easter: 1, skin_zefir: 1, skin_newyear: 1,
@@ -29,8 +31,16 @@ module.exports.handler = async function (event) {
   const q = Object.assign({}, event.queryStringParameters || {});
   // параметры уведомлений ВКонтакте могут прийти формой в теле запроса
   if (event.body) {
-    const raw = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
-    for (const [k, v] of new URLSearchParams(raw)) q[k] = v;
+    const buf = event.isBase64Encoded ? Buffer.from(event.body, 'base64') : Buffer.from(event.body, 'utf8');
+    const headers = event.headers || {};
+    const ct = headers['Content-Type'] || headers['content-type'] || '';
+    if (ct.includes('multipart/form-data')) {
+      // ВКонтакте может присылать уведомления как multipart — разбираем и такой формат
+      const form = await new Request('http://localhost/', { method: 'POST', headers: { 'content-type': ct }, body: buf }).formData();
+      for (const [k, v] of form) q[k] = String(v);
+    } else {
+      for (const [k, v] of new URLSearchParams(buf.toString('utf8'))) q[k] = v;
+    }
   }
 
   // 1) уведомления ВКонтакте (есть notification_type и sig)
@@ -79,9 +89,9 @@ async function vkNotification(q) {
 
   if (type === 'get_item') {
     if (price === undefined) return reply(200, { error: { error_code: 20, error_msg: 'unknown item' } });
-    return reply(200, { response: { title: 'Куча Пряников: ' + itemId, price, item_id: itemId, photo_url: '' } });
+    return reply(200, { response: { title: 'Куча Пряников: ' + itemId, price, item_id: itemId, photo_url: PHOTO_URL } });
   }
-  if (type === 'get_item_test') return reply(200, { response: { title: 'test', price: 1, item_id: itemId, photo_url: '' } });
+  if (type === 'get_item_test') return reply(200, { response: { title: 'test', price: 1, item_id: itemId, photo_url: PHOTO_URL } });
   if (type === 'order_status_change_test') {
     const date = Math.floor(Date.now() / 1000);
     await recordPurchase(q.user_id, { order_id: String(q.order_id), item: itemId, date });
