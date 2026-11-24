@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.370-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.374-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -694,6 +694,7 @@
     adBoost = { double: 0, discount: 0 };
     autoAcc = 0;
     cycleEarned = 0n;
+    cust = null;                     // his sum belongs to the old progress
     rebirthOpen = false;
     if (!rebirthAdOff) startLoading();   // the ad on a rebirth, shown during a loading screen, unless a rebirth item was bought
     shopReturn = false;
@@ -716,7 +717,6 @@
   const APPETITE_T = 30;         // how long the glowing plate stays
   const PIE_SRC = [206, 160, 59, 16];   // the pies board in the kitchen picture with its shadow, rows 160-175: without the table's bottom edge (176-177), which the phone table does not have
   const PIE_BOX = [topRect('settings')[0] + 13, 160, topRect('settings')[0] + 13 + 59, 178];   // the pies board: centred over the appearance button, right above the menu
-  const CAKE_SRC = [268, 152, 46, 24];   // the cake in the kitchen picture, with the shadow under it    // the cake in the kitchen picture (it was off the screen, at the right edge)
   const CAKE_BOX = [188, 154, 234, 178];   // on the right: the same 16 px from the right wall as the pies board from the left one  // the cake on the table, between the pies board and Bonya (2 px lower than before)
   function spawnEvent() {
     const r = Math.random();
@@ -1153,7 +1153,8 @@
   // outside VK (testing) the reward comes at once
   // the reward ad that the player chooses: one per minute (the cooldown); with the ad-free purchase it is given at once
   let rewardAdReadyAt = 0;
-  function showRewardAd(onReward) {
+  let lastAdAt = 0;                // when the last ad of any kind was on the screen (a customer comes at least a minute after it)
+  function showRewardAd(onReward, onFail) {
     if (premiumOwned.noads) { onReward(); return; }
     const now = Date.now();
     if (now < rewardAdReadyAt) {
@@ -1161,19 +1162,22 @@
       return;
     }
     rewardAdReadyAt = now + 60000;
+    lastAdAt = now;
     if (!window.vkBridge) { onReward(); return; }
     rewardAdOpen = true;
     vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', use_waterfall: true })
       .then((data) => {
         rewardAdOpen = false;
+        lastAdAt = Date.now();
         if (data && data.result) onReward();
-        else { rewardAdReadyAt = 0; showNotice(['РЕКЛАМЫ НЕТ']); }
+        else { rewardAdReadyAt = 0; if (onFail) onFail(); showNotice(['РЕКЛАМЫ НЕТ']); }
       })
-      .catch((e) => { rewardAdOpen = false; rewardAdReadyAt = 0; showNotice(['РЕКЛАМА НЕ ДОСТУПНА', 'ДО ПРОВЕРКИ МОДЕРАЦИИ']); });
+      .catch((e) => { rewardAdOpen = false; lastAdAt = Date.now(); rewardAdReadyAt = 0; if (onFail) onFail(); showNotice(['РЕКЛАМА НЕ ДОСТУПНА', 'ДО ПРОВЕРКИ МОДЕРАЦИИ']); });
   }
   // the full-screen ad: only on a rebirth, during the loading screen (no timed ads during play)
   let adOpen = false;              // a full-screen ad is on the screen now
   let rewardAdOpen = false;        // a rewarded ad is on the screen now (it does not count toward the rest timer)
+  const NOTICE_DIM = 'rgba(10, 8, 24, 0.6)';   // the rest of the screen under a message
   // a message in the middle of the screen with an OK button (the ad messages use it)
   let noticeWin = null;            // {lines} while it is open
   // onYes: the window asks a question (ДА / НЕТ); without it the window has one button (ОК)
@@ -1184,12 +1188,13 @@
     else showNotice(['СМОТРЕТЬ РЕКЛАМУ?', reward], go);
   }
   function drawNotice() {
+    fillRect(0, 0, W, 320, NOTICE_DIM);
     fillRect(84, 46, 152, 50, COL.panel);
     fillRect(84, 46, 152, 1, COL.panelEdge); fillRect(84, 95, 152, 1, COL.panelEdge);
     fillRect(84, 46, 1, 50, COL.panelEdge); fillRect(235, 46, 1, 50, COL.panelEdge);
     // the text is centred between the top edge and the OK button (the centre is at y 66)
     const n = noticeLines().length, y0 = Math.round(66 - (10 * (n - 1) + 8) / 2);
-    noticeLines().forEach((t, i) => drawTextBox(t, 1, 85, 235, y0 + i * 10, y0 + i * 10 + 8, COL.text));
+    noticeLines().forEach((t, i) => drawTextBox(t, 1, 85, 235, y0 + i * 10, y0 + i * 10 + 8, noticeWin.onYes && i > 0 ? accent() : COL.text));   // in a question the reward is golden
     if (noticeWin.onYes) {   // a question: two buttons, ДА and НЕТ, on the bottom edge
       settingsButton(85, 86, 159, 95, 'ДА');
       settingsButton(161, 86, 235, 95, 'НЕТ');
@@ -1218,9 +1223,118 @@
   function showFullScreenAd() {
     if (!window.vkBridge || adOpen) return;   // outside VK no ad is shown
     adOpen = true;
+    lastAdAt = Date.now();
     vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial', use_waterfall: true })
       .catch(() => {})
-      .finally(() => { adOpen = false; });
+      .finally(() => { adOpen = false; lastAdAt = Date.now(); });
+  }
+  // ---------- customers: every 15 minutes of play one comes to the counter and waits 20 s ----------
+  // he buys gingerbread for N = 400 taps + 150 s of the technika, counted once, when he comes; the sale is a rewarded ad
+  const CUST_EVERY = 900, CUST_WAIT = 20, CUST_AD_GAP = 60000, CUST_FADE = 0.3;
+  const CUST_X = 220, CUST_FEET = 146;   // on the screen: x 150, the soles at y 126 (the scene is moved left and up)
+  // on the local copy the address ?customer brings the first one 5 s after the start (for checks)
+  const CUST_TEST = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]customer\b/.test(location.search);
+  let custGap = CUST_EVERY;        // seconds of play until the next customer (saved)
+  let cust = null;                 // {k, n, left, t, out, img, top}: out = seconds since he started to leave (null while he waits)
+  let custLastKind = -1;           // the same kind never comes twice in a row
+  let sale = null;                 // {n, t, done} while the selling screen is up: done = null, 'win' or 'fail'
+  function custMenuOpen() {
+    return anyMenuOpenNow() || supportOpen || docsListOpen || docsOpen >= 0;
+  }
+  function custComes(kind) {
+    const P = window.KUCHA_PEOPLE;
+    let k = kind;
+    if (!(k >= 0 && k < P.KINDS.length)) do { k = Math.floor(Math.random() * P.KINDS.length); } while (k === custLastKind);
+    custLastKind = k;
+    const img = document.createElement('canvas');
+    img.width = 40; img.height = 64;
+    const top = P.draw(img.getContext('2d'), k, 12, 62) - 62 + CUST_FEET;   // drawn once, then only copied
+    const tap = clickGain() * (glazeClick > 0 ? 2n : 1n);
+    cust = { k, n: tap * 400n + BigInt(Math.floor(autoPerSec() * 150)), left: CUST_WAIT, t: 0, out: null, img, top };
+    custGap = CUST_EVERY;
+  }
+  function updateCustomers(dt) {
+    if (sale) {
+      sale.t += dt;
+      // the selling screen waits for the ad (at most 2 minutes, so that a lost answer never locks the game)
+      if (!sale.done && sale.t < 120) loadingLeft = Math.max(loadingLeft, 0.05);
+      else if (loadingLeft <= 0) {
+        if (sale.done === 'win') { sfxBuy(); popups.push({ x: coinX(), y: 96, t: 0, text: '+' + custNum(sale.n) }); }
+        sale = null;
+        if (cust) cust.out = 0;
+      }
+      return;
+    }
+    if (cust && cust.out !== null) {
+      cust.out += dt;
+      if (cust.out >= CUST_FADE) cust = null;
+      return;
+    }
+    if (cust) cust.t += dt;
+    // the clock and his waiting stand still while a menu, a message, an ad or the start screen is up
+    if (adOpen || rewardAdOpen || noticeWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
+    const adJust = Date.now() - lastAdAt < CUST_AD_GAP;
+    if (cust) {
+      if (adJust) { cust.out = 0; custGap = 0; return; }   // another ad was watched meanwhile: he comes back when the minute is over
+      cust.left -= dt;
+      if (cust.left <= 0) cust.out = 0;
+      return;
+    }
+    custGap = Math.max(0, custGap - dt);
+    if (custGap <= 0 && !adJust) custComes();
+  }
+  // 48200 -> 48 200; from a million on the short form
+  function custNum(n) {
+    return n < 1000000n ? String(n).replace(/\B(?=(\d{3})+$)/g, ' ') : fmt(n);
+  }
+  function custLabel() { return '+' + custNum(cust.n); }
+  function tapCustomer(gx, gy) {
+    if (!cust || cust.out !== null || sale) return false;
+    const [x0, y0, x1, y1] = custBubbleBox();
+    if (!inRect(gx, gy, CUST_X - 4, cust.top - 6, CUST_X + 18, CUST_FEET + 2) && !inRect(gx, gy, x0, y0, x1, y1)) return false;
+    askAd(custLabel() + ' ПРЯНИКОВ', startSale);
+    return true;
+  }
+  // the selling screen: the ad runs on it (with the ad-free purchase there is no ad)
+  function startSale() {
+    if (!cust) return;
+    const s = { n: cust.n, t: 0, done: null };
+    sale = s;
+    loadingLabel = 'ПРОДАЁМ ПРЯНИКИ...';
+    loadingLeft = 2.5;
+    showRewardAd(() => {
+      s.done = 'win';
+      coins += s.n;
+      cycleEarned += s.n;
+      totalEarned += s.n;
+      saveGame();
+    }, () => { s.done = 'fail'; if (sale === s) loadingLeft = 0; });
+  }
+  function custAlpha() {
+    return cust.out !== null ? Math.max(0, 1 - cust.out / CUST_FADE) : Math.min(1, cust.t / CUST_FADE);
+  }
+  function drawCustomer() {
+    ctx.globalAlpha = custAlpha();
+    ctx.drawImage(cust.img, CUST_X - 12, CUST_FEET - 62);
+    ctx.globalAlpha = 1;
+  }
+  function custFrame(x0, y0, x1, y1) {
+    fillRect(x0, y0, x1 - x0, y1 - y0, COL.panel);
+    fillRect(x0, y0, x1 - x0, 1, accent());
+    fillRect(x0, y1 - 1, x1 - x0, 1, accent());
+    fillRect(x0, y0, 1, y1 - y0, accent());
+    fillRect(x1 - 1, y0, 1, y1 - y0, accent());
+  }
+  // one line; its right frame is the last pixel column of the screen
+  function custBubbleBox() {
+    const w = textWidth(custLabel(), 1) + 10, x1 = SCENE_CROP_X + PHONE_W;
+    return [x1 - w, 80, x1, 94];
+  }
+  function drawCustomerBubble() {
+    const [x0, y0, x1, y1] = custBubbleBox();
+    custFrame(x0, y0, x1, y1);
+    drawText(custLabel(), 1, (x0 + x1) / 2, y0 + 3, accent(), 'center');
+    fillRect(CUST_X + 6, y1, 2, Math.max(1, cust.top - 3 - y1), accent());
   }
   function watchSkinAd(id) {
     askAd('ПРОГРЕСС К СКИНУ', () => showRewardAd(() => grantSkinView(id)));
@@ -2794,6 +2908,8 @@
     playSec = 0;
     totalBought = 0;
     bestProkOneRebirth = 0;
+    cust = null;
+    custGap = CUST_EVERY;        // the customers start again too
     resetAt = Date.now();        // this save is now newer than any copy made before the reset
     saveGame();                  // saved only after everything above is cleared
     if (window.vkBridge) vkSaveNow();   // the cloud gets the reset at once, not in 15 s
@@ -2868,9 +2984,9 @@
     const [ngx, ngy] = toGame(e);
     if (noticeWin) {
       if (noticeWin.onYes) {
-        if (inRect(ngx, ngy - SHEET_DY, 85, 86, 159, 95)) { const yes = noticeWin.onYes; noticeWin = null; yes(); }
-        else if (inRect(ngx, ngy - SHEET_DY, 161, 86, 235, 95)) noticeWin = null;
-      } else if (inRect(ngx, ngy - SHEET_DY, 85, 86, 235, 95)) noticeWin = null;
+        if (inRect(ngx, ngy, 85, 86, 159, 95)) { const yes = noticeWin.onYes; noticeWin = null; yes(); }
+        else if (inRect(ngx, ngy, 161, 86, 235, 95)) noticeWin = null;
+      } else if (inRect(ngx, ngy, 85, 86, 235, 95)) noticeWin = null;
       return;
     }   // the message takes the taps until OK
     if (splashT > 0) return;                  // the start screen takes no taps
@@ -2885,6 +3001,8 @@
     if (consentOpen) { const [cgx, cgy] = toGame(e); handleConsentDown(cgx, cgy - SHEET_DY); return; }   // the first-launch window comes before the info window
     startMusicOnce();
     const [gx, gy] = toGame(e);
+    if (sale) return;                         // the selling screen takes no taps
+    if (tapCustomer(gx, gy)) return;          // the customer at the counter (with a menu open too: the scene stays in view)
     // with a menu open the cookie still counts: the menus are drawn lower down (from y 182), the cookie is above them
     if ((anyMenuOpenNow() || supportOpen || docsListOpen || docsOpen >= 0) && gy < FLOOR_Y + 10) { spawnClick(gx, gy); return; }
     if (!anyMenuOpenNow() && !document.fullscreenElement && inRect(gx, gy, FS_BL_X, FS_BL_Y, FS_BL_X + FS_BL_S, FS_BL_Y + FS_BL_S)) { toggleFullScreen(); return; }
@@ -3158,6 +3276,7 @@
     if (dailySecDate !== today) { dailySecDate = today; dailySec = 0; }
     dailySec += dt;
     updateEvents(dt);
+    updateCustomers(dt);
     cookT += dt;
     shakeT = Math.max(0, shakeT - dt);
 
@@ -3218,13 +3337,16 @@
   let kitchenImg = null;
   const kitchenLoader = new Image();
   kitchenLoader.onload = () => { kitchenImg = kitchenLoader; };
-  kitchenLoader.src = 'art/kitchen-bg.png?v=17';   // ?v: a new background is picked up without a hard reload
+  kitchenLoader.src = 'art/kitchen-bg.png?v=19';   // ?v: a new background is picked up without a hard reload
 
-  // cook animation: four frames at 4 fps (art/cook-0..3.png, drawn at x 80, y 80 over the background)
-  const COOK_X = 80, COOK_Y = 80, COOK_FPS = 4;
-  const cookFrames = [0, 1, 2, 3].map((i) => {
+  const cakeImg = new Image();        // the cake in its light colours, on a transparent picture (46x24)
+  cakeImg.src = 'art/cake.png?v=2';
+
+  // cook animation: eight frames at 8 fps (art/cook-0..7.png, drawn at x 80, y 80 over the background)
+  const COOK_X = 80, COOK_Y = 80, COOK_FPS = 8, COOK_FRAMES = 8;
+  const cookFrames = Array.from({ length: COOK_FRAMES }, (_, i) => {
     const im = new Image();
-    im.src = 'art/cook-' + i + '.png?v=6';
+    im.src = 'art/cook-' + i + '.png?v=7';
     return im;
   });
 
@@ -3544,9 +3666,7 @@
       // the floor behind the cake's new place (the old picture there was the table and the wall of its old place)
       // taken from x 108: 80 px (5 whole tiles) left of the cake's place, so the tiles line up with the floor around
       ctx.drawImage(kitchenImg, CAKE_BOX[0] - 80, 154, 46, 12, CAKE_BOX[0], 154, 46, 12);
-      if (!cutCake) cutCake = buildCut(CAKE_SRC, CAKE_SRC[0] - 3) || kitchenImg;
-      if (cutCake === kitchenImg) ctx.drawImage(kitchenImg, CAKE_SRC[0], CAKE_SRC[1], CAKE_SRC[2], CAKE_SRC[3], CAKE_BOX[0], CAKE_BOX[1], CAKE_SRC[2], CAKE_SRC[3]);
-      else ctx.drawImage(cutCake, CAKE_BOX[0], CAKE_BOX[1]);
+      if (cakeImg.complete && cakeImg.naturalWidth) ctx.drawImage(cakeImg, CAKE_BOX[0], CAKE_BOX[1]);
     }
     if (kitchenImg) {
       // the pies board without the floor around it in the picture (that floor would not line up with the tiles here):
@@ -3555,7 +3675,7 @@
       ctx.drawImage(kitchenImg, px0, 163, bodyW, py0 + ph - 163, px0 + dx, 163 + dy, bodyW, py0 + ph - 163);
       ctx.drawImage(kitchenImg, px0 + bodyW, 165, 6, py0 + ph - 165, px0 + bodyW + dx, 165 + dy, 6, py0 + ph - 165);
     }
-    const cookIdx = settings.animBg ? ((Math.floor(cookT * COOK_FPS) % 4) + 4) % 4 : 0;   // off = still frame; never negative
+    const cookIdx = settings.animBg ? ((Math.floor(cookT * COOK_FPS) % COOK_FRAMES) + COOK_FRAMES) % COOK_FRAMES : 0;   // off = still frame; never negative
     const cookFrame = cookFrames[cookIdx];
     if (cookFrame.complete && cookFrame.naturalWidth) ctx.drawImage(cookFrame, COOK_X, COOK_Y);
     // Боня sleeps by the cake; her ear flicks every 10 s (only with the animated background on)
@@ -3573,6 +3693,7 @@
     }
     const bonyaFrame = bonyaSprites[bonyaKey];
     bonyaDraw = bonyaFrame.complete && bonyaFrame.naturalWidth ? bonyaFrame : null;
+    if (cust) drawCustomer();
   // the speech bubble: 2x coins for the ad, tap it to start the boost
   function drawBonyaBubble() {
     const [x0, y0, x1, y1] = bonyaBubbleBox();
@@ -3736,6 +3857,7 @@
       const [rx0, rx1, ry0] = topRect('rebirth');   // topRect gives [x0, x1, y0, y1]
       blinkDot(rx1 - 6, ry0 + 2);
     }
+    if (cust && cust.out === null) drawCustomerBubble();
     if (panelT >= 0.99) inSheet(drawPanel); else drawPanel();
     // Боня's bubble is drawn over the shop, so she can still send her message while it is open
     if (bonyaSpeechLeft > 0 && adBoost.double <= 0 && !speechMenuOpen()) drawBonyaBubble();
@@ -3752,7 +3874,6 @@
     if (loadingLeft > 0) drawLoading();
     if (consentOpen) { inSheet(drawConsent); if (docsOpen >= 0) inSheet(drawDocReader); }   // the first-launch window is the top layer
     if (resetWin) inSheet(drawResetWin);
-    if (noticeWin) inSheet(drawNotice);
     if (boostMenuOpen) inSheet(drawBoostMenu);   // the same place as the other menus: the sheet under the scene
     if (restDue && !anyMenuOpenNow() && !consentOpen && loadingLeft <= 0) drawRestButton();
     if (!anyMenuOpenNow() && !consentOpen && document.fullscreenEnabled && !document.fullscreenElement) {   // only where the browser allows fullscreen, and only while the screen is not full yet
@@ -3769,6 +3890,7 @@
         ctx.globalAlpha = 1;   // the pulse must not fade what is drawn after the label
       }
     }
+    if (noticeWin) drawNotice();   // over the game scene, not in the menu under it
     ctx.restore();
   }
 
@@ -4016,6 +4138,7 @@
         totalBought,
         settings,
         restAcc: Math.floor(restAcc),
+        custGap: Math.floor(custGap),
         restDue,
         grantedOrders,
         savedAt: Date.now(),
@@ -4086,6 +4209,7 @@
       }
       // the rest timer: the play time left before the rest button (saved)
       restAcc = Math.max(0, Math.min(REST_EVERY, Number(s.restAcc) || 0));
+      if (Number.isFinite(s.custGap)) custGap = Math.max(0, Math.min(CUST_EVERY, s.custGap));
       if (Array.isArray(s.grantedOrders)) grantedOrders = s.grantedOrders.map(String);
       restDue = false;   // the rest feature is switched off
       if (s.settings) {
@@ -4240,69 +4364,6 @@
     }
     return woodRows;
   }
-  // the colour of the table front at a scene row (the same mapping as drawTableFront)
-  function texColor(y) {
-    const rows = tableWoodRows();
-    if (!rows || !rows.length) return [130, 95, 80];
-    const t = Math.max(0, Math.min(1, (y - 166) / 13)) * (rows.length - 1);
-    const i = Math.floor(t), f = t - i;
-    const a = rows[i], b = rows[Math.min(rows.length - 1, i + 1)];
-    return a.map((v, k) => Math.round(v + (b[k] - v) * f));
-  }
-  // a picture from the kitchen art with its dark halo cut out: the pixels darker than the table around them become transparent
-  function buildCut(src, artX) {
-    if (!CUT_HALO) return null;   // off: the cake and the board are drawn as they are in the picture
-    try {
-      const [sx, sy, sw, sh] = src;
-      const art = document.createElement('canvas');
-      art.width = W; art.height = 180;
-      const ac = art.getContext('2d');
-      ac.drawImage(kitchenImg, 0, 0);
-      const img = ac.getImageData(sx, sy, sw, sh);
-      const d = img.data;
-      for (let r = 0; r < sh; r++) {
-        const y = sy + r;
-        const bg = y >= 166 ? texColor(y) : floorRGB();   // the colour the cake is set on: the table, or the floor above it
-        const bl = bg[0] * 0.3 + bg[1] * 0.59 + bg[2] * 0.11;
-        for (let c = 0; c < sw; c++) {
-          const i = (r * sw + c) * 4;
-          const pr = d[i], pg = d[i + 1], pb = d[i + 2];
-          const pl = pr * 0.3 + pg * 0.59 + pb * 0.11;
-          const dist = Math.abs(pr - bg[0]) + Math.abs(pg - bg[1]) + Math.abs(pb - bg[2]);
-          const red = pr > pg + 40 && pr > pb + 40;   // the cherry is red: it stays
-          if (pl < bl - 10 && !red) d[i + 3] = 0;   // darker than the table or the floor around: the halo
-        }
-      }
-      const cv = document.createElement('canvas');
-      cv.width = sw; cv.height = sh;
-      cv.getContext('2d').putImageData(img, 0, 0);
-      return cv;
-    } catch (err) {
-      return null;   // the picture cannot be read here: it is drawn as it is
-    }
-  }
-  const CUT_HALO = true;    // only the cake: its darker pixels than the table around it become transparent
-  let cutCake = null;
-  // the colour of the floor (the blue tiles), averaged once from the kitchen picture
-  let floorCol = null;
-  function floorRGB() {
-    if (floorCol) return floorCol;
-    if (!kitchenImg) return [134, 137, 159];
-    try {
-      const cv = document.createElement('canvas');
-      cv.width = W; cv.height = 180;
-      const c2 = cv.getContext('2d');
-      c2.drawImage(kitchenImg, 0, 0);
-      const d = c2.getImageData(100, 158, 80, 5).data;
-      let r = 0, gg = 0, bb = 0;
-      for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; bb += d[i + 2]; }
-      const n = d.length / 4;
-      floorCol = [Math.round(r / n), Math.round(gg / n), Math.round(bb / n)];
-    } catch (err) {
-      floorCol = [134, 137, 159];
-    }
-    return floorCol;
-  }
   // the table front inside the scene: drawn right after the kitchen, so the cook, Bonya and the buttons stay on top of it
   function drawTableFront() {
     const rows = tableWoodRows();
@@ -4369,6 +4430,7 @@
         ctx = keepCtx;
       }
       if (bonyaDraw) screenCtx.drawImage(bonyaDraw, BONYA_X - SCENE_CROP_X, BONYA_Y);
+      if (noticeWin) { screenCtx.fillStyle = NOTICE_DIM; screenCtx.fillRect(0, 180 - SCENE_UP, PHONE_W, SCENE_UP); }   // this strip is drawn after the scene: it is dimmed here
     }
     requestAnimationFrame(frame);
   }
@@ -4384,6 +4446,7 @@
   }
   window.addEventListener('resize', fitScreen);
   fitScreen();
+  if (CUST_TEST) custGap = 5;
   requestAnimationFrame(frame);
 
   // small hook for checks in the browser console
@@ -4399,6 +4462,8 @@
     get questBoost() { return questBoost; },
     get minuteLeft() { return minuteLeft; },
     get ev() { return ev ? { type: ev.type, t: ev.t, taps: ev.taps, done: ev.done, pies: ev.pies } : null; },
+    customer(kind) { custComes(kind); },
+    get customers() { return { gap: custGap, now: cust ? { kind: cust.k, n: cust.n.toString(), left: cust.left } : null, selling: !!sale }; },
     get mult() { return incomeMult(); },
     get cycleEarned() { return cycleEarned.toString(); },
   };
