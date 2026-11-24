@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.374-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.395-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -16,14 +16,14 @@
   const COUNTER_NUM_Y = 38;     // big number cap line
   const COUNTER_AUTO_Y = 58;    // small line: automatic coins per second
   const FLOOR_Y = 160;          // the bottom strip is now only 20 px tall
-  // top row: НАСТРОЙКИ | ДОСТИЖЕНИЯ | ПЕРЕРОЖДЕНИЕ | МАГАЗИН
+  // top row: НАСТРОЙКИ | ПРОГРЕСС | УРОВЕНЬ N | МАГАЗИН
   // 4 px from the screen edges and 4 px between buttons, 19 px tall, widths fitted to the text
   const TOP_Y0 = 3, TOP_Y1 = 21, TOP_GAP = 3, TOP_MARGIN = 3;   // 18 px tall; 1 px less from the top, the sides and between buttons
   const TOP_BUTTONS = [
-    // the same 6 px of space on each side of every label (the widest label of the rebirth button sets its width)
+    // the same 6 px of space on each side of every label
     { id: 'settings', w: 74 },     // НАСТРОЙКИ
     { id: 'achievements', w: 67 }, // ПРОГРЕСС
-    { id: 'rebirth', w: 97 },      // ПЕРЕРОЖДЕНИЕ, the widest of its labels
+    { id: 'level', w: 97 },        // УРОВЕНЬ N, with the bar of the level inside
     { id: 'shop', w: 67 },         // МАГАЗИН, stretched so its right edge is 3 px from the screen edge
   ];
   function topRect(id) {
@@ -44,10 +44,14 @@
   const hasBuyRow = () => tab === 'click' || tab === 'tech';
   const closeY = () => 162;   // the close button at the very bottom, 2 px above the edge
   const listBottom = () => (hasBuyRow() ? 142 : 158);   // the list runs down to the buy row (or to the close button)
+  const ROW_TEXT_W = 142;       // the room for the text in a row
   const rowH = () => (tab === 'premium' && (premiumSection === 'bonus' || premiumSection === 'skins') ? 22 : 31);   // three lines per row; the premium bonus and skin rows have two lines, so they are 9 px shorter
   const gapH = () => 3;    // the space between the rows (the background is shorter by this)
   const PANEL_SPEED = 7;        // 1 = full slide per ~0.15 s
-  const COST_GROWTH = 1.2;     // price = base * 1.15^owned
+  const MACHINE_GROWTH = 1.10;  // the price of every next machine of the same kind
+  const TAP_BASE = 15, TAP_GROWTH = 1.12;   // the price of the next tap purchase
+  const STAR_EVERY = 25;        // every 25 machines of one kind (and every 25 tap purchases): x2
+  const LEVEL_BASE = 200, LEVEL_GROWTH = 3.45;   // the bakery level: what has to be earned in all time
 
   // the Latin letters of the e-mails: added to the game's pixel font in the same 6 by 8 style
   const LATIN_GLYPHS = {
@@ -99,43 +103,28 @@
     thumb: '#6e64a0',
   };
 
-  // ---------- data (placeholder names; numbers are first-pass balance) ----------
-  // КЛИК: each adds `add` coins per click for every bought one (order = by click income)
-  // the names in the hint "КУПИ 5 ..." in the right form for five of them
+  // ---------- data (docs/economy-v6.md) ----------
+  // the machines in the form "10 ..."
   const FIVE = {
-    'СКАЛКА': 'СКАЛОК', 'ТЕСТО': 'ПОРЦИЙ ТЕСТА', 'ШОКОЛАД': 'ПЛИТОК ШОКОЛАДА', 'МУКА': 'МЕШКОВ МУКИ', 'ЯЙЦО': 'ЯИЦ',
-    'МЁД': 'БАНОК МЁДА', 'СЛИВКИ': 'ПАКЕТОВ СЛИВОК', 'КОРИЦА': 'ПАЧЕК КОРИЦЫ', 'ИМБИРЬ': 'КУСКОВ ИМБИРЯ', 'ГЛАЗУРЬ': 'ЛОЖЕК ГЛАЗУРИ',
     'МИКСЕР': 'МИКСЕРОВ', 'ПЕЧЬ': 'ПЕЧЕЙ', 'ХОЛОДИЛЬНИК': 'ХОЛОДИЛЬНИКОВ', 'ПЛИТА': 'ПЛИТ', 'КОФЕМАШИНА': 'КОФЕМАШИН',
-    'КОНВЕКТОМАТ': 'КОНВЕКТОМАТОВ', 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАНОВ', 'ТЕСТОМЕС': 'ТЕСТОМЕСОВ', 'КОНВЕЙЕР': 'КОНВЕЙЕРОВ', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИК ПРЯНИКОВ',
+    'КОНВЕКТОМАТ': 'КОНВЕКТОМАТОВ', 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАНОВ', 'ТЕСТОМЕС': 'ТЕСТОМЕСОВ', 'КОНВЕЙЕР': 'КОНВЕЙЕРОВ', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИК',
   };
   const fiveOf = (name) => FIVE[name] || name;
-  const CLICK_UPGRADES = [
-    { name: 'СКАЛКА', base: 50n, add: 1n },
-    { name: 'ТЕСТО', base: 100n, add: 2n },
-    { name: 'ШОКОЛАД', base: 200n, add: 4n },
-    { name: 'МУКА', base: 400n, add: 8n },
-    { name: 'ЯЙЦО', base: 750n, add: 15n },
-    { name: 'МЁД', base: 1500n, add: 30n },
-    { name: 'СЛИВКИ', base: 3500n, add: 70n },
-    { name: 'КОРИЦА', base: 7500n, add: 150n },
-    { name: 'ИМБИРЬ', base: 15000n, add: 300n },
-    { name: 'ГЛАЗУРЬ', base: 37500n, add: 750n },
-  ];
-  // ТЕХНИКА: each gives `rate` coins per second for every bought one
+  // ТЕХНИКА: each gives `rate` gingerbread per second for every bought one; it opens at the bakery level `level`
   const TECHNIKA = [
-    { name: 'МИКСЕР', base: 60n, rate: 1 },
-    { name: 'ПЕЧЬ', base: 240n, rate: 4 },
-    { name: 'ХОЛОДИЛЬНИК', base: 600n, rate: 10 },
-    { name: 'ПЛИТА', base: 1500n, rate: 25 },
-    { name: 'КОФЕМАШИНА', base: 3600n, rate: 60 },
-    { name: 'КОНВЕКТОМАТ', base: 7500n, rate: 125 },
-    { name: 'ШОКОЛАДНЫЙ ФОНТАН', base: 18000n, rate: 300 },
-    { name: 'ТЕСТОМЕС', base: 42000n, rate: 700 },
-    { name: 'КОНВЕЙЕР', base: 90000n, rate: 1500 },
-    { name: 'ФАБРИКА ПРЯНИКОВ', base: 210000n, rate: 3500 },
+    { name: 'МИКСЕР', base: 10, rate: 0.3, level: 1 },
+    { name: 'ПЕЧЬ', base: 150, rate: 2, level: 3, she: true },
+    { name: 'ХОЛОДИЛЬНИК', base: 2000, rate: 12, level: 5 },
+    { name: 'ПЛИТА', base: 25000, rate: 70, level: 7, she: true },
+    { name: 'КОФЕМАШИНА', base: 3e5, rate: 400, level: 9, she: true },
+    { name: 'КОНВЕКТОМАТ', base: 3.5e6, rate: 2400, level: 11 },
+    { name: 'ШОКОЛАДНЫЙ ФОНТАН', base: 4e7, rate: 15000, level: 13, short: 'ФОНТАН' },
+    { name: 'ТЕСТОМЕС', base: 4.5e8, rate: 95000, level: 15 },
+    { name: 'КОНВЕЙЕР', base: 5e9, rate: 6e5, level: 17 },
+    { name: 'ФАБРИКА ПРЯНИКОВ', base: 6e10, rate: 4e6, level: 19, she: true, short: 'ФАБРИКА' },
   ];
-  // ПРОКАЧКИ: 4 levels per technika, listed level by level. Level k doubles that technika (2, 4, 8, 16).
-  // Cost = 10 x technika base for level 1, then x8 per level. Each level needs the previous one.
+  // ПРОКАЧКИ: 4 for each machine, each one makes it x2. It appears with this many machines and costs 5 machines of that price
+  const PROK_NEED = [10, 50, 100, 200];
   const PROK_NAMES = [
     ['СЕРЕБРЯНЫЙ ВЕНЧИК', 'ЗОЛОТОЙ ВЕНЧИК', 'ПЛАТИНОВЫЙ ВЕНЧИК', 'ТИТАНОВЫЙ ВЕНЧИК'],
     ['СЕРЕБРЯНЫЙ ПРОТИВЕНЬ', 'ЗОЛОТОЙ ПРОТИВЕНЬ', 'ПЛАТИНОВЫЙ ПРОТИВЕНЬ', 'ТИТАНОВЫЙ ПРОТИВЕНЬ'],
@@ -154,44 +143,47 @@
       PROKACHKI.push({
         name: PROK_NAMES[j][k],
         tech: j,
-        level: k,
-        cost: TECHNIKA[j].base * 10n * (8n ** BigInt(k)),
+        need: PROK_NEED[k],
+        cost: BigInt(Math.round(5 * TECHNIKA[j].base * Math.pow(MACHINE_GROWTH, PROK_NEED[k]))),
       });
     }
   }
   // ПРЕМИУМ (ян, пока без оплаты: кнопки заглушки) и бусты за рекламу (10 минут)
   const PREMIUM_ITEMS = [
     { kind: 'premium', id: 'double', name: '2Х ДОХОД', line: 'НАВСЕГДА', price: '6 ГОЛОСОВ' },
-    { kind: 'premium', id: 'rebirth2', name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', line: 'НАВСЕГДА', price: '6 ГОЛОСОВ' },
+    { kind: 'premium', id: 'level2', name: '2Х БОНУС УРОВНЯ', line: 'НАВСЕГДА', price: '6 ГОЛОСОВ' },
     { kind: 'premium', id: 'discount', name: 'СКИДКА 50% НА ВСЕ', line: 'КРОМЕ ПРЕМИУМА', price: '6 ГОЛОСОВ' },
     { kind: 'premium', id: 'triple', name: '3Х ДОХОД', line: 'НАВСЕГДА', price: '10 ГОЛОСОВ' },
-    { kind: 'premium', id: 'autoclick', name: 'АВТО-КЛИК', line: '10 В СЕКУНДУ', price: '4 ГОЛОСОВ' },
+    { kind: 'premium', id: 'autoclick', name: 'АВТО-КЛИК', line: '10 В СЕКУНДУ', price: '4 ГОЛОСА' },
     { kind: 'premium', id: 'bundle', name: 'ПАКЕТ ВСЁ ВМЕСТЕ', line: 'НАВСЕГДА', price: '30 ГОЛОСОВ' },
     { kind: 'premium', id: 'noads', name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', line: 'НАВСЕГДА', price: '14 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb1', add: 1, name: '+1 ПЕРЕРОЖДЕНИЕ', line: 'ВЫШЕ ДОХОД', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb2', add: 2, name: '+2 ПЕРЕРОЖДЕНИЯ', line: 'ВЫШЕ ДОХОД', price: '2 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb5', add: 5, name: '+5 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '4 ГОЛОСОВ' },
-    { kind: 'premium', id: 'reb10', add: 10, name: '+10 ПЕРЕРОЖДЕНИЙ', line: 'ВЫШЕ ДОХОД', price: '7 ГОЛОСОВ' },
+    { kind: 'premium', id: 'hours1', hours: 1, name: 'ПРЯНИКИ ЗА 1 ЧАС', line: '', price: '2 ГОЛОСА' },
+    { kind: 'premium', id: 'hours3', hours: 3, name: 'ПРЯНИКИ ЗА 3 ЧАСА', line: '', price: '4 ГОЛОСА' },
+    { kind: 'premium', id: 'hours8', hours: 8, name: 'ПРЯНИКИ ЗА 8 ЧАСОВ', line: '', price: '10 ГОЛОСОВ' },
+    { kind: 'premium', id: 'hours24', hours: 24, name: 'ПРЯНИКИ ЗА 24 ЧАСА', line: '', price: '25 ГОЛОСОВ' },
     { kind: 'ad', id: 'double', name: '2Х ДОХОД', line: '10 МИНУТ', price: 'РЕКЛАМА' },
     { kind: 'ad', id: 'discount', name: 'СКИДКА 50% НА ВСЕ', line: '10 МИНУТ', price: 'РЕКЛАМА' },
-    { kind: 'premium', id: 'skin_royal', name: 'КОРОЛЕВСКИЙ ПРЯНИК', line: 'ЗОЛОТО И КОРОНА', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_ghost', name: 'ПРИЗРАЧНЫЙ ПРЯНИК', line: 'ДУХИ И ТУМАН', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_neontube', name: 'НЕОНОВЫЙ ПРЯНИК', line: 'ТРУБКА И СВЕЧЕНИЕ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_crystal', name: 'КРИСТАЛЛ ПРЯНИК', line: 'ЛЁД И СНЕЖИНКИ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_volcano', name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', line: 'ЛАВА И ИСКРЫ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_solar', name: 'СОЛНЕЧНЫЙ ПРЯНИК', line: '8 ПЛАНЕТ ВОКРУГ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_starry', name: 'ЗВЁЗДНЫЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ЛУНА', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_caramel', name: 'КАРАМЕЛЬНЫЙ ПРЯНИК', line: 'КАПЛИ И ЛУЖИЦА', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_gzhel', name: 'ГЖЕЛЬСКИЙ ПРЯНИК', line: 'СИНИЕ УЗОРЫ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_rainbow', name: 'РАДУЖНЫЙ ПРЯНИК', line: 'ДУГА И КОНФЕТТИ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_neon', name: 'КОСМИЧЕСКИЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ИСКРЫ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_sea', name: 'МОРСКОЙ ПРЯНИК', line: 'ПУЗЫРИ И РЫБКА', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_halloween', name: 'ХЭЛЛОУИНСКИЙ ПРЯНИК', line: 'ЛЕТУЧИЕ МЫШИ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_easter', name: 'ПАСХАЛЬНЫЙ ПРЯНИК', line: 'ЯЙЦА И ЛЕПЕСТКИ', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_zefir', name: 'ЗЕФИРНЫЙ ПРЯНИК', line: 'ОБЛАКО И СЕРДЦА', price: '1 ГОЛОСОВ' },
-    { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ ПРЯНИК', line: 'ЁЛКИ И ОЛЕНЬ', price: '1 ГОЛОСОВ' },
+    { kind: 'premium', id: 'skin_royal', name: 'КОРОЛЕВСКИЙ ПРЯНИК', line: 'ЗОЛОТО И КОРОНА', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_ghost', name: 'ПРИЗРАЧНЫЙ ПРЯНИК', line: 'ДУХИ И ТУМАН', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_neontube', name: 'НЕОНОВЫЙ ПРЯНИК', line: 'ТРУБКА И СВЕЧЕНИЕ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_crystal', name: 'КРИСТАЛЛ ПРЯНИК', line: 'ЛЁД И СНЕЖИНКИ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_volcano', name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', line: 'ЛАВА И ИСКРЫ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_solar', name: 'СОЛНЕЧНЫЙ ПРЯНИК', line: '8 ПЛАНЕТ ВОКРУГ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_starry', name: 'ЗВЁЗДНЫЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ЛУНА', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_caramel', name: 'КАРАМЕЛЬНЫЙ ПРЯНИК', line: 'КАПЛИ И ЛУЖИЦА', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_gzhel', name: 'ГЖЕЛЬСКИЙ ПРЯНИК', line: 'СИНИЕ УЗОРЫ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_rainbow', name: 'РАДУЖНЫЙ ПРЯНИК', line: 'ДУГА И КОНФЕТТИ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_neon', name: 'КОСМИЧЕСКИЙ ПРЯНИК', line: 'ЗВЁЗДЫ И ИСКРЫ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_sea', name: 'МОРСКОЙ ПРЯНИК', line: 'ПУЗЫРИ И РЫБКА', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_halloween', name: 'ХЭЛЛОУИНСКИЙ ПРЯНИК', line: 'ЛЕТУЧИЕ МЫШИ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_easter', name: 'ПАСХАЛЬНЫЙ ПРЯНИК', line: 'ЯЙЦА И ЛЕПЕСТКИ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_zefir', name: 'ЗЕФИРНЫЙ ПРЯНИК', line: 'ОБЛАКО И СЕРДЦА', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ ПРЯНИК', line: 'ЁЛКИ И ОЛЕНЬ', price: '1 ГОЛОС' },
     { kind: 'premium', id: 'skins_all', name: 'ВСЕ СКИНЫ', line: 'СЕЙЧАС: 1 СКИН', price: '5 ГОЛОСОВ' },
   ];
+  // the units after a million, each a thousand times the one before; after the last one the number is written as 1.23Е48
+  const UNITS = ['М', 'МЛД', 'ТРЛ', 'КВДР', 'КВНТ', 'СКСТ', 'СПТ', 'ОКТ', 'НОН', 'ДЕЦ', 'УНД', 'ДУОД', 'ТРЕД'];
+  const COUNTER_MAX_W = 140;
   const AD_BOOST_SECONDS = 600;
   // which skin each premium shop item shows in its purchase preview (a new skin: add it here too)
   const PREMIUM_SKIN_OF = { skin_solar: 'solar', skin_neon: 'neon', skin_volcano: 'volcano', skin_neontube: 'neontube', skin_crystal: 'crystal', skin_royal: 'royal', skin_ghost: 'ghost', skin_rainbow: 'rainbow', skin_starry: 'starry', skin_newyear: 'newyear', skin_zefir: 'zefir', skin_caramel: 'caramel', skin_gzhel: 'gzhel', skin_halloween: 'halloween', skin_easter: 'easter', skin_sea: 'sea', skins_all: 'neon' };
@@ -204,15 +196,11 @@
   // what each premium purchase does, for the confirmation and the "purchased" windows
   const PREMIUM_INFO = {
     double: { name: '2Х ДОХОД', lines: ['ДВОЙНОЙ ДОХОД ПРЯНИКОВ', 'УМНОЖАЕТСЯ С 3Х, НАВСЕГДА'] },
-    reb1: { name: '+1 ПЕРЕРОЖДЕНИЕ', lines: ['+1 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
-    reb2: { name: '+2 ПЕРЕРОЖДЕНИЯ', lines: ['+2 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
-    reb5: { name: '+5 ПЕРЕРОЖДЕНИЙ', lines: ['+5 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
-    reb10: { name: '+10 ПЕРЕРОЖДЕНИЙ', lines: ['+10 К ПЕРЕРОЖДЕНИЯМ', 'ВЫШЕ ДОХОД', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
-    noads: { name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', lines: ['БЕЗ РЕКЛАМЫ КАЖДЫЕ 7 МИН, БОНУСЫ ЗА РЕКЛАМУ БЕЗ ПРОСМОТРА', 'НАВСЕГДА'] },
-    bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА, БЕЗ РЕКЛАМЫ, 2Х ПЕРЕРОЖДЕНИЯ', 'НАВСЕГДА'] },
+    noads: { name: 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ', lines: ['В ИГРЕ НЕТ НИКАКОЙ РЕКЛАМЫ. ВСЕ НАГРАДЫ ЗА РЕКЛАМУ ДАЮТСЯ СРАЗУ ПО НАЖАТИЮ (НО НЕ ЧАЩЕ РАЗА В МИНУТУ)', 'НАВСЕГДА'] },
+    bundle: { name: 'ПАКЕТ ВСЁ ВМЕСТЕ', lines: ['2Х, 3Х, АВТО-КЛИК, СКИДКА, БЕЗ РЕКЛАМЫ, 2Х БОНУС УРОВНЯ', 'НАВСЕГДА'] },
     triple: { name: '3Х ДОХОД', lines: ['ТРОЙНОЙ ДОХОД', 'УМНОЖАЕТСЯ С 2Х, НАВСЕГДА'] },
     autoclick: { name: 'АВТО-КЛИК', lines: ['10 В СЕКУНДУ', 'НАВСЕГДА'] },
-    rebirth2: { name: '2Х БОНУС ПЕРЕРОЖДЕНИЯ', lines: ['КАЖДОЕ ПЕРЕРОЖДЕНИЕ ДАЁТ 4Х', 'ВМЕСТО 2Х, НАВСЕГДА', 'ОТКЛЮЧЕНИЕ РЕКЛАМЫ ЗА ПЕРЕРОЖДЕНИЯ'] },
+    level2: { name: '2Х БОНУС УРОВНЯ', lines: ['КАЖДЫЙ УРОВЕНЬ ПЕКАРНИ ДАЁТ +20% ДОХОДА ВМЕСТО +10%', 'НАВСЕГДА'] },
     discount: { name: 'СКИДКА 50% НА ВСЕ', lines: ['ВСЕ УЛУЧШЕНИЯ ДЕШЕВЛЕ ВДВОЕ', 'КРОМЕ ПРЕМИУМА, НАВСЕГДА'] },
     skin_neon: { name: 'КОСМИЧЕСКИЙ ПРЯНИК', lines: ['ЗВЁЗДЫ И ИСКРЫ', 'НАВСЕГДА'] },
     skin_volcano: { name: 'ВУЛКАНИЧЕСКИЙ ПРЯНИК', lines: ['ЛАВА И ИСКРЫ', 'НАВСЕГДА'] },
@@ -232,13 +220,10 @@
     skin_sea: { name: 'МОРСКОЙ ПРЯНИК', lines: ['ПУЗЫРИ И РЫБКА', 'НАВСЕГДА'] },
     skins_all: { name: 'ВСЕ СКИНЫ', lines: ['ВЕСЬ АССОРТИМЕНТ СКИНОВ', 'НАВСЕГДА'] },   // the count of premium skins is shown in the purchase window
   };
-  // for each technika, the global PROKACHKI indexes of its 4 upgrades (level 1..4)
-  const PROK_BY_TECH = TECHNIKA.map((_, j) => PROKACHKI.map((p, g) => (p.tech === j ? g : -1)).filter((g) => g >= 0));
-
   const canvas = document.getElementById('game');
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext('2d');
+  let ctx = canvas.getContext('2d');   // the counter is drawn into its own picture through it
   ctx.imageSmoothingEnabled = false;
 
   // ---------- fit to window at an integer scale ----------
@@ -277,6 +262,21 @@
     'Е': ['###', '#..', '##.', '#..', '###'],
     'К': ['#.#', '#.#', '##.', '#.#', '#.#'],
     ' ': ['..', '..', '..', '..', '..'],
+    // the letters of the units (М, МЛД, ТРЛ, КВДР...) and the point
+    '.': ['.', '.', '.', '.', '#'],
+    'М': ['#...#', '##.##', '#.#.#', '#...#', '#...#'],
+    'Л': ['.##', '#.#', '#.#', '#.#', '#.#'],
+    'Д': ['..##.', '.#.#.', '.#.#.', '#####', '#...#'],
+    'Т': ['###', '.#.', '.#.', '.#.', '.#.'],
+    'Р': ['##.', '#.#', '##.', '#..', '#..'],
+    'Н': ['#.#', '#.#', '###', '#.#', '#.#'],
+    'П': ['###', '#.#', '#.#', '#.#', '#.#'],
+    'О': ['###', '#.#', '#.#', '#.#', '###'],
+    'Ц': ['#.#.', '#.#.', '#.#.', '####', '...#'],
+    'У': ['#.#', '#.#', '.##', '..#', '##.'],
+    'Ш': ['#.#.#', '#.#.#', '#.#.#', '#.#.#', '#####'],
+    '[': ['##', '#.', '#.', '#.', '##'],
+    ']': ['##', '.#', '.#', '.#', '##'],
   };
   function smallTextWidth(str) {
     let w = 0;
@@ -325,6 +325,38 @@
       }
       cx += glyphWidth(ch) * sc + sc;
     }
+  }
+
+  // a text with a dark edge, so it can be read on the light wall
+  const EDGE = '#4a2c38', EDGE_AT = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1], [0, 2]];
+  function drawTextO(str, sc, x, y, color) {
+    for (const [dx, dy] of EDGE_AT) drawText(str, sc, x + dx, y + dy, EDGE, 'center');
+    drawText(str, sc, x, y, color, 'center');
+  }
+  // the counter with its edge: drawn into its own picture only when the numbers change
+  const CNT_W = 240, CNT_H = 48;
+  const cntCv = [0, 1].map(() => { const c = document.createElement('canvas'); c.width = CNT_W; c.height = CNT_H; return c; });
+  let cntKey = '';
+  function drawCounter(cx) {
+    const num = coinsText(), auto = '+' + rateText(autoPerSec()) + ' В СЕК', key = num + '|' + auto, top = COUNTER_LABEL_Y - 6;
+    if (key !== cntKey) {
+      cntKey = key;
+      const main = ctx, [a, b] = cntCv.map((c) => c.getContext('2d'));
+      ctx = a;                                     // the letters
+      a.clearRect(0, 0, CNT_W, CNT_H);
+      drawText('ПРЯНИКОВ', 1, CNT_W / 2, COUNTER_LABEL_Y - top, COL.text, 'center');
+      drawText(num, 2, CNT_W / 2, COUNTER_NUM_Y - top, COL.text, 'center');
+      drawSmallText(auto, CNT_W / 2, COUNTER_AUTO_Y - top, '#ffffff');
+      ctx = main;
+      b.globalCompositeOperation = 'source-over';
+      b.clearRect(0, 0, CNT_W, CNT_H);
+      for (const [dx, dy] of EDGE_AT) b.drawImage(cntCv[0], dx, dy);
+      b.globalCompositeOperation = 'source-in';   // the edge takes one dark colour
+      b.fillStyle = EDGE; b.fillRect(0, 0, CNT_W, CNT_H);
+      b.globalCompositeOperation = 'source-over';
+      b.drawImage(cntCv[0], 0, 0);
+    }
+    ctx.drawImage(cntCv[1], cx - CNT_W / 2, top);
   }
 
   // ---------- coin sprite ----------
@@ -463,20 +495,14 @@
 
   // ---------- economy ----------
   let coins = 0n;
-  let clickOwned = CLICK_UPGRADES.map(() => 0);
+  let tapLv = 0;                 // how many times the tap was bought (saved)
   let techOwned = TECHNIKA.map(() => 0);
   let prokOwned = PROKACHKI.map(() => false);
-  let premiumOwned = { double: false, triple: false, autoclick: false, rebirth2: false, discount: false, noads: false };
-  let rebirthAdOff = false;   // no ad on a rebirth after a rebirth item was bought (saved). Was never declared: every save failed silently
-  let adBoost = { double: 0, discount: 0 };   // seconds left, not saved
+  let premiumOwned = { double: false, triple: false, autoclick: false, level2: false, discount: false, noads: false };   // kept apart from the progress
+  let adBoost = { double: 0, discount: 0 };   // seconds left
   // the time left of a free ad in minutes and seconds, updated every frame
   const adTimeLeft = (id) => { const s = Math.ceil(adBoost[id]); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
   const noticeLines = () => (typeof noticeWin.lines === 'function' ? noticeWin.lines() : noticeWin.lines);
-  let adWatched = { double: false, discount: false };   // which rewarded ads were watched (saved)
-  // перерождение: income is multiplied by 2 for each rebirth (4 with premium); progress resets, extras stay
-  let rebirths = 0;              // how many rebirths were made (saved)
-  let cycleEarned = 0n;          // coins earned since the last rebirth (saved)
-  let rebirthOpen = false;       // the rebirth window (what it gives, the count, the confirm button)
   let progWin = null;            // progress window: {tab: 'stats' | 'ach' | 'top'}
   let shopReturn = false;        // the shop was open when another menu opened: it comes back when that menu closes
   let skinWin = false;           // the appearance window (ВНЕШНИЙ ВИД)
@@ -484,6 +510,14 @@
   let resetAt = 0;               // when the progress was last reset (ms, saved): a save with a later reset always wins the cloud comparison
   let playerClicks = 0;          // taps on the cookie by the player (saved)
   let playSec = 0;               // seconds played (saved)
+  // counters of the achievements (saved)
+  let custServed = 0;            // customers served
+  let questsDone = 0;            // quests done
+  let treatsEaten = 0;           // ПОПРОБУЙ! dishes eaten
+  let minutesSeen = 0;           // cooking minutes
+  let bonyaWoken = 0;            // times Боня was woken up
+  let offlineTaken = 0;          // times the income of an absence was taken
+  let bestPerSec = 0;            // the highest income per second ever
   // daily reward: 7 days in a row, one claim per Moscow day, needs 5 minutes played that day
   let dailyDay = 0;              // the day number claimed last (0 = never; 1..7)
   let dailyDate = '';            // the Moscow date of the last claim (YYYY-MM-DD)
@@ -491,88 +525,129 @@
   let dailySecDate = '';
   const DAILY_NEED = 300;        // 5 minutes
   let dailyPreview = null;       // the day (1..7) whose skin is shown in the preview, or null for the grid
-  let totalBought = 0;           // technika and upgrade purchases (saved)
+  let totalBought = 0;           // all the purchases for gingerbread (saved)
   let premiumWin = null;         // premium purchase window: {mode: 'confirm' | 'pending' | 'done' | 'error', idx, msg}
-  // coins needed in one cycle before the next rebirth (rebirth 1..12); after that x2.28 each time
-  const REBIRTH_NEED = [250000000n, 815000000n, 1956000000n, 4586000000n, 9032000000n, 21165000000n,
-    43790000000n, 84790000000n, 151640000000n, 244250000000n, 624670000000n, 1423200000000n];
-  function rebirthNeed() {
-    if (rebirths < REBIRTH_NEED.length) return REBIRTH_NEED[rebirths];
-    let v = REBIRTH_NEED[REBIRTH_NEED.length - 1];
-    for (let i = REBIRTH_NEED.length; i <= rebirths; i++) v = (v * 228n) / 100n;
-    return v;
-  }
   let autoAcc = 0;               // fractional coins from technika
+  let tapAcc = 0;                // fractional coins from taps
 
-  function clickPower() {
-    let p = 1n;
-    CLICK_UPGRADES.forEach((u, i) => { p += u.add * BigInt(clickOwned[i]); });
-    return p;
+  // every gingerbread comes through here: the bakery level grows from all that was ever earned
+  function earn(n) { coins += n; totalEarned += n; }
+
+  // ---------- the bakery level: from level L to L+1 it takes 200 x 3.45^(L-1) earned in all time ----------
+  let bakeryLevel = 1;           // counted from totalEarned
+  let lvlPending = null;         // {from}: a new level whose window is not shown yet (it waits for the other windows)
+  let lvlWin = null;             // {level, gained, opened, t} while the window of a new level is open
+  const levelNeed = (L) => LEVEL_BASE * Math.pow(LEVEL_GROWTH, L - 1);
+  function levelFor(earned) {
+    const e = Number(earned);
+    let L = 1;
+    while (L < 500 && e >= levelNeed(L)) L++;
+    return L;
   }
-  // how many times a technika's output is multiplied by its prokachki (2 per level owned)
+  // how much of the way to the next level is done, 0..1
+  function levelProgress() {
+    const from = bakeryLevel === 1 ? 0 : levelNeed(bakeryLevel - 1), to = levelNeed(bakeryLevel);
+    return Math.max(0, Math.min(1, (Number(totalEarned) - from) / (to - from)));
+  }
+  const levelPercent = () => (premiumOwned.level2 ? 20 : 10);   // each level adds this much to the whole income
+  function levelMult() { return (100 + levelPercent() * (bakeryLevel - 1)) / 100; }
+  function updateLevel() {
+    if (Number(totalEarned) >= levelNeed(bakeryLevel)) {
+      if (!lvlPending) lvlPending = { from: bakeryLevel };
+      bakeryLevel = levelFor(totalEarned);
+      saveGame();
+    }
+    if (!lvlPending || lvlWin) return;
+    // the window waits until every other window is closed (the shop does not stop it)
+    if (custMenuOpen() || premiumWin || skinOffer || resetWin || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || rewardAdOpen || launchState !== 'ok') return;
+    const from = lvlPending.from;
+    lvlPending = null;
+    lvlWin = { level: bakeryLevel, gained: bakeryLevel - from, opened: TECHNIKA.filter((m) => m.level > from && m.level <= bakeryLevel), t: 0 };
+    startSalute();
+    sfxLevel();
+  }
+
+  // stars of one machine (and of the tap): one for every 25
+  const starsOf = (owned) => Math.floor(owned / STAR_EVERY);
+  // how many times a machine's output is multiplied: x2 for each star and for each of its prokachki
   function techMult(j) {
-    let m = 1;
+    let m = Math.pow(2, starsOf(techOwned[j]));
     PROKACHKI.forEach((p, i) => { if (p.tech === j && prokOwned[i]) m *= 2; });
     return m;
   }
-  // each rebirth adds +100% to the income multiplier (+200% with the rebirth bonus): 1, 2, 3, 4...
-  function rebirthMult() {
-    return Math.pow(premiumOwned.rebirth2 ? 4 : 2, rebirths);
-  }
-  // premium 2x and ad 2x stack, rebirths add to them
+  // everything that multiplies the whole income: the level, premium 2x and 3x, the ad 2x, the quest 2x
   function incomeMult() {
     const premiumMult = (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1);   // 2x and 3x stack: both give 6x
-    return premiumMult * (adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * rebirthMult();
+    return premiumMult * (adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * levelMult();
   }
   function discountOn() {
     return premiumOwned.discount || adBoost.discount > 0;
   }
+  // what one kind of machines brings per second (one machine when none is bought yet)
+  function machineIncome(j) {
+    return TECHNIKA[j].rate * Math.max(1, techOwned[j]) * techMult(j) * incomeMult() * (glazeTech > 0 ? 2 : 1);
+  }
   function autoPerSec() {
     let r = 0;
-    TECHNIKA.forEach((t, j) => { r += t.rate * techOwned[j] * techMult(j) * 1; });
+    TECHNIKA.forEach((t, j) => { if (techOwned[j] > 0) r += t.rate * techOwned[j] * techMult(j); });
     return r * incomeMult() * (glazeTech > 0 ? 2 : 1);
   }
-  // one tap: its value times the income multipliers
-  function clickGain() {
-    return clickPower() * BigInt(incomeMult());
+  // one tap with the tap bought `lv` times: its own value, plus 3% of the technika income for every 10 purchases (at most 15%)
+  function tapValue(lv) {
+    const own = (1 + lv) * Math.pow(2, starsOf(lv)) * incomeMult();
+    return (own + autoPerSec() * 0.03 * Math.min(5, Math.floor(lv / 10))) * (glazeClick > 0 ? 2 : 1);
   }
-  function priceOf(base, owned) {
-    return BigInt(Math.floor(Number(base) * Math.pow(COST_GROWTH, owned)));
+  function clickGain() {
+    return BigInt(Math.floor(tapValue(tapLv)));
+  }
+  // pays one tap (the fractions are not lost: they add up); returns the sum to show
+  function payTap() {
+    const v = tapValue(tapLv), whole = Math.floor(v);
+    tapAcc += v - whole;
+    let n = BigInt(whole);
+    if (tapAcc >= 1) { tapAcc -= 1; n += 1n; }
+    earn(n);
+    return BigInt(whole);
+  }
+  function priceOf(base, growth, owned) {
+    const p = base * Math.pow(growth, owned);
+    return Number.isFinite(p) ? BigInt(Math.floor(p + 1e-6)) : 10n ** 400n;
   }
   // price after the 50% discount (premium items never get it)
   function finalPrice(price) {
     return discountOn() ? price / 2n : price;
   }
-  // a prokachka level needs the technika at this level (number of technika bought) and the previous level
-  const PROK_TECH_LEVEL = [20, 35, 50, 65];
-  const TECH_MAX = 100;         // every technika stops at level 100
-  function prokTechReady(i) {
-    const p = PROKACHKI[i];
-    return techOwned[p.tech] >= PROK_TECH_LEVEL[p.level];
+  // a machine opens at its bakery level
+  function listLocked(j) {
+    return bakeryLevel < TECHNIKA[j].level;
   }
   function prokUnlocked(i) {
     const p = PROKACHKI[i];
-    if (!prokTechReady(i)) return false;
-    return p.level === 0 || prokOwned[PROKACHKI.findIndex((q) => q.tech === p.tech && q.level === p.level - 1)];
+    return techOwned[p.tech] >= p.need;
   }
-  function priceNow(tab, index) {
-    if (tab === 'click') return finalPrice(priceOf(CLICK_UPGRADES[index].base, clickOwned[index]));
-    if (tab === 'tech') return finalPrice(priceOf(TECHNIKA[index].base, techOwned[index]));
-    if (tab === 'prok') return finalPrice(PROKACHKI[index].cost);
-    return 0n;
+  // the prokachki that can be bought now (not bought yet), the cheapest first
+  function prokList() {
+    return PROKACHKI.filter((p, i) => !prokOwned[i] && prokUnlocked(i)).sort((a, b) => (a.cost < b.cost ? -1 : a.cost > b.cost ? 1 : 0));
   }
+  // the price of the k-th purchase from now (0 = the next one)
+  function priceAhead(tab, index, k) {
+    if (tab === 'click') return finalPrice(priceOf(TAP_BASE, TAP_GROWTH, tapLv + k));
+    if (tab === 'tech') return finalPrice(priceOf(TECHNIKA[index].base, MACHINE_GROWTH, techOwned[index] + k));
+    return finalPrice(PROKACHKI[index].cost);
+  }
+  const priceNow = (tab, index) => priceAhead(tab, index, 0);
   function buy(tab, index) {
     if (tab === 'click' || tab === 'tech') {
-      if (listLocked(tab, index)) return false;   // a locked item cannot be bought, not even in bulk
-      // buys as many as the amount allows and the coins pay for (fewer if the coins run out)
-      const cap = tab === 'tech' ? TECH_MAX - techOwned[index] : Infinity;
-      const limit = Math.min(buyMode === 'max' ? BUY_MAX_STEPS : buyMode, cap);
+      if (tab === 'tech' && listLocked(index)) return false;   // a locked machine cannot be bought, not even in bulk
+      // 1Х, 10Х, 100Х: only when the coins pay for the whole amount; МАКС: as many as the coins pay for
+      if (!plan(tab, index).can) return false;
+      const limit = buyMode === 'max' ? BUY_MAX_STEPS : buyMode;
       let bought = 0;
       for (let k = 0; k < limit; k++) {
         const cost = priceNow(tab, index);
         if (coins < cost) break;
         coins -= cost;
-        if (tab === 'click') clickOwned[index] += 1;
+        if (tab === 'click') tapLv += 1;
         else techOwned[index] += 1;
         bought++;
         totalBought++;
@@ -585,28 +660,24 @@
       const it = PREMIUM_ITEMS[index];
       if (it.kind === 'ad') {
         // the reward comes after the ad is shown (in VK); outside VK it comes at once
-        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; adWatched[it.id] = true; sfxBuy(); }));
+        askAd(it.id === 'double' ? '2Х ДОХОД 10 МИН' : 'СКИДКА 50% 10 МИН', () => showRewardAd(() => { adBoost[it.id] = AD_BOOST_SECONDS; sfxBuy(); }));
         return true;
       }
       return false;
     }
-    if (tab === 'prok' && !prokUnlocked(index)) return false;
-    if (tab === 'prok' && prokOwned[index]) return false;
-    if ((tab === 'click' || tab === 'tech') && listLocked(tab, index)) return false;
+    if (!prokUnlocked(index) || prokOwned[index]) return false;
     const cost = priceNow(tab, index);
     if (coins < cost) return false;
     coins -= cost;
-    if (tab === 'click') clickOwned[index] += 1;
-    else if (tab === 'tech') techOwned[index] += 1;
-    else prokOwned[index] = true;
+    prokOwned[index] = true;
     totalBought++;
     sfxBuy();
+    clampScroll();   // the bought one leaves the list
     return true;
   }
 
   // ---------- UI state ----------
   let tab = 'click';            // 'click' | 'tech' | 'prok' | 'premium'
-  let prokSel = null;           // in ПРОКАЧКИ: null = list of technika, else the technika index whose 4 upgrades are shown
   let panelOpen = false;
   let settingsOpen = false;
   const settings = { sound: 0.8, music: 0.5, colorblind: false, animBg: true, shake: false, skin: 'classic' };   // sound: no effects yet; music: 0..1
@@ -627,22 +698,19 @@
   }
 
   function spawnClick(gx, gy) {
-    // tired: the cookie does not count until the player rests
-    if (restDue) { popups.push({ x: gx, y: gy - 10, t: 0, text: 'ОТДОХНИТЕ' }); return; }
     sfxClick();
-    const gain = clickGain() * (glazeClick > 0 ? 2n : 1n);
-    coins += gain;
-    cycleEarned += gain;
-    totalEarned += gain;
+    const gain = payTap();
     playerClicks += 1;
+    kitchen.things.click();       // the quiet is over: the glare on the cookie waits again
+    kitchen.baker.tap();          // quick taps make the cook work up to two times faster (the income stays the same)
     if (ev && ev.type === 'quest' && !ev.done) {   // every tap on the cookie counts for the quest
       ev.taps += 1;
-      if (ev.taps >= 250) { ev.done = 'win'; questBoost = 60; }   // 250 taps in time: the result comes at once
+      if (ev.taps >= 250) questWon();   // 250 taps in time: the result comes at once
     }
     animT = 0;
     everTapped = true;
     if (settings.shake) shakeT = 0.12;   // screen shake is off unless the player turns it on
-    popups.push({ x: gx, y: gy - 10, t: 0, text: '+' + String(gain) });   // at the tapped pixel, 10 px above it
+    popups.push({ x: gx, y: gy - 10, t: 0, text: '+' + fmt(gain) });   // at the tapped pixel, 10 px above it
     for (let k = 0; k < 8; k++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 60 + Math.random() * 80;
@@ -658,42 +726,14 @@
     { id: 'prok', label: 'ПРОКАЧКИ' },
     { id: 'premium', label: 'ПРЕМИУМ' },
   ];
-  // rebirth button: shows what is still needed, the name when ready, and asks for a second tap to confirm
-  function rebirthLabel() {
-    const need = rebirthNeed();
-    if (coins >= need) return 'ПЕРЕРОЖДЕНИЕ';
-    return 'ЕЩЁ ' + fmt(need - coins);
-  }
-  // the button opens the rebirth window; the window explains it and holds the only confirm button
   // only one menu is open at a time: opening one closes the others, so nothing old reopens later
   function closeMenus(except) {
     if (except !== 'skin') { skinWin = false; skinPreview = null; }
     if (except !== 'shop') { if (panelOpen) shopReturn = true; panelOpen = false; }
     if (except !== 'settings') { settingsOpen = false; resetWin = null; }
-    if (except !== 'rebirth') rebirthOpen = false;
     if (except !== 'progress') { progWin = null; dailyPreview = null; }
     if (except !== 'premium') premiumWin = null;
   }
-  function handleRebirthTap() { closeMenus('rebirth'); rebirthOpen = true; }
-  function doRebirth() {
-    sfxRebirth();
-    bestProkOneRebirth = Math.max(bestProkOneRebirth, prokOwned.filter(Boolean).length);
-    rebirths += 1;
-    coins = 0n;
-    clickOwned = clickOwned.map(() => 0);
-    techOwned = techOwned.map(() => 0);
-    prokOwned = prokOwned.map(() => false);
-    adBoost = { double: 0, discount: 0 };
-    autoAcc = 0;
-    cycleEarned = 0n;
-    cust = null;                     // his sum belongs to the old progress
-    rebirthOpen = false;
-    if (!rebirthAdOff) startLoading();   // the ad on a rebirth, shown during a loading screen, unless a rebirth item was bought
-    shopReturn = false;
-    scroll = 0;
-    saveGame();
-  }
-
   // ---------- random events: every 4-7 minutes one of three ----------
   // 1. appetite (АППЕТИТ): pies on the left of the counter, cake on the right. One of them glows for 30 s;
   //    tapping the glowing one gives an effect for 30 s: pies = clicks x2, cake = technika x2.
@@ -713,15 +753,19 @@
     const r = Math.random();
     if (r < 1 / 3) ev = { type: 'appetite', t: 0, pies: Math.random() < 0.5 };
     else if (r < 2 / 3) ev = { type: 'quest', t: 60, taps: 0, done: null };
-    else minuteLeft = 60;
+    else startMinute();
   }
+  function startMinute() { minuteLeft = 60; minutesSeen += 1; }
+  function questWon() { ev.done = 'win'; questBoost = 60; questsDone += 1; }
   function tryHitAppetite(gx, gy) {
     if (!ev || ev.type !== 'appetite') return false;
     const box = ev.pies ? PIE_BOX : CAKE_BOX;
-    if (!inRect(gx, gy, box[0], box[1], box[2], box[3])) return false;
+    // the tap zone is wider than the dish: the frame, the words ПОПРОБУЙ! and a margin around
+    if (!inZone(gx, gy, box[0] - 5, box[1] - 12, box[2] + 5, H)) return false;
     if (ev.pies) { glazeClick = 30; glazeName = 'ПИРОЖКИ'; }
     else { glazeTech = 30; glazeName = 'ТОРТ'; }
     ev = null;
+    treatsEaten += 1;
     sfxBuy();
     return true;
   }
@@ -733,7 +777,7 @@
     if (!ev) {
       evTimer -= dt;
       // the appetite event waits until every menu (the shop too) is closed
-      const inMenu = settingsOpen || rebirthOpen || panelOpen || !!progWin || skinWin || !!premiumWin;
+      const inMenu = settingsOpen || panelOpen || !!progWin || skinWin || !!premiumWin || !!lvlWin;
       if (evTimer <= 0 && !inMenu) {
         spawnEvent();
         evTimer = 240 + Math.random() * 180;
@@ -749,24 +793,19 @@
     ev.t -= dt;
     if (ev.t <= 0) {
       ev.t = 0;
-      ev.done = ev.taps >= 250 ? 'win' : 'fail';
-      if (ev.done === 'win') questBoost = 60;
+      if (ev.taps >= 250) questWon(); else ev.done = 'fail';
     }
   }
   // cooking minute: the cookie clicks by itself 25 times a second. No window, the player can keep buying.
   // These virtual clicks are not counted as player clicks; they only show crumbs and "+N" popups.
   function updateMinute(dt) {
     minuteLeft = Math.max(0, minuteLeft - dt);
-    const perClick = clickGain() * (glazeClick > 0 ? 2n : 1n);
-    if (premiumOwned.autoclick && !restDue) {
+    if (premiumOwned.autoclick) {
       // the auto-click bonus: ten taps a second, each one paying out like a tap of the player
       autoTapAcc += 10 * dt;
       while (autoTapAcc >= 1) {
         autoTapAcc -= 1;
-        const pay = clickGain() * (glazeClick > 0 ? 2n : 1n);
-        coins += pay;
-        cycleEarned += pay;
-        totalEarned += pay;
+        const pay = payTap();
         popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + fmt(pay) });   // every auto tap shows its +N
         const sa = Math.random() * Math.PI * 2;
         sparks.push({ x: coinX(), y: COIN_Y, vx: Math.cos(sa) * 50, vy: Math.sin(sa) * 50 - 30, t: 0 });
@@ -776,9 +815,7 @@
     while (minuteAcc >= 1) {
       // every virtual press pays out, shows its own "+N" and crumbs
       minuteAcc -= 1;
-      coins += perClick;
-      cycleEarned += perClick;
-      totalEarned += perClick;
+      const perClick = payTap();
       popups.push({ x: coinX() + (Math.random() * 60 - 30), y: 96, t: 0, text: '+' + fmt(perClick) });   // middle of the screen, away from the counter
       const a = Math.random() * Math.PI * 2;
       const sp = 40 + Math.random() * 60;
@@ -796,7 +833,7 @@
       fillRect(x0, y0, 1, y1 - y0, COL.gold);
       fillRect(x1 - 1, y0, 1, y1 - y0, COL.gold);
     }
-    drawText('ПОПРОБУЙ!', 1, (box[0] + box[2]) / 2, box[1] - 10, COL.gold, 'center');
+    drawTextO('ПОПРОБУЙ!', 1, (box[0] + box[2]) / 2, box[1] - 10, COL.gold);
   }
   // temporary boosts: the far left corner of the floor strip, vertically centred in it
   // the bonuses that go into the menu: every active one, with its time left (except the 10-minute ad bonus and the shop bonuses)
@@ -805,6 +842,7 @@
     if (ev && ev.type === 'quest') {
       out.push(ev.done ? 'КВЕСТ: ' + (ev.done === 'win' ? 'ГОТОВО!' : 'НЕ УСПЕЛИ') : 'КВЕСТ ' + ev.taps + '/250 ' + Math.ceil(ev.t) + 'С');
     }
+    if (questBoost > 0) out.push('ДОХОД 2Х ЗА КВЕСТ ' + Math.ceil(questBoost) + 'С');
     if (glazeClick > 0) out.push('КЛИК ПРЯНИКА 2Х ' + Math.ceil(glazeClick) + 'С');
     if (glazeTech > 0) out.push(glazeName + ' ТЕХНИКА 2Х ' + Math.ceil(glazeTech) + 'С');
     if (minuteLeft > 0) out.push('КУЛИНАРНАЯ МИНУТА ' + Math.ceil(minuteLeft) + 'С');
@@ -820,8 +858,8 @@
     const list = menuLabels();
     if (premiumOwned.double) list.push('2Х ДОХОД НАВСЕГДА');
     if (premiumOwned.triple) list.push('3Х ДОХОД НАВСЕГДА');
-    if (adBoost.double > 0) list.push('2Х ДОХОД ЗА РЕКЛАМУ ' + adLabel().replace('2Х ДОХОД ', ''));
-    if (adBoost.discount > 0) { const s = Math.ceil(adBoost.discount), ss = s % 60; list.push('СКИДКА 50% ЗА РЕКЛАМУ ' + Math.floor(s / 60) + ':' + (ss < 10 ? '0' : '') + ss); }   // the free 50% discount, with its time left
+    if (adBoost.double > 0) list.push((premiumOwned.noads ? '2Х ДОХОД ' : '2Х ДОХОД ЗА РЕКЛАМУ ') + adLabel().replace('2Х ДОХОД ', ''));
+    if (adBoost.discount > 0) { const s = Math.ceil(adBoost.discount), ss = s % 60; list.push((premiumOwned.noads ? 'СКИДКА 50% ' : 'СКИДКА 50% ЗА РЕКЛАМУ ') + Math.floor(s / 60) + ':' + (ss < 10 ? '0' : '') + ss); }   // the free 50% discount, with its time left
     return list;
   }
   // the bonus row at the height of КЛИКАЙ, centred under it: the framed button with the number of active bonuses (0 when none),
@@ -829,7 +867,8 @@
   const MENU_BTN_W = 18, MENU_BTN_Y = [159, 177];   // the same row as the appearance button: 18x18 like the top buttons
   const MENU_BTN_X = TOP_MARGIN;                   // the left edge, with the same margin from the wall as the НАСТРОЙКИ button
   function multiplierBonus() {
-    return (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1) * (adBoost.double > 0 ? 2 : 1);
+    // every 2x that runs now: the ad (from the shop or from Боня), the quest, the treat (pies or cake count once: they double different things)
+    return (premiumOwned.double ? 2 : 1) * (premiumOwned.triple ? 3 : 1) * (adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * (glazeClick > 0 || glazeTech > 0 ? 2 : 1);
   }
   function drawBoostLine() {
     const n = windowList().length;
@@ -844,12 +883,12 @@
   function drawBoostMenu() {
     const list = windowList();
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    drawTextBox('АКТИВНЫЕ БОНУСЫ', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0, COL.panel);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y1 - 1, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    fillRect(WIN_X1 - 1, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    drawTextBox('АКТИВНЫЕ БОНУСЫ', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, COL.text);
     list.forEach((t, i) => drawText(t, 1, 60, 40 + i * 14, accent(), 'left'));
     settingsButton(60, 156, 260, 170, 'ЗАКРЫТЬ');
   }
@@ -857,13 +896,13 @@
   // ---------- quest window ----------
   function drawEventWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0, COL.panel);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y1 - 1, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    fillRect(WIN_X1 - 1, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
     if (ev.type === 'quest') {
-      drawTextBox('КВЕСТ', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+      drawTextBox('КВЕСТ', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, COL.text);
       if (ev.done) {
         drawTextBox(ev.done === 'win' ? 'ГОТОВО!' : 'НЕ УСПЕЛИ', 1, 60, 260, 40, 52, accent());
         drawText(ev.done === 'win' ? 'ДОХОД 2Х НА 1 МИНУТУ' : 'ПОПРОБУЙТЕ ЕЩЁ РАЗ', 1, 60, 70, COL.text, 'left');
@@ -876,7 +915,7 @@
       settingsButton(60, 70, 260, 116, 'ЖМИ СЮДА');
       return;
     }
-    drawTextBox('КУЛИНАРНАЯ МИНУТА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+    drawTextBox('КУЛИНАРНАЯ МИНУТА', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, COL.text);
     if (ev.done) {
       drawText('ПЕЧЕНЬКА ЗАКОНЧИЛА', 1, 60, 40, COL.text, 'left');
       settingsButton(60, 156, 260, 170, 'ОК');
@@ -885,12 +924,11 @@
     drawText('ПЕЧЕНЬКА САМА НАЖИМАЕТСЯ', 1, 60, 26, COL.text, 'left');
     drawText('25 РАЗ В СЕКУНДУ', 1, 60, 36, COL.text, 'left');
     drawText('ОСТАЛОСЬ: ' + Math.ceil(ev.t) + ' СЕК', 1, 60, 52, accent(), 'left');
-    drawText('ЗАРАБОТАНО: ' + fmt(cycleEarned), 1, 60, 66, dimTone(), 'left');
   }
 
   // Payment goes through the VK platform; until it is connected, payProduct() reports that it is not available.
-  // TEST MODE: while the game is not released, every premium item is free. Set to false before release.
-  const TEST_FREE_PREMIUM = false;
+  // TEST MODE for checks: on the local copy every premium item is free at the address ?free
+  const TEST_FREE_PREMIUM = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]free\b/.test(location.search);   // only on the local copy, with ?free in the address
   // VK payments: the purchase is made for votes in the VK order box; the server (vk-payments/worker.js) confirms it
   const VK_APP_ID = 54907536;
   function payProduct(id) {
@@ -909,16 +947,33 @@
   // the purchases the server has confirmed for this player (VK tells the server about every paid order)
   const PURCHASES_URL = 'https://functions.yandexcloud.net/d4e8ajlqi4mjo1lgs395';   // Яндекс Облако: список покупок (op=purchases)
   let grantedOrders = [];   // order ids already applied (saved): each paid order gives its item once
+  // ПРЯНИКИ ЗА N ЧАСОВ: the technika income of that time at once, without the temporary bonuses (the 10-minute ad, the quest, the cake)
+  let pendingHours = 0;            // paid hours not given yet (saved): they wait while there is no technika
+  let hoursAt = 0;                 // when the paid hours last changed (ms): the newer number wins between devices
+  let lastHoursN = 0n;             // the sum given last, for the window КУПЛЕНО
+  function hoursSum(h) { return BigInt(Math.floor(offlineRate() * 3600 * h)); }
+  function grantHours() {
+    const n = hoursSum(pendingHours);
+    if (n <= 0n) return;
+    pendingHours = 0;
+    hoursAt = Date.now();
+    lastHoursN = n;
+    earn(n);
+    popups.push({ x: coinX(), y: 96, t: 0, text: '+' + fmt(n) });
+  }
+  function premiumInfo(it) {
+    if (!it.hours) return PREMIUM_INFO[it.id] || { name: it.name, lines: [it.line, it.price] };   // a safe fallback: an item without a text never breaks the window
+    const bought = premiumWin && premiumWin.mode === 'done';
+    return { name: it.name, lines: ['+' + fmt(bought ? lastHoursN : hoursSum(it.hours)) + ' ПРЯНИКОВ СРАЗУ: ДОХОД ТЕХНИКИ ЗА ' + it.name.slice(11), 'МОЖНО КУПИТЬ ЕЩЁ'] };
+  }
   // gives one bought item (the same whether it was bought in the game or in the VK form)
   function applyItem(id) {
     const it = PREMIUM_ITEMS.find((x) => x.id === id);
     if (!it) return;
-    if (it.add || it.id === 'rebirth2') rebirthAdOff = true;   // after buying any of these, no ad on a rebirth
-    if (it.add) rebirths += it.add;   // a rebirth pack adds its rebirths; progress is not reset
+    if (it.hours) { pendingHours += it.hours; hoursAt = Date.now(); grantHours(); }   // can be bought any number of times
     else premiumOwned[it.id] = true;
     // the bundle gives everything in it at once
-    if (it.id === 'bundle') for (const k of ['double', 'triple', 'autoclick', 'discount', 'noads', 'rebirth2']) premiumOwned[k] = true;
-    if (it.id === 'bundle') rebirthAdOff = true;   // the bonus of rebirths comes with no ad on a rebirth, as in its own purchase
+    if (it.id === 'bundle') for (const k of ['double', 'triple', 'autoclick', 'discount', 'noads', 'level2']) premiumOwned[k] = true;
     if (it.id === 'skins_all') unlockAllPremiumSkins();
     else if (it.id.startsWith('skin_')) skinOwned[it.id.slice(5)] = true;
   }
@@ -991,15 +1046,15 @@
   function drawSkinOffer() {
     const k = SKINS.find((s) => s.id === skinOffer.id);
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    drawTextBox('НОВЫЙ СКИН', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, accent());
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0, COL.panel);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y1 - 1, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    fillRect(WIN_X1 - 1, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    drawTextBox('НОВЫЙ СКИН', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, accent());
     const thumb = skinThumbs[k.id];
     if (thumb && thumb.complete && thumb.naturalWidth) ctx.drawImage(thumb, 160 - 37, 30, 74, 74);
-    drawTextBox(k.name, 1, REB_X0, REB_X1, 110, 118, COL.text);
+    drawTextBox(k.name, 1, WIN_X0, WIN_X1, 110, 118, COL.text);
     settingsButton(60, 130, 260, 144, 'ПРИМЕРИТЬ');
     settingsButton(60, 150, 260, 164, 'ПОЗЖЕ');
   }
@@ -1034,18 +1089,18 @@
   }
   function drawPremiumWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0, COL.panel);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y1 - 1, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    fillRect(WIN_X1 - 1, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
     const it = PREMIUM_ITEMS[premiumWin.idx];
-    const info = PREMIUM_INFO[it.id] || { name: it.name, lines: [it.line, it.price] };   // a safe fallback: an item without a text never breaks the window
+    const info = premiumInfo(it);
     const m = premiumWin.mode;
     if (m === 'confirm' || m === 'pending') {
       // the skin effects stay inside the window: the picture is clipped to the inner frame
-      ctx.save(); ctx.beginPath(); ctx.rect(REB_X0 + 2, REB_Y0 + 2, REB_X1 - REB_X0 - 4, REB_Y1 - REB_Y0 - 4); ctx.clip();
-      drawTextBox('ПОКУПКА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+      ctx.save(); ctx.beginPath(); ctx.rect(WIN_X0 + 2, WIN_Y0 + 2, WIN_X1 - WIN_X0 - 4, WIN_Y1 - WIN_Y0 - 4); ctx.clip();
+      drawTextBox('ПОКУПКА', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, COL.text);
       const previewSkin = it.id === 'skins_all' ? premiumSkinCycle() : PREMIUM_SKIN_OF[it.id];   // the bundle cycles through all premium skins
       const isSkin = !!previewSkin;
       // a skin item shows the skin itself on the left: the neon one glows, pulsing
@@ -1070,7 +1125,7 @@
       yPC = drawWrapped(isSkin && it.id !== 'skins_all' ? 'ЭФФЕКТЫ:' : 'ЧТО ДАЁТ:', 1, tx, yPC, maxWPC, dimTone(), 11);
       const line0 = info.lines[0];   // the whole range of skins
       yPC = drawWrapped(line0, 1, tx, yPC, maxWPC, COL.text, 11);
-      if (info.lines[2]) drawWrapped(info.lines[2], 1, tx, yPC, maxWPC, COL.text, 11);   // the rebirth items: the ad line, right under the +N line
+      if (info.lines[2]) drawWrapped(info.lines[2], 1, tx, yPC, maxWPC, COL.text, 11);   // a third line, right under the first one
       drawText(info.lines[1], 1, tx, 107, accent(), 'left');
       // НАВСЕГДА: yellow, 1 px lower than before (above the buy button, which starts at 140)
       if (m === 'confirm') {
@@ -1083,18 +1138,18 @@
       return;
     }
     if (m === 'done') {
-      drawTextBox('КУПЛЕНО', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, accent());
+      drawTextBox('КУПЛЕНО', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, accent());
       drawText('НАЗВАНИЕ:', 1, 62, 26, dimTone(), 'left');
       drawText(info.name, 1, 62, 36, COL.text, 'left');
       drawText('ДЕЙСТВИЕ:', 1, 62, 52, dimTone(), 'left');
-      drawText(info.lines[0], 1, 62, 62, COL.text, 'left');
-      drawText(info.lines[1], 1, 62, 72, COL.text, 'left');
-      drawText('ТЕПЕРЬ ЭТО У ВАС НАВСЕГДА', 1, 62, 92, accent(), 'left');
+      let yd = drawWrapped(info.lines[0], 1, 62, 62, 196, COL.text);   // a long text wraps inside the window
+      yd = drawWrapped(info.lines[1], 1, 62, yd, 196, COL.text);
+      drawText(it.hours ? 'ПРЯНИКИ НАЧИСЛЕНЫ' : 'ТЕПЕРЬ ЭТО У ВАС НАВСЕГДА', 1, 62, Math.max(92, yd + 4), accent(), 'left');
       settingsButton(60, 156, 260, 170, 'ОК');
       return;
     }
     // error
-    drawTextBox('ОШИБКА', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+    drawTextBox('ОШИБКА', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, COL.text);
     drawText(info.name, 1, 62, 30, COL.text, 'left');
     drawText(premiumWin.msg || 'ПОКУПКА НЕ ПРОШЛА', 1, 62, 56, COL.text, 'left');
     drawText(premiumWin.code ? 'КОД VK: ' + premiumWin.code : 'ПОПРОБУЙТЕ ПОЗЖЕ', 1, 62, 70, dimTone(), 'left');
@@ -1137,7 +1192,7 @@
           closeMenus('progress');
           skinWin = false;
           skinPreview = null;
-          progWin = { tab: 'daily', page: 0 };
+          progWin = { tab: 'daily' };
           dailyPreview = day;
           return;
         }
@@ -1167,19 +1222,19 @@
   // an ad for a skin: the ad SDK is not connected yet, so the view counts right away
   // the reward ad: in VK it is shown by VK Bridge, and the reward comes only if the ad was shown;
   // outside VK (testing) the reward comes at once
-  // the reward ad that the player chooses: one per minute (the cooldown); with the ad-free purchase it is given at once
+  // the reward ad that the player chooses: one per minute (the cooldown), with the ad-free purchase too
   let rewardAdReadyAt = 0;
   let lastAdAt = 0;                // when the last ad of any kind was on the screen (a customer comes at least a minute after it)
+  function showCooldown() {
+    const word = premiumOwned.noads ? 'НАГРАДА ЧЕРЕЗ ' : 'РЕКЛАМА ЧЕРЕЗ ';
+    showNotice(() => [word + Math.max(0, Math.ceil((rewardAdReadyAt - Date.now()) / 1000)) + ' С']);
+  }
   function showRewardAd(onReward, onFail) {
-    if (premiumOwned.noads) { onReward(); return; }
     const now = Date.now();
-    if (now < rewardAdReadyAt) {
-      showNotice(() => ['РЕКЛАМА ЧЕРЕЗ ' + Math.ceil((rewardAdReadyAt - Date.now()) / 1000) + ' С']);
-      return;
-    }
+    if (now < rewardAdReadyAt) { showCooldown(); return; }
     rewardAdReadyAt = now + 60000;
     lastAdAt = now;
-    if (!window.vkBridge) { onReward(); return; }
+    if (premiumOwned.noads || !window.vkBridge) { onReward(); return; }   // with the ad-free purchase the reward comes at once, once a minute
     rewardAdOpen = true;
     vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'reward', use_waterfall: true })
       .then((data) => {
@@ -1190,9 +1245,7 @@
       })
       .catch((e) => { rewardAdOpen = false; lastAdAt = Date.now(); rewardAdReadyAt = 0; if (onFail) onFail(); showNotice(['РЕКЛАМА НЕ ДОСТУПНА', 'ДО ПРОВЕРКИ МОДЕРАЦИИ']); });
   }
-  // the full-screen ad: only on a rebirth, during the loading screen (no timed ads during play)
-  let adOpen = false;              // a full-screen ad is on the screen now
-  let rewardAdOpen = false;        // a rewarded ad is on the screen now (it does not count toward the rest timer)
+  let rewardAdOpen = false;        // a rewarded ad is on the screen now
   // a message in the middle of the screen with an OK button (the ad messages use it)
   let noticeWin = null;            // {lines} while it is open
   // onYes: the window asks a question (ДА / НЕТ); without it the window has one button (ОК)
@@ -1217,17 +1270,8 @@
       settingsButton(81, 100, 239, 111, 'ОК');   // full width, on the bottom edge of the window
     }
   }
-  let restAcc = 0;                 // seconds of play since the last rest (ads and the loading screen do not count; saved)
-  let restDue = false;             // the rest button is shown under the shop (saved)
-  const REST_EVERY = 600;          // 10 minutes of play between rests
   let loadingLeft = 0;             // seconds the loading screen stays up
-  let loadingLabel = 'ВЫ ПЕРЕРОЖДАЕТЕСЬ...';   // its title: the rebirth, or СОН... on a rest
-  // the loading screen: shown before the full-screen ad, so the ad comes during an explicit loading
-  function startLoading() {
-    loadingLabel = 'ВЫ ПЕРЕРОЖДАЕТЕСЬ...';
-    loadingLeft = 2.5;
-    showFullScreenAd();
-  }
+  let loadingLabel = '';           // its title
   function drawLoading() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.85)');
     drawTextBox(loadingLabel, 1, 0, W, H / 2 - 16, H / 2 - 6, COL.text);
@@ -1235,38 +1279,96 @@
     fillRect(W / 2 - 60, H / 2 + 6, 120, 4, COL.btnFrame);
     fillRect(W / 2 - 60, H / 2 + 6, Math.round(120 * p), 4, accent());
   }
-  function showFullScreenAd() {
-    if (!window.vkBridge || adOpen) return;   // outside VK no ad is shown
-    adOpen = true;
-    lastAdAt = Date.now();
-    vkBridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial', use_waterfall: true })
-      .catch(() => {})
-      .finally(() => { adOpen = false; lastAdAt = Date.now(); });
+  // ---------- income while the game was closed: the technika only, for the first 30 minutes ----------
+  // the window comes after an absence of a minute or more; the sum is credited at once, the ad adds the same sum again
+  const OFF_MIN = 60, OFF_MAX = 1800;
+  const OFF_X = 80, OFF_Y = 40, OFF_W = 160, OFF_H = 100;   // the window, in scene pixels
+  let offlineFrom = 0, offlineUntil = 0;   // the absence not yet paid for (ms)
+  let hiddenAt = 0;                // when the game was hidden (ms): a hidden game stands still, so it counts as closed
+  let offlineWin = null;           // {n, mins, doubled}
+  function goHidden() { if (!hiddenAt) hiddenAt = Date.now(); }
+  function goShown() {
+    if (hiddenAt && !rewardAdOpen) { offlineFrom = hiddenAt; offlineUntil = Date.now(); }   // the time of an ad does not count
+    hiddenAt = 0;
   }
-  // ---------- customers: every 15 minutes of play one comes to the counter and waits 20 s ----------
+  // the technika without the temporary bonuses (the 10-minute ad, the quest, the cake)
+  function offlineRate() {
+    return autoPerSec() / ((adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * (glazeTech > 0 ? 2 : 1));
+  }
+  function updateOffline() {
+    if (!offlineFrom || lvlWin || splashT > 0 || consentOpen || launchState !== 'ok' || noticeWin || loadingLeft > 0 || sale || rewardAdOpen || offlineWin) return;
+    const sec = Math.min(OFF_MAX, (offlineUntil - offlineFrom) / 1000);
+    offlineFrom = 0;
+    if (!(sec >= OFF_MIN)) return;
+    const n = BigInt(Math.floor(offlineRate() * sec));
+    if (n <= 0n) return;
+    offlineWin = { n, mins: Math.floor(sec / 60), doubled: premiumOwned.noads };
+    earn(n);
+    if (offlineWin.doubled) earn(n);      // with the ad-free purchase it is doubled at once
+    saveGame();
+  }
+  function minutesWord(m) {
+    const a = m % 10, b = m % 100;
+    return a === 1 && b !== 11 ? ' МИНУТУ' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? ' МИНУТЫ' : ' МИНУТ';
+  }
+  function drawOffline() {
+    const x1 = OFF_X + OFF_W, y1 = OFF_Y + OFF_H, cx = OFF_X + OFF_W / 2;
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
+    fillRect(OFF_X, OFF_Y, OFF_W, OFF_H, COL.panel);
+    fillRect(OFF_X, OFF_Y, OFF_W, 1, COL.panelEdge); fillRect(OFF_X, y1 - 1, OFF_W, 1, COL.panelEdge);
+    fillRect(OFF_X, OFF_Y, 1, OFF_H, COL.panelEdge); fillRect(x1 - 1, OFF_Y, 1, OFF_H, COL.panelEdge);
+    drawText('ПОКА ВАС НЕ БЫЛО', 1, cx, OFF_Y + 8, COL.text, 'center');
+    drawText('ПЕКАРНЯ ИСПЕКЛА', 1, cx, OFF_Y + 19, COL.text, 'center');
+    drawText('+' + fmt(offlineWin.doubled ? offlineWin.n * 2n : offlineWin.n), 2, cx, OFF_Y + 33, accent(), 'center');
+    drawText('ЗА ' + offlineWin.mins + minutesWord(offlineWin.mins) + (offlineWin.doubled ? ', УДВОЕНО' : ''), 1, cx, OFF_Y + 54, dimTone(), 'center');
+    if (!offlineWin.doubled) {
+      fillRect(OFF_X + 1, y1 - 30, OFF_W - 2, 14, COL.row);
+      fillRect(OFF_X + 1, y1 - 30, OFF_W - 2, 1, COL.btnHi);
+      drawTextBox('УДВОИТЬ ЗА РЕКЛАМУ', 1, OFF_X + 1, x1 - 1, y1 - 30, y1 - 16, accent());
+    }
+    settingsButton(OFF_X + 1, y1 - 15, x1 - 1, y1 - 1, 'ЗАБРАТЬ');
+  }
+  function handleOfflineDown(gx, gy) {
+    const x1 = OFF_X + OFF_W, y1 = OFF_Y + OFF_H;
+    if (inRect(gx, gy, OFF_X, y1 - 15, x1, y1)) { offlineWin = null; offlineTaken += 1; saveGame(); return; }
+    if (!offlineWin.doubled && inRect(gx, gy, OFF_X, y1 - 30, x1, y1 - 16)) {
+      const n = offlineWin.n;
+      showRewardAd(() => {
+        earn(n);
+        offlineWin = null;
+        offlineTaken += 1;
+        sfxBuy();
+        popups.push({ x: coinX(), y: 96, t: 0, text: '+' + custNum(n * 2n) });   // the whole sum: the first half came with the window
+        saveGame();
+      });
+    }
+  }
+  // ---------- customers: the first after 5 minutes of play, then every 15 minutes; he comes to the counter and waits 20 s ----------
   // he buys gingerbread for N = 400 taps + 150 s of the technika, counted once, when he comes; the sale is a rewarded ad
-  const CUST_EVERY = 900, CUST_WAIT = 20, CUST_AD_GAP = 60000, CUST_FADE = 0.3;
+  const CUST_FIRST = 300, CUST_EVERY = 900, CUST_WAIT = 20, CUST_AD_GAP = 60000, CUST_FADE = 0.3;
   const CUST_X = 232, CUST_FEET = 146;   // by the cupboard, the soles on the cook's floor line
+  const CUST_X_SHOP = 142;         // with the shop open: between the cookie and the shop
+  function custX() { return Math.round(CUST_X + (CUST_X_SHOP - CUST_X) * panelT); }   // he moves together with the cookie
   // on the local copy the address ?customer brings the first one 5 s after the start (for checks)
   const CUST_TEST = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]customer\b/.test(location.search);
-  let custGap = CUST_EVERY;        // seconds of play until the next customer (saved)
-  let cust = null;                 // {k, n, left, t, out, img, top}: out = seconds since he started to leave (null while he waits)
+  let custGap = CUST_FIRST;        // seconds of play until the next customer (saved)
+  let cust = null;                 // {k, n, left, t, out, top, wet, winter}: out = seconds since he started to leave (null while he waits)
   let custLastKind = -1;           // the same kind never comes twice in a row
   let sale = null;                 // {n, t, done} while the selling screen is up: done = null, 'win' or 'fail'
+  // the windows that cover the kitchen: he waits until they are closed (the shop covers only the right half, he moves to the left one)
   function custMenuOpen() {
-    return settingsOpen || rebirthOpen || panelOpen || !!progWin || skinWin || !!premiumWin || !!skinOffer || boostMenuOpen || supportOpen || docsListOpen || docsOpen >= 0;
+    return settingsOpen || !!progWin || skinWin || !!premiumWin || !!skinOffer || boostMenuOpen || supportOpen || docsListOpen || docsOpen >= 0;
   }
   function custComes(kind) {
     const P = window.KUCHA_PEOPLE;
     let k = kind;
     if (!(k >= 0 && k < P.KINDS.length)) do { k = Math.floor(Math.random() * P.KINDS.length); } while (k === custLastKind);
     custLastKind = k;
-    const img = document.createElement('canvas');
-    img.width = 40; img.height = 64;
-    const top = P.draw(img.getContext('2d'), k, 12, 62) - 62 + CUST_FEET;   // drawn once, then only copied
-    const tap = clickGain() * (glazeClick > 0 ? 2n : 1n);
-    cust = { k, n: tap * 400n + BigInt(Math.floor(autoPerSec() * 150)), left: CUST_WAIT, t: 0, out: null, img, top };
+    const top = window.KITCHEN_GUESTS.top(k, CUST_FEET), c = kitchen.now;
+    cust = { k, n: BigInt(Math.floor(tapValue(tapLv) * 400 + autoPerSec() * 150)), left: CUST_WAIT, t: 0, out: null, top, wet: c.season !== 3 && c.wet > 0.3, winter: c.season === 3 };   // in the rain with an umbrella, in winter in a hat
     custGap = CUST_EVERY;
+    kitchen.things.guestComes();     // the sign on the chains swings
+    kitchen.baker.wave(CUST_WAIT);   // the cook waves to him with the spoon when his hands are free
   }
   function updateCustomers(dt) {
     if (sale) {
@@ -1274,7 +1376,7 @@
       // the selling screen waits for the ad (at most 2 minutes, so that a lost answer never locks the game)
       if (!sale.done && sale.t < 120) loadingLeft = Math.max(loadingLeft, 0.05);
       else if (loadingLeft <= 0) {
-        if (sale.done === 'win') { sfxBuy(); popups.push({ x: coinX(), y: 96, t: 0, text: '+' + custNum(sale.n) }); }
+        if (sale.done === 'win') { kitchen.baker.sold(); sfxBuy(); popups.push({ x: coinX(), y: 96, t: 0, text: '+' + custNum(sale.n) }); }
         sale = null;
         if (cust) cust.out = 0;
       }
@@ -1287,7 +1389,7 @@
     }
     if (cust) cust.t += dt;
     // the clock and his waiting stand still while a menu, a message, an ad or the start screen is up
-    if (adOpen || rewardAdOpen || noticeWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
+    if (rewardAdOpen || noticeWin || offlineWin || lvlWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
     const adJust = Date.now() - lastAdAt < CUST_AD_GAP;
     if (cust) {
       if (adJust) { cust.out = 0; custGap = 0; return; }   // another ad was watched meanwhile: he comes back when the minute is over
@@ -1306,7 +1408,8 @@
   function tapCustomer(gx, gy) {
     if (!cust || cust.out !== null || sale) return false;
     const [x0, y0, x1, y1] = custBubbleBox();
-    if (!inRect(gx, gy, CUST_X - 4, cust.top - 6, CUST_X + 18, CUST_FEET + 2) && !inRect(gx, gy, x0, y0, x1, y1)) return false;
+    if (!inZone(gx, gy, custX() - 4, cust.top - 6, custX() + 18, CUST_FEET + 2) && !inZone(gx, gy, x0, y0, x1, y1)) return false;
+    if (Date.now() < rewardAdReadyAt) { showCooldown(); return true; }   // the sale never starts during the cooldown
     askAd(custLabel() + ' ПРЯНИКОВ', startSale);
     return true;
   }
@@ -1319,9 +1422,8 @@
     loadingLeft = 2.5;
     showRewardAd(() => {
       s.done = 'win';
-      coins += s.n;
-      cycleEarned += s.n;
-      totalEarned += s.n;
+      earn(s.n);
+      custServed += 1;
       saveGame();
     }, () => { s.done = 'fail'; if (sale === s) loadingLeft = 0; });
   }
@@ -1330,7 +1432,7 @@
   }
   function drawCustomer() {
     ctx.globalAlpha = custAlpha();
-    ctx.drawImage(cust.img, CUST_X - 12, CUST_FEET - 62);
+    window.KITCHEN_GUESTS.draw(ctx, cust.k, custX(), CUST_FEET, { t: cust.t, anim: settings.animBg, wet: cust.wet, winter: cust.winter });
     ctx.globalAlpha = 1;
   }
   function custFrame(x0, y0, x1, y1) {
@@ -1340,14 +1442,25 @@
     fillRect(x0, y0, 1, y1 - y0, accent());
     fillRect(x1 - 1, y0, 1, y1 - y0, accent());
   }
+  // next to the shop: one line, its right frame touches the shop; otherwise two lines over his head
   function custBubbleBox() {
+    if (panelT > 0) {
+      const w = textWidth(custLabel(), 1) + 10;
+      return [PX0 - w, 78, PX0, 92];
+    }
     const w = Math.max(textWidth('ПОКУПАТЕЛЬ', 1), textWidth(custLabel(), 1)) + 10;
     const x0 = Math.round(CUST_X + 6 - w / 2);
     return [x0, cust.top - 30, x0 + w, cust.top - 6];
   }
   function drawCustomerBubble() {
+    if (panelT > 0 && panelT < 1) return;   // the shop is sliding
     const [x0, y0, x1, y1] = custBubbleBox();
     custFrame(x0, y0, x1, y1);
+    if (panelT > 0) {
+      drawText(custLabel(), 1, (x0 + x1) / 2, y0 + 3, accent(), 'center');
+      fillRect(custX() + 6, y1, 2, Math.max(1, cust.top - 3 - y1), accent());
+      return;
+    }
     drawText('ПОКУПАТЕЛЬ', 1, CUST_X + 6, y0 + 3, COL.text, 'center');
     drawText(custLabel(), 1, CUST_X + 6, y0 + 13, accent(), 'center');
     fillRect(CUST_X + 5, y1, 3, cust.top - 3 - y1, accent());
@@ -1355,10 +1468,10 @@
   function watchSkinAd(id) {
     askAd('ПРОГРЕСС К СКИНУ', () => showRewardAd(() => grantSkinView(id)));
   }
-  function grantSkinView(id) {
+  function grantSkinView(id) {   // with the ad-free purchase one tap counts as all the views
     const k = SKINS.find((s) => s.id === id);
     if (!k || skinOwned[id]) return;
-    skinAdViews[id] = (skinAdViews[id] || 0) + 1;
+    skinAdViews[id] = premiumOwned.noads ? skinAdNeed(k) : (skinAdViews[id] || 0) + 1;
     if (skinAdViews[id] >= skinAdNeed(k)) { skinOwned[id] = true; skinAdViews[id] = 0; sfxBuy(); offerSkin(id); }
     saveGame();
   }
@@ -2152,13 +2265,14 @@
   }
   // the ad button shows how many ads are still left for this skin, and counts down with each view
   function adButtonLabel(k) {
+    if (premiumOwned.noads) return 'ПОЛУЧИТЬ';   // no ads to watch: the skin comes at once
     const left = Math.max(0, skinAdNeed(k) - (skinAdViews[k.id] || 0));
     const word = left === 1 ? 'РЕКЛАМУ' : left >= 2 && left <= 4 ? 'РЕКЛАМЫ' : 'РЕКЛАМ';
     return 'ЗА ' + left + ' ' + word;
   }
   function drawSkinPreview() {
     const k = SKINS.find((s) => s.id === skinPreview);
-    drawTextBox(k.name, 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, accent());
+    drawTextBox(k.name, 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, accent());
     const thumb = skinThumbs[k.id];
     const fx = k.id === 'neon' || k.id === 'volcano' || k.id === 'neontube' || NEW_FX_IDS.includes(k.id);
     if (fx) {
@@ -2199,13 +2313,13 @@
   }
   function drawSkinWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, WIN_Y1 - WIN_Y0, COL.panel);
+    fillRect(WIN_X0, WIN_Y0, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y1 - 1, WIN_X1 - WIN_X0, 1, COL.panelEdge);
+    fillRect(WIN_X0, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    fillRect(WIN_X1 - 1, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
     if (skinPreview) { drawSkinPreview(); return; }
-    drawTextBox('ВНЕШНИЙ ВИД', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+    drawTextBox('ВНЕШНИЙ ВИД', 1, WIN_X0, WIN_X1, WIN_Y0 + 6, WIN_Y0 + 16, COL.text);
     // the skins as pictures: 5 per row; the ones not owned yet are dim; the worn one has a gold frame
     SKINS.forEach((k, i) => {
       const [cx, cy] = skinCellXY(i);
@@ -2225,34 +2339,138 @@
   }
 
   // ---------- progress window: statistics, achievements, leaderboards (VK) ----------
-  // achievements in groups: each has a progress value and a goal
-  let bestProkOneRebirth = 0;   // the most upgrades owned at once in one rebirth (saved)
+  // the 100 achievements (docs/achievements-v6.md), in groups: each has a progress value and a goal
+  const ACH_X0 = 10, ACH_X1 = 302, ACH_TOP = 32, ACH_BOT = 140, ACH_COUNT_Y = 144, ACH_TWO = false;   // the list of achievements; ACH_TWO: the progress under the name
   const ACH = [];
+  const ACH_GROUPS = [];         // {title, from}: the headings, by the index of the first achievement under them
+  const achGroup = (title) => ACH_GROUPS.push({ title, from: ACH.length });
   const addAch = (name, value, goal) => ACH.push({ name, value, goal });
-  [100, 1000, 5000, 10000, 25000].forEach((g) =>
-    addAch('СДЕЛАТЬ ' + g + ' КЛИКОВ ВРУЧНУЮ', () => playerClicks, g));
-  [1e6, 1e9, 1e12].forEach((g) =>
-    addAch('ЗАРАБОТАТЬ ' + fmt(BigInt(g)), () => Number(totalEarned), g));
-  [1, 10, 25, 50, 100, 200, 300, 500, 1000, 2500, 5000, 10000].forEach((g) =>
-    addAch('КУПИТЬ ВСЕГО ' + g + ' ТЕХНИКИ', () => techOwned.reduce((x, y) => x + y, 0), g));
-  [1, 5, 10, 20, 40].forEach((g) =>
-    addAch('КУПИТЬ ' + g + ' ПРОКАЧЕК', () => prokOwned.filter(Boolean).length, g));
-  addAch('ВСЕ ' + PROKACHKI.length + ' ПРОКАЧЕК ЗА ПЕРЕРОЖДЕНИЕ', () => Math.max(bestProkOneRebirth, prokOwned.filter(Boolean).length), PROKACHKI.length);
-  [10, 25, 50, 100].forEach((g) =>
-    addAch('ТЕХНИКА ДОСТИГЛА УРОВНЯ ' + g, () => Math.max(...techOwned), g));
-  [100, 1000, 2500, 5000, 10000].forEach((g) =>
-    addAch('КУПИТЬ УЛУЧШЕНИЙ КЛИКА: ' + g, () => clickOwned.reduce((x, y) => x + y, 0), g));
-  // playing time, in minutes
-  [[10, '10 МИНУТ'], [30, '30 МИНУТ'], [60, '1 ЧАС'], [120, '2 ЧАСА'], [240, '4 ЧАСА'],
-    [600, '10 ЧАСОВ'], [1440, '24 ЧАСА'], [3000, '50 ЧАСОВ'], [6000, '100 ЧАСОВ']].forEach(([g, label]) =>
-    addAch('ИГРАТЬ ' + label, () => playSec / 60, g));
-  [10, 100, 1000].forEach((g) =>
-    addAch('СДЕЛАТЬ ' + g + ' ПОКУПОК', () => totalBought, g));
-  [100, 1000, 10000, 100000].forEach((g) =>
-    addAch('ДОХОД ' + g + ' В СЕКУНДУ', () => autoPerSec(), g));
-  // the challenge-complete sound, 4 seconds: a build-up of rising bells, then a horn call that sings out and rings
+  // 1 ЗВЕЗДУ, 3 ЗВЕЗДЫ, 5 ЗВЁЗД
+  const plural = (n, one, few, many) => (n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many);
+  const spaced = (n) => custNum(BigInt(n));
+  const sumOf = (list) => list.reduce((a, b) => a + b, 0);
+  const starsTotal = () => techOwned.reduce((a, n) => a + starsOf(n), 0);
+  const prokTotal = () => prokOwned.filter(Boolean).length;
+  const A_TAPS = (g) => addAch('СДЕЛАТЬ ' + spaced(g) + ' ТАПОВ', () => playerClicks, g);
+  const A_TAPLV = (g) => addAch('КУПИТЬ ' + g + ' УЛУЧШЕНИЙ ТАПА', () => tapLv, g);
+  const A_MACH = (g) => addAch(g === 1 ? 'КУПИТЬ ПЕРВУЮ МАШИНУ' : 'КУПИТЬ ' + spaced(g) + ' МАШИН', () => sumOf(techOwned), g);
+  const A_STARS = (g) => addAch(g === 1 ? 'ПОЛУЧИТЬ ПЕРВУЮ ЗВЕЗДУ' : 'ПОЛУЧИТЬ ' + g + plural(g, ' ЗВЕЗДУ', ' ЗВЕЗДЫ', ' ЗВЁЗД'), starsTotal, g);
+  const A_PROK = (g) => addAch(g === 1 ? 'КУПИТЬ ПЕРВУЮ ПРОКАЧКУ' : 'КУПИТЬ ' + g + plural(g, ' ПРОКАЧКУ', ' ПРОКАЧКИ', ' ПРОКАЧЕК'), prokTotal, g);
+  const A_LEVEL = (g) => addAch('ПЕКАРНЯ ' + g + ' УРОВНЯ', () => bakeryLevel, g);
+  const A_EARN = (g) => addAch('ЗАРАБОТАТЬ ' + fmt(BigInt(g)), () => Number(totalEarned), g);
+  const A_RATE = (g) => addAch('ДОХОД ' + spaced(g) + ' В СЕКУНДУ', () => bestPerSec, g);
+  const A_CUST = (g) => addAch(g === 1 ? 'ПРОДАТЬ ПРЯНИКИ ПОКУПАТЕЛЮ' : 'ОБСЛУЖИТЬ ' + g + ' ПОКУПАТЕЛЕЙ', () => custServed, g);
+  achGroup('ТАПЫ');
+  [100, 500, 1000, 2500, 5000, 10000, 20000, 30000].forEach(A_TAPS);
+  achGroup('СИЛА ТАПА');
+  [10, 25, 50, 60, 70, 80, 90].forEach(A_TAPLV);
+  achGroup('ВСЕГО МАШИН');
+  [1, 50, 100, 200, 300, 400, 500, 600].forEach(A_MACH);
+  achGroup('НОВЫЕ МАШИНЫ');
+  ['ПЕЧЬ', 'ХОЛОДИЛЬНИК', 'ПЛИТУ', 'КОФЕМАШИНУ', 'КОНВЕКТОМАТ', 'ШОКОЛАДНЫЙ ФОНТАН', 'ТЕСТОМЕС', 'КОНВЕЙЕР', 'ФАБРИКУ ПРЯНИКОВ'].forEach((name, i) =>
+    addAch('КУПИТЬ ' + name, () => Math.min(1, techOwned[i + 1]), 1));
+  achGroup('МАШИНЫ ОДНОГО ВИДА');
+  [25, 50, 75, 100, 125].forEach((g) => addAch(g + ' МАШИН ОДНОГО ВИДА', () => Math.max(...techOwned), g));
+  achGroup('ЗВЁЗДЫ');
+  [1, 3, 5, 8, 10, 15, 18, 20].forEach(A_STARS);
+  achGroup('ПРОКАЧКИ');
+  [1, 3, 5, 8, 10, 12, 15].forEach(A_PROK);
+  achGroup('ПЕКАРНЯ');
+  [3, 5, 7, 10, 12, 14, 16, 18, 20].forEach(A_LEVEL);
+  achGroup('ПРЯНИКИ');
+  [1e6, 1e8, 1e9, 1e10, 1e11, 1e12].forEach(A_EARN);
+  achGroup('ДОХОД');
+  [1000, 1e6, 1e8].forEach(A_RATE);
+  achGroup('ПОКУПАТЕЛИ');
+  [1, 3, 5, 10, 15].forEach(A_CUST);
+  achGroup('СОБЫТИЯ');
+  addAch('ВЫПОЛНИТЬ КВЕСТ', () => questsDone, 1);
+  addAch('СЪЕСТЬ УГОЩЕНИЕ', () => treatsEaten, 1);
+  addAch('ЗАСТАТЬ КУЛИНАРНУЮ МИНУТУ', () => minutesSeen, 1);
+  achGroup('БОНЯ И ПРОЧЕЕ');
+  addAch('РАЗБУДИТЬ БОНЮ', () => bonyaWoken, 1);
+  addAch('ЗАБРАТЬ ДОХОД ЗА ОТСУТСТВИЕ', () => offlineTaken, 1);
+  achGroup('СЛОЖНЫЕ');
+  A_LEVEL(22); A_TAPLV(100); A_MACH(900); A_STARS(30); A_PROK(23); A_TAPS(75000); A_EARN(1e14); A_TAPLV(120); A_LEVEL(24); A_CUST(60);
+  A_STARS(40); A_MACH(1200); A_TAPS(150000); A_TAPLV(135);
+  addAch('ПО 75 МАШИН КАЖДОГО ВИДА', () => Math.min(...techOwned), 75);
+  A_LEVEL(26); A_CUST(100); A_PROK(28); A_MACH(1350); A_EARN(3e15);
+  // the scrolling list of achievements: headings of the groups, under them the rows with a bar
+  let achScroll = 0;             // how far the list is scrolled, in px
+  let achDrag = null;            // {y0, s0, thumb} while the list or its slider is held
+  let achWheel = 0;              // wheel distance not yet scrolled
+  let achItems = null;           // the rows and the headings with their places, counted once
+  function achLayout() {
+    if (achItems) return achItems;
+    achItems = [];
+    let y = 0;
+    ACH_GROUPS.forEach((g, n) => {
+      const to = n + 1 < ACH_GROUPS.length ? ACH_GROUPS[n + 1].from : ACH.length;
+      achItems.push({ head: g.title, list: ACH.slice(g.from, to), y, h: 13 });
+      y += 13;
+      for (let i = g.from; i < to; i++) {
+        const lines = ACH_TWO ? wrapText(ACH[i].name, 1, ACH_X1 - ACH_X0 - 8) : [ACH[i].name];
+        const h = ACH_TWO ? lines.length * 9 + 14 : 17;
+        achItems.push({ a: ACH[i], lines, y, h });
+        y += h + 1;
+      }
+    });
+    achItems.total = y;
+    return achItems;
+  }
+  const achMaxScroll = () => Math.max(0, achLayout().total - (ACH_BOT - ACH_TOP));
+  const achThumbH = () => Math.max(12, Math.round(((ACH_BOT - ACH_TOP) * (ACH_BOT - ACH_TOP)) / achLayout().total));
+  function achScrollTo(v) { achScroll = Math.max(0, Math.min(achMaxScroll(), v)); }
+  const achDone = (a) => a.value() >= a.goal;
+  function drawAchList() {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ACH_X0, ACH_TOP, ACH_X1 - ACH_X0, ACH_BOT - ACH_TOP);
+    ctx.clip();
+    for (const it of achLayout()) {
+      const y = ACH_TOP + it.y - Math.round(achScroll), w = ACH_X1 - ACH_X0;
+      if (y + it.h < ACH_TOP || y > ACH_BOT) continue;
+      if (it.head) {
+        const got = it.list.filter(achDone).length + '/' + it.list.length;
+        drawText(it.head, 1, ACH_X0 + 2, y + 3, accent(), 'left');
+        drawText(got, 1, ACH_X1 - 4 - textWidth(got, 1), y + 3, accent(), 'left');
+        continue;
+      }
+      const a = it.a, v = Math.min(a.goal, a.value()), done = achDone(a);
+      const prog = done ? 'ГОТОВО' : custNum(BigInt(Math.floor(v))) + '/' + custNum(BigInt(a.goal));
+      fillRect(ACH_X0, y, w, it.h, done ? COL.rowHi : COL.row);
+      if (done) fillRect(ACH_X0, y, 2, it.h, accent());
+      it.lines.forEach((t, i) => drawText(t, 1, ACH_X0 + 5, y + 3 + i * 9, COL.text, 'left'));
+      const py = y + 3 + (ACH_TWO ? it.lines.length * 9 : 0);
+      drawText(prog, 1, ACH_X1 - 4 - textWidth(prog, 1), py, done ? accent() : dimTone(), 'left');
+      const bx = ACH_X0 + 5, bw = ACH_TWO ? w - 9 - textWidth(prog, 1) - 6 : w - 9, by = ACH_TWO ? py + 2 : y + 13;
+      fillRect(bx, by, bw, ACH_TWO ? 4 : 2, COL.track);
+      fillRect(bx, by, Math.round(bw * Math.min(1, v / a.goal)), ACH_TWO ? 4 : 2, accent());
+    }
+    ctx.restore();
+    const trackH = ACH_BOT - ACH_TOP, th = achThumbH();
+    fillRect(ACH_X1 + 2, ACH_TOP, 3, trackH, COL.track);
+    fillRect(ACH_X1 + 2, ACH_TOP + Math.round((trackH - th) * (achScroll / Math.max(1, achMaxScroll()))), 3, th, COL.thumb);
+    drawText('ПОЛУЧЕНО ' + ACH.filter(achDone).length + ' ИЗ ' + ACH.length, 1, W / 2, ACH_COUNT_Y, accent(), 'center');
+  }
+  // the pointer y in screen rows: where the list or its slider is held
+  function achGrab(gx, gy, y) {
+    if (!inZone(gx, gy, ACH_X0, ACH_TOP, ACH_X1 + 8, ACH_BOT)) return false;
+    achDrag = { y0: y, s0: achScroll, thumb: gx >= ACH_X1 };
+    return true;
+  }
+  function achMove(y) {
+    const dy = y - achDrag.y0;
+    achScrollTo(achDrag.s0 + (achDrag.thumb ? dy * (achMaxScroll() / Math.max(1, ACH_BOT - ACH_TOP - achThumbH())) : -dy));
+  }
+  function updateAchWheel(dt) {
+    if (achWheel === 0) return;
+    const step = achWheel * Math.min(1, dt * 14), want = achScroll + step;
+    achWheel -= step;
+    achScrollTo(want);
+    if (Math.abs(achWheel) < 0.05 || achScroll !== want) achWheel = 0;
+  }
   const PROG_TABS = ['stats', 'ach', 'top', 'daily'];
-  const ACH_PER_PAGE = 6, ACH_PAGES = Math.ceil(ACH.length / 6);   // 6 per page
   // the progress window is wider than the others, so the three tab names fit on one row
   const PROG_X0 = 6, PROG_X1 = 314;
   const PROG_TAB_X = [10, 92, 174, 242];
@@ -2292,10 +2510,7 @@
         if (dailyCanClaim() && inRect(gx, gy, 100, 112, 220, 126)) { dailyClaim(); return; }
       }
     }
-    if (progWin.tab === 'ach') {
-      if (inRect(gx, gy, 16, 136, 76, 150)) progWin.page = Math.max(0, (progWin.page || 0) - 1);
-      if (inRect(gx, gy, 244, 136, 304, 150)) progWin.page = Math.min(ACH_PAGES - 1, (progWin.page || 0) + 1);
-    }
+    if (progWin.tab === 'ach' && achGrab(gx, gy, gy)) return;
     if (inRect(gx, gy, 16, 156, 304, 170)) { progWin = null; panelOpen = shopReturn; shopReturn = false; }   // back to the shop only if it was open before
   }
   // ---------- daily reward ----------
@@ -2373,12 +2588,12 @@
   }
   function drawProgWin() {
     fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');          // dim the game behind
-    fillRect(PROG_X0, REB_Y0, PROG_X1 - PROG_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(PROG_X0, REB_Y0, PROG_X1 - PROG_X0, 1, COL.panelEdge);
-    fillRect(PROG_X0, REB_Y1 - 1, PROG_X1 - PROG_X0, 1, COL.panelEdge);
-    fillRect(PROG_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(PROG_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    drawTextBox('ПРОГРЕСС', 1, PROG_X0, PROG_X1, REB_Y0 + 1, REB_Y0 + 11, COL.text);
+    fillRect(PROG_X0, WIN_Y0, PROG_X1 - PROG_X0, WIN_Y1 - WIN_Y0, COL.panel);
+    fillRect(PROG_X0, WIN_Y0, PROG_X1 - PROG_X0, 1, COL.panelEdge);
+    fillRect(PROG_X0, WIN_Y1 - 1, PROG_X1 - PROG_X0, 1, COL.panelEdge);
+    fillRect(PROG_X0, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    fillRect(PROG_X1 - 1, WIN_Y0, 1, WIN_Y1 - WIN_Y0, COL.panelEdge);
+    drawTextBox('ПРОГРЕСС', 1, PROG_X0, PROG_X1, WIN_Y0 + 1, WIN_Y0 + 11, COL.text);
     const labels = ['СТАТИСТИКА', 'ДОСТИЖЕНИЯ', 'ТАБЛИЦЫ', 'НАГРАДЫ'];
     labels.forEach((label, i) => {
       const [x0, y0, x1, y1] = progTabRect(i);
@@ -2389,15 +2604,15 @@
     const tab = progWin.tab;
     if (tab === 'stats') {
       const rows = [
-        ['ВСЕГО ЗАРАБОТАНО', fmt(totalEarned)],
-        ['ПЕРЕРОЖДЕНИЙ', String(rebirths)],
-        ['КЛИКОВ ВРУЧНУЮ', String(playerClicks)],
-        ['ПОКУПОК', String(totalBought)],
-        ['ТЕХНИКИ КУПЛЕНО', String(techOwned.reduce((a, b) => a + b, 0))],
-        ['ПРОКАЧЕК КУПЛЕНО', String(prokOwned.filter(Boolean).length)],
-        ['ДОХОД ЗА КЛИК', fmt(clickGain())],
-        ['ДОХОД В СЕКУНДУ', fmt(BigInt(Math.floor(autoPerSec())))],
-        ['МНОЖИТЕЛЬ', String(incomeMult()) + 'Х'],
+        ['ВСЕГО ЗАРАБОТАНО', custNum(totalEarned)],
+        ['УРОВЕНЬ ПЕКАРНИ', String(bakeryLevel)],
+        ['КЛИКОВ ВРУЧНУЮ', spaced(playerClicks)],
+        ['ПОКУПОК', spaced(totalBought)],
+        ['ТЕХНИКИ КУПЛЕНО', spaced(sumOf(techOwned))],
+        ['ПРОКАЧЕК КУПЛЕНО', String(prokTotal())],
+        ['ДОХОД ЗА КЛИК', custNum(clickGain())],
+        ['ДОХОД В СЕКУНДУ', rateText(autoPerSec())],
+        ['ИТОГО', 'Х' + multText()],
         ['ВРЕМЯ В ИГРЕ', fmtTime(playSec)],
       ];
       rows.forEach(([name, value], i) => {
@@ -2406,26 +2621,7 @@
         drawText(value, 1, 304 - textWidth(value, 1), y, COL.text, 'left');
       });
     } else if (tab === 'ach') {
-      const page = progWin.page || 0;
-      for (let k = 0; k < ACH_PER_PAGE; k++) {
-        const a = ACH[page * ACH_PER_PAGE + k];
-        if (!a) break;
-        const y = 38 + k * 16;   // 10 px under the tabs, 11 px above the buttons
-        const v = a.value();
-        const done = v >= a.goal;
-        drawText(a.name, 1, 16, y, COL.text, 'left');
-        if (done) {
-          drawText('ВЫПОЛНЕН', 1, 304 - textWidth('ВЫПОЛНЕН', 1), y, accent(), 'left');   // yellow, like the bonus lines
-        } else {
-          const prog = fmt(BigInt(Math.floor(v))) + '/' + fmt(BigInt(a.goal));
-          drawText(prog, 1, 304 - textWidth(prog, 1), y, dimTone(), 'left');
-        }
-      }
-      settingsButton(16, 136, 76, 150, 'НАЗАД');
-      settingsButton(244, 136, 304, 150, 'ДАЛЕЕ');
-      drawText('СТР ' + (page + 1) + '/' + ACH_PAGES, 1, 113, 140, COL.text, 'center');
-      const gotCount = ACH.filter((a) => a.value() >= a.goal).length;
-      drawText('ПОЛУЧЕНО ' + gotCount + '/' + ACH.length, 1, 193, 140, accent(), 'center');
+      drawAchList();
     } else if (tab === 'daily') {
       drawDaily();
     } else {
@@ -2439,51 +2635,105 @@
     settingsButton(16, 156, 304, 170, 'ЗАКРЫТЬ');
   }
 
-  // ---------- rebirth window ----------
-  const REB_X0 = 50, REB_X1 = 270, REB_Y0 = 4, REB_Y1 = 176;   // same frame as the settings window: 4 px above, 6 px below the last button
-  function handleRebirthDown(gx, gy) {
-    const ready = coins >= rebirthNeed();   // the rebirth needs the gingerbread in hand now, not earned in this cycle
-    if (inRect(gx, gy, 60, 140, 260, 154)) {
-      if (ready) doRebirth();
-      return;
-    }
-    if (inRect(gx, gy, 60, 156, 260, 170)) { rebirthOpen = false; shopReturn = false; }
+  const WIN_X0 = 50, WIN_X1 = 270, WIN_Y0 = 4, WIN_Y1 = 176;   // the frame of the windows: 4 px above, 6 px below the last button
+  const LVL_X = 70, LVL_Y = 40, LVL_W = 180, LVL_DIM_H = H;     // the window of a new level
+  const SALUTE_AT = [[46, 62], [274, 62], [160, 30]];
+  // ---------- the button УРОВЕНЬ N with its bar, and the window of a new level ----------
+  function drawLevelButton() {
+    const [x0, x1, y0, y1] = topRect('level');
+    fillRect(x0, y0, x1 - x0, y1 - y0, COL.btnFrame);
+    fillRect(x0 + 2, y0 + 2, x1 - x0 - 4, y1 - y0 - 4, COL.btnFill);
+    fillRect(x0 + 2, y0 + 2, Math.round((x1 - x0 - 4) * levelProgress()), y1 - y0 - 4, COL.tabOn);
+    fillRect(x0 + 2, y0 + 2, x1 - x0 - 4, 1, COL.btnHi);
+    drawTextBox('УРОВЕНЬ ' + bakeryLevel, 1, x0, x1, y0, y1, COL.btnText);
   }
-  // the description sits exactly halfway between the title and the button under it
-  const REB_DY = 17;
-  function drawRebirth() {
-    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');          // dim the game behind
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, REB_Y1 - REB_Y0, COL.panel);
-    fillRect(REB_X0, REB_Y0, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y1 - 1, REB_X1 - REB_X0, 1, COL.panelEdge);
-    fillRect(REB_X0, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    fillRect(REB_X1 - 1, REB_Y0, 1, REB_Y1 - REB_Y0, COL.panelEdge);
-    drawTextBox('ПЕРЕРОЖДЕНИЕ', 1, REB_X0, REB_X1, REB_Y0 + 6, REB_Y0 + 16, COL.text);
+  // a tap on it: the bonus of the level, what is left to the next one, and the next machine
+  function tapLevelButton() {
+    const next = TECHNIKA.find((m) => m.level > bakeryLevel), lines = ['ДОХОД +' + levelPercent() * (bakeryLevel - 1) + '%'];
+    lines.push('ДО УРОВНЯ ' + (bakeryLevel + 1) + ': ' + custNum(BigInt(Math.ceil(levelNeed(bakeryLevel) - Number(totalEarned)))));
+    if (next) lines.push('НА ' + next.level + ': ' + (next.short || next.name));
+    showNotice(lines);
+  }
+  // the salute: three bursts of paper squares
+  let salute = [];
+  const SALUTE_COLS = ['#FFD84A', '#FF5FDC', '#7DF9FF', '#8CFF7A', '#FF8A3D'];
+  function startSalute() {
+    salute = [];
+    SALUTE_AT.forEach(([x, y], b) => {
+      for (let k = 0; k < 22; k++) {
+        const a = (k / 22) * Math.PI * 2, sp = 34 + (k % 3) * 22;
+        salute.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20, t: -b * 0.35, col: SALUTE_COLS[(k + b) % SALUTE_COLS.length] });
+      }
+    });
+  }
+  function updateSalute(dt) {
+    if (salute.length === 0) return;
+    for (const s of salute) {
+      s.t += dt;
+      if (s.t < 0) continue;
+      s.vy += 90 * dt; s.x += s.vx * dt; s.y += s.vy * dt;
+    }
+    salute = salute.filter((s) => s.t < 1.3);
+  }
+  function drawSalute() {
+    for (const s of salute) if (s.t >= 0) {
+      ctx.globalAlpha = Math.max(0, 1 - s.t / 1.3);
+      fillRect(Math.round(s.x), Math.round(s.y), 2, 2, s.col);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // what the level has opened: one machine by its name, several by their number
+  function levelOpened() {
+    const o = lvlWin.opened;
+    if (o.length === 0) return '';
+    if (o.length > 1) return 'ОТКРЫТО МАШИН: ' + o.length;
+    const word = o[0].she ? 'ОТКРЫТА: ' : 'ОТКРЫТ: ';
+    return textWidth(word + o[0].name, 1) <= LVL_W - 8 ? word + o[0].name : word + o[0].short;
+  }
+  function drawLevelWin() {
+    const x0 = LVL_X, x1 = LVL_X + LVL_W, y0 = LVL_Y, y1 = LVL_Y + 100, cx = LVL_X + LVL_W / 2;
+    fillRect(0, 0, W, LVL_DIM_H, 'rgba(10, 8, 24, 0.6)');
+    drawSalute();
+    fillRect(x0, y0, x1 - x0, y1 - y0, COL.panel);
+    fillRect(x0, y0, x1 - x0, 1, accent()); fillRect(x0, y1 - 1, x1 - x0, 1, accent());
+    fillRect(x0, y0, 1, y1 - y0, accent()); fillRect(x1 - 1, y0, 1, y1 - y0, accent());
+    drawText('УРОВЕНЬ ' + lvlWin.level + '!', 2, cx, y0 + 10, accent(), 'center');
+    drawText('ПЕКАРНЯ ВЫРОСЛА', 1, cx, y0 + 34, COL.text, 'center');
+    const opened = levelOpened();
+    if (opened) drawText(opened, 1, cx, y0 + 50, COL.text, 'center');
+    drawText('ДОХОД +' + levelPercent() * lvlWin.gained + '% НАВСЕГДА', 1, cx, y0 + (opened ? 62 : 56), accent(), 'center');
+    fillRect(x0 + 2, y1 - 18, x1 - x0 - 4, 16, COL.row);
+    drawTextBox('ОТЛИЧНО', 1, x0 + 2, x1 - 2, y1 - 18, y1 - 2, COL.text);
+  }
+  function handleLevelDown(gx, gy) {
+    if (lvlWin.t < 0.5) return;   // a tap meant for the cookie must not close the window at once
+    if (inRect(gx, gy, LVL_X, LVL_Y + 80, LVL_X + LVL_W, LVL_Y + 100)) { lvlWin = null; salute = []; }
+  }
 
-    const need = rebirthNeed();
-    const ready = coins >= need;
-    const per = premiumOwned.rebirth2 ? 4 : 2;
-    const nowMult = Math.pow(per, rebirths);
-    const afterMult = Math.pow(per, rebirths + 1);
-    drawText('ПЕРЕРОЖДЕНИЙ СЕЙЧАС: ' + rebirths, 1, 60, 22 + REB_DY, COL.text, 'left');
-    drawText('ДОХОД: ' + nowMult + 'Х, ПОСЛЕ: ' + afterMult + 'Х', 1, 60, 32 + REB_DY, accent(), 'left');
-    drawText('СБРОСИТСЯ: ПРЯНИКИ, ТЕХНИКА,', 1, 60, 46 + REB_DY, COL.text, 'left');
-    drawText('ПРОКАЧКИ, УЛУЧШЕНИЯ', 1, 60, 56 + REB_DY, COL.text, 'left');
-    drawText('ОСТАНЕТСЯ: ПРЕМИУМ, РЕКЛАМА,', 1, 60, 70 + REB_DY, COL.text, 'left');
-    drawText('НАСТРОЙКИ', 1, 60, 80 + REB_DY, COL.text, 'left');
-    drawText('В НАЛИЧИИ: ' + fmt(coins) + ' / ' + fmt(need), 1, 60, 96 + REB_DY, ready ? accent() : COL.text, 'left');
-    settingsButton(60, 140, 260, 154, ready ? 'ПЕРЕРОЖДЕНИЕ' : 'ЕЩЁ ' + fmt(need - coins));
-    settingsButton(60, 156, 260, 170, 'ЗАКРЫТЬ');
+  // an income per second: the small ones with one digit after the point (0.3), the big ones like every other number
+  function rateText(v) {
+    if (v < 100 && Math.round(v * 10) % 10 !== 0) return (Math.round(v * 10) / 10).toFixed(1);
+    return custNum(BigInt(Math.floor(v + 1e-6)));
+  }
+  // the total multiplier without needless zeros: 1, 1.6, 13.2
+  function multText() {
+    return String(Math.round(incomeMult() * 100) / 100);
   }
 
   // short form for the shop: from millions 1.01М, billions МЛД, trillions ТРЛ. The top counter is not shortened.
   function fmt(v) {
     const n = BigInt(v);
     if (n < 1000000n) return n.toString();
-    const x = Number(n);
-    if (x < 1e9) return (x / 1e6).toFixed(2) + 'М';
-    if (x < 1e12) return (x / 1e9).toFixed(2) + 'МЛД';
-    return (x / 1e12).toFixed(2) + 'ТРЛ';
+    const digits = n.toString();
+    const u = Math.floor((digits.length - 1) / 3) - 2;          // 0 = a million
+    if (u >= UNITS.length) return digits[0] + '.' + digits.slice(1, 3) + 'Е' + (digits.length - 1);
+    const whole = digits.length - (u + 2) * 3;
+    return digits.slice(0, whole) + '.' + digits.slice(whole, whole + 2) + UNITS[u];   // cut, not rounded: never 1000.00М
+  }
+  // the big counter: all the digits while they fit, then the short form
+  function coinsText() {
+    const t = String(coins);
+    return textWidth(t, 2) <= COUNTER_MAX_W ? t : fmt(coins);
   }
 
   // ---------- buy amount: 1, 10, 100 or МАКС (only for КЛИК and ТЕХНИКА, which can be bought many times) ----------
@@ -2499,40 +2749,34 @@
     const x = PX0 + 6 + i * 37;
     return [x, 144, x + 35, 158];
   }
-  // a click upgrade or a technika opens after 5 of the one before it (the first one is always open)
-  const UNLOCK_PREV = 5;
-  function listLocked(tabId, i) {
-    if (i === 0) return false;
-    const own = tabId === 'click' ? clickOwned : techOwned;
-    return own[i - 1] < UNLOCK_PREV;
-  }
-  // what one tap buys in a repeatable tab: how many (n) and the total price; canOne = the first one is affordable
+  // what one tap buys in a repeatable tab: how many (n) and the total price; can = the coins pay for all of it
   function plan(tab, i) {
-    if ((tab === 'click' || tab === 'tech') && listLocked(tab, i)) return { n: 0, cost: 0n, canOne: false };
-    const base = tab === 'click' ? CLICK_UPGRADES[i].base : TECHNIKA[i].base;
-    const owned = tab === 'click' ? clickOwned[i] : techOwned[i];
-    const cap = tab === 'tech' ? TECH_MAX - owned : Infinity;     // technika stops at its maximum level
-    const limit = Math.min(buyMode === 'max' ? BUY_MAX_STEPS : buyMode, cap);
-    if (limit <= 0) return { n: 0, cost: 0n, canOne: false };
+    if (tab === 'tech' && listLocked(i)) return { n: 0, cost: 0n, can: false };
+    const limit = buyMode === 'max' ? BUY_MAX_STEPS : buyMode;
+    const first = priceAhead(tab, i, 0);
     let n = 0, sum = 0n;
     for (let k = 0; k < limit; k++) {
-      const p = finalPrice(priceOf(base, owned + k));
+      const p = priceAhead(tab, i, k);
       if (buyMode === 'max' && coins < sum + p) break;   // МАКС: stop at what the coins can pay
       sum += p;
       n++;
     }
-    const canOne = coins >= finalPrice(priceOf(base, owned));
-    if (n === 0) return { n: 0, cost: finalPrice(priceOf(base, owned)), canOne };
-    return { n, cost: sum, canOne };
+    if (n === 0) return { n: 1, cost: first, can: false };   // МАКС with too few coins: the price of one
+    return { n, cost: sum, can: coins >= sum };
   }
 
   // the blinking dot: a tab has something new to buy (never bought and affordable), or, for ПРЕМИУМ,
   // some rewarded ad is still not watched
+  // at least one ad of БЕСПЛАТНО can be watched now: its bonus is not running and the minute after the last ad is over
+  function freeAdReady() {
+    if (Date.now() < rewardAdReadyAt) return false;
+    return adBoost.double <= 0 || (adBoost.discount <= 0 && !premiumOwned.discount);
+  }
   function tabHasNew(id) {
-    if (id === 'click') return CLICK_UPGRADES.some((u, i) => clickOwned[i] === 0 && !listLocked('click', i) && coins >= priceNow('click', i));
-    if (id === 'tech') return TECHNIKA.some((t, j) => techOwned[j] === 0 && !listLocked('tech', j) && coins >= priceNow('tech', j));
-    if (id === 'prok') return PROKACHKI.some((p, g) => !prokOwned[g] && prokUnlocked(g) && coins >= priceNow('prok', g));
-    if (id === 'premium') return !(adWatched.double && adWatched.discount);
+    if (id === 'click') return tapLv === 0 && coins >= priceNow('click', 0);
+    if (id === 'tech') return TECHNIKA.some((t, j) => techOwned[j] === 0 && !listLocked(j) && coins >= priceNow('tech', j));
+    if (id === 'prok') return prokList().length > 0;   // something to improve is there
+    if (id === 'premium') return freeAdReady();
     return false;
   }
   function tabRect(i) {
@@ -2554,9 +2798,9 @@
   function premiumItemsFor(sec) {
     if (sec === 'ads') return PREMIUM_ITEMS.filter((x) => x.kind === 'ad');
     // the bonuses from the cheapest to the most expensive, top to bottom
-    if (sec === 'bonus') return PREMIUM_ITEMS.filter((x) => x.kind === 'premium' && ['double', 'triple', 'rebirth2', 'discount', 'autoclick', 'bundle', 'reb1', 'reb2', 'reb5', 'reb10', 'noads'].includes(x.id)).sort((a, b) => {
-      // the bonuses by price, then the bundle, then the rebirth packs by price
-      const grp = (x) => (x.add ? 2 : x.id === 'bundle' ? 1 : 0);
+    if (sec === 'bonus') return PREMIUM_ITEMS.filter((x) => x.kind === 'premium' && ['double', 'triple', 'level2', 'discount', 'autoclick', 'bundle', 'hours1', 'hours3', 'hours8', 'hours24', 'noads'].includes(x.id)).sort((a, b) => {
+      // the bonuses by price, then the bundle, then the hours packs by price
+      const grp = (x) => (x.hours ? 2 : x.id === 'bundle' ? 1 : 0);
       return grp(a) - grp(b) || parseInt(a.price, 10) - parseInt(b.price, 10);
     });
     // the bundle of all premium skins always comes first
@@ -2577,9 +2821,9 @@
     return [x0, y0, x0 + 72, y0 + 12];
   }
   function items() {
-    if (tab === 'click') return CLICK_UPGRADES;
+    if (tab === 'click') return [];   // this tab has its own three blocks
     if (tab === 'tech') return TECHNIKA;
-    if (tab === 'prok') return prokSel === null ? TECHNIKA : PROK_BY_TECH[prokSel].map((g) => PROKACHKI[g]);
+    if (tab === 'prok') return prokList();
     return premiumItemsFor(premiumSection);
   }
   function maxScroll() {
@@ -2721,7 +2965,7 @@
     }
     if (inRect(gx, gy, CX0, CON.b1[0], CX1, CON.b1[1])) { docsOpen = 0; docsFromConsent = true; docsScroll = 0; return; }
     if (inRect(gx, gy, CX0, CON.b2[0], CX1, CON.b2[1])) { docsOpen = 1; docsFromConsent = true; docsScroll = 0; return; }
-    if (inRect(gx, gy, CX0, CON.box[0], CX1, CON.box[0] + 10)) { consentChecked = !consentChecked; return; }
+    if (inRect(gx, gy, CX0, CON.box[0], CX1, CON.box[0] + 10, [CX0, CON.box[0], CX0 + 10, CON.box[0] + 10])) { consentChecked = !consentChecked; return; }
     if (consentChecked && inRect(gx, gy, CX0, CON.go[0], CX1, CON.go[1])) {
       try { localStorage.setItem(CONSENT_KEY, '1'); } catch (err) { /* storage blocked: the window shows again next time */ }
       consentOpen = false;
@@ -2827,7 +3071,7 @@
     fillRect(56, 16, 1, 150, COL.panelEdge); fillRect(263, 16, 1, 150, COL.panelEdge);
     if (resetWin.stage === 1) {
       drawTextBox('СБРОС ПРОГРЕССА', 1, 56, 264, 24, 32, accent());
-      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, ТЕХНИКА', 'ПРОКАЧКИ И ПЕРЕРОЖДЕНИЯ', 'БОНУСЫ ЗА РЕКЛАМУ', 'СТАТИСТИКА И ДОСТИЖЕНИЯ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ'];
+      const lines = ['ПРОПАДЕТ:', 'ПРЯНИКИ, СИЛА ТАПА, ТЕХНИКА', 'ПРОКАЧКИ И УРОВЕНЬ ПЕКАРНИ', 'БОНУСЫ ЗА РЕКЛАМУ', 'СТАТИСТИКА И ДОСТИЖЕНИЯ', 'ОСТАНЕТСЯ:', 'ПОКУПКИ ЗА ГОЛОСА, СКИНЫ,', 'НАСТРОЙКИ'];
       lines.forEach((t, i) => drawTextBox(t, 1, 60, 260, 40 + i * 12, 48 + i * 12, COL.text));
       settingsButton(60, 140, 160, 156, 'ДАЛЕЕ');
       settingsButton(160, 140, 260, 156, 'ОТМЕНА');
@@ -2850,21 +3094,22 @@
   }
   function resetAll() {
     coins = 0n;
-    clickOwned = clickOwned.map(() => 0);
+    tapLv = 0; tapAcc = 0;
     techOwned = techOwned.map(() => 0);
     prokOwned = prokOwned.map(() => false);
     adBoost = { double: 0, discount: 0 };
     autoAcc = 0;                 // premium purchases are kept on reset
-    rebirths = 0;
-    cycleEarned = 0n;
+    bakeryLevel = 1; lvlPending = null; lvlWin = null; salute = [];
     // statistics and achievements (the achievements are counted from these) start again
     totalEarned = 0n;
     playerClicks = 0;
     playSec = 0;
     totalBought = 0;
-    bestProkOneRebirth = 0;
+    custServed = 0; questsDone = 0; treatsEaten = 0; minutesSeen = 0; bonyaWoken = 0; offlineTaken = 0; bestPerSec = 0;
     cust = null;
-    custGap = CUST_EVERY;        // the customers start again too
+    custGap = CUST_FIRST;        // the customers start again too
+    gameT = window.KITCHEN.START;   // and the time: spring, day 5, 10:00
+    offlineFrom = 0; offlineWin = null;
     resetAt = Date.now();        // this save is now newer than any copy made before the reset
     saveGame();                  // saved only after everything above is cleared
     if (window.vkBridge) vkSaveNow();   // the cloud gets the reset at once, not in 15 s
@@ -2886,12 +3131,12 @@
     if (inRect(gx, gy, 76, 144, 160, 158)) { supportOpen = true; return; }
     if (inRect(gx, gy, 164, 144, 244, 158)) { docsListOpen = true; return; }
     if (inRect(gx, gy, 76, 160, 244, 174)) { settingsOpen = false; resetWin = null; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
-    if (inRect(gx, gy, 196, 86, 248, 100)) { settings.animBg = !settings.animBg; saveGame(); return; }
-    if (inRect(gx, gy, 196, 102, 248, 116)) { settings.shake = !settings.shake; saveGame(); return; }
+    if (inRect(gx, gy, 196, 86, 248, 100, [200, 88, 244, 98])) { settings.animBg = !settings.animBg; saveGame(); return; }
+    if (inRect(gx, gy, 196, 102, 248, 116, [200, 104, 244, 114])) { settings.shake = !settings.shake; saveGame(); return; }
     if (inRect(gx, gy, 76, 126, 244, 141)) { resetWin = { stage: 1 }; return; }   // opens the reset window
-    if (inRect(gx, gy, 196, 70, 248, 84)) { toggleFullScreen(); return; }   // the full-screen toggle on the row of the old colour-blind mode
-    if (inRect(gx, gy, 70, 28, 250, 47)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
-    if (inRect(gx, gy, 70, 48, 250, 67)) { sliderDrag = 'music'; setSlider('music', gx); return; }
+    if (inRect(gx, gy, 196, 70, 248, 84, [200, 72, 244, 82])) { toggleFullScreen(); return; }   // the full-screen toggle on the row of the old colour-blind mode
+    if (inZone(gx, gy, 70, 28, 250, 47)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
+    if (inZone(gx, gy, 70, 48, 250, 67)) { sliderDrag = 'music'; setSlider('music', gx); return; }
   }
 
   // ---------- input ----------
@@ -2899,22 +3144,66 @@
     const r = canvas.getBoundingClientRect();
     return [((e.clientX - r.left) * W) / r.width, ((e.clientY - r.top) * H) / r.height];
   }
-  function inRect(gx, gy, x0, y0, x1, y1) {
+  function inZone(gx, gy, x0, y0, x1, y1) {
     return gx >= x0 && gx < x1 && gy >= y0 && gy < y1;
+  }
+  // a button: the same, and it is pressed in (drawn: its picture, when the zone of the tap is larger)
+  function inRect(gx, gy, x0, y0, x1, y1, drawn) {
+    if (!inZone(gx, gy, x0, y0, x1, y1)) return false;
+    if (drawn) setHit(gx, gy, ...drawn); else setHit(gx, gy, x0, y0, x1, y1);
+    return true;
+  }
+
+  // ---------- a pressed button: its inside goes down by a pixel while it is held ----------
+  // inRect remembers the rectangle that has taken the tap; when the tap opens or closes a window, the old picture with
+  // the pressed button stays for a moment longer, so that the press is seen
+  const PRESS_S = 0.09;
+  let tapRaw = null, hitBox = null, press = null;   // press: {box, t, held, key, shot}
+  const pressCanvas = document.createElement('canvas');
+  pressCanvas.width = canvas.width; pressCanvas.height = canvas.height;
+  const pressCtx = pressCanvas.getContext('2d');
+  function screenKey() {
+    return [settingsOpen, panelOpen, !!progWin, skinWin, skinPreview, premiumWin && premiumWin.mode, !!skinOffer, boostMenuOpen, supportOpen, docsListOpen, docsOpen, consentOpen,
+      resetWin && resetWin.stage, !!lvlWin, !!offlineWin, !!noticeWin, dailyPreview, !!sale, loadingLeft > 0].join();
+  }
+  function setHit(gx, gy, x0, y0, x1, y1) {
+    if (tapRaw) hitBox = [x0 + tapRaw[0] - gx, y0 + tapRaw[1] - gy, x1 - x0, y1 - y0].map(Math.round);   // on the canvas
+  }
+  function withPress(e, held, fn) {
+    const [gx, gy] = toGame(e), before = screenKey();
+    tapRaw = [gx, gy]; hitBox = null;
+    fn(e);
+    tapRaw = null;
+    if (!hitBox || !settings.animBg) return;
+    const shot = screenKey() !== before;
+    if (shot) { pressCtx.clearRect(0, 0, canvas.width, canvas.height); pressCtx.drawImage(canvas, 0, 0); }
+    press = { box: hitBox, t: 0, held, shot, key: screenKey() };
+  }
+  function drawPress(c, dt) {
+    if (!press) return;
+    press.t += dt;
+    if (press.t > PRESS_S && (press.shot || !press.held) || !press.shot && press.key !== screenKey()) { press = null; return; }
+    if (press.shot) { c.globalAlpha = 1; c.drawImage(pressCanvas, 0, 0); }
+    const [x, y, w, h] = press.box;
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+    c.drawImage(canvas, x + 2, y + 2, w - 4, h - 5, x + 2, y + 3, w - 4, h - 5);
+    c.fillStyle = 'rgba(12, 8, 34, 0.22)'; c.fillRect(x + 2, y + 2, w - 4, h - 4);
+    c.fillStyle = 'rgba(12, 8, 34, 0.6)'; c.fillRect(x + 2, y + 2, w - 4, 1);
+    c.restore();
   }
 
   // the counter text is not a click target (the big zone overlaps it)
   function inCounter(gx, gy) {
     const cx = coinX();
-    const w = Math.max(textWidth('ПРЯНИКОВ', 1), textWidth(String(coins), 2));
-    return inRect(gx, gy, cx - w / 2 - 3, COUNTER_LABEL_Y - 3, cx + w / 2 + 3, COUNTER_AUTO_Y + 9);
+    const w = Math.max(textWidth('ПРЯНИКОВ', 1), textWidth(coinsText(), 2));
+    return inZone(gx, gy, cx - w / 2 - 3, COUNTER_LABEL_Y - 3, cx + w / 2 + 3, COUNTER_AUTO_Y + 9);
   }
 
   let pendingTapSound = false;   // a tap plays the click sound, unless the tap plays its own sound (a buy, the cookie)
   canvas.addEventListener('pointerdown', (e) => {
     if (splashT > 0) return;   // the start screen takes no taps
     pendingTapSound = true;
-    handleTapDown(e);
+    withPress(e, true, handleTapDown);
     if (pendingTapSound) sfxButton();
   });
   function handleTapDown(e) {
@@ -2935,37 +3224,38 @@
     if (!fullScreenAsked) { fullScreenAsked = true; if (!document.fullscreenElement) enterFullScreen(); }
     const [gx, gy] = toGame(e);
     if (consentOpen) { handleConsentDown(gx, gy); return; }
+    if (offlineWin) { handleOfflineDown(gx, gy); return; }       // the window of the income while the game was closed
+    if (lvlWin) { handleLevelDown(gx, gy); return; }             // the window of a new level
     if (sale) return;                                            // the selling screen takes no taps
     if (supportOpen || docsListOpen || docsOpen >= 0) { handleInfoDown(gx, gy); return; }
     if (settingsOpen) { handleSettingsDown(gx, gy); return; }   // the settings window blocks everything else
-    if (rebirthOpen) { handleRebirthDown(gx, gy); return; }      // so does the rebirth window
     if (skinOffer) { handleSkinOfferDown(gx, gy); return; }
     if (progWin) { handleProgDown(gx, gy); return; }             // and the progress window
     if (skinWin) { handleSkinDown(gx, gy); return; }             // and the appearance window
     if (premiumWin) { handlePremiumWinDown(gx, gy); return; }     // and the premium purchase window
     if (boostMenuOpen) { boostMenuOpen = false; return; }          // a tap closes the bonus menu
     if (inRect(gx, gy, MENU_BTN_X, MENU_BTN_Y[0], MENU_BTN_X + MENU_BTN_W, MENU_BTN_Y[1])) { boostMenuOpen = true; return; }   // the framed button opens the menu
-    if (!panelOpen && tapCustomer(gx, gy)) return;                // the customer at the counter
+    if (gx < PX0 + (1 - panelT) * (W - PX0) && tapCustomer(gx, gy)) return;   // the customer at the counter (next to the open shop too)
+    if (!(panelOpen && gx >= PX0) && inZone(gx, gy, ...CAKE_BOX)) kitchen.things.cherry();   // the cherry on the cake springs
     if (tryHitAppetite(gx, gy)) return;                           // the glowing plate on the counter
     countBonyaPokes(gx, gy);
     if (tapBonyaBubble(gx, gy)) return;
     if (tapBonya(gx, gy)) return;                                 // the sleeping rabbit by the cake
-    if (restDue && !panelOpen && inRect(gx, gy, BTN_X0, REST_Y0, BTN_X1, REST_Y1)) { startRest(); return; }
     if (inRect(gx, gy, GEAR_X0, GEAR_Y0, GEAR_X1, GEAR_Y1)) { closeMenus('settings'); settingsOpen = true; return; }
     if (inRect(gx, gy, FS_X, FS_Y, FS_X + FS_S, FS_Y + FS_S)) { toggleFullScreen(); return; }
     // shop controls (only when the panel is fully open)
     if (inRect(gx, gy, SKIN_BTN[0], SKIN_BTN[1], SKIN_BTN[2], SKIN_BTN[3])) { closeMenus('skin'); skinWin = true; return; }
     // the ПРОГРЕСС button is reachable from the shop too
     const [ax0, ax1, ay0, ay1] = topRect('achievements');
-    if (inRect(gx, gy, ax0, ay0, ax1, ay1)) { closeMenus('progress'); progWin = { tab: 'stats', page: 0 }; return; }
+    if (inRect(gx, gy, ax0, ay0, ax1, ay1)) { closeMenus('progress'); progWin = { tab: 'stats' }; return; }
     if (!panelOpen) {
-      const [rx0, rx1, ry0, ry1] = topRect('rebirth');
-      if (inRect(gx, gy, rx0, ry0, rx1, ry1)) { handleRebirthTap(); return; }
+      const [rx0, rx1, ry0, ry1] = topRect('level');
+      if (inRect(gx, gy, rx0, ry0, rx1, ry1)) { tapLevelButton(); return; }
     }
     if (panelOpen && panelT > 0.99) {
       for (let i = 0; i < TABS.length; i++) {
         const [x0, y0, x1, y1] = tabRect(i);
-        if (inRect(gx, gy, x0, y0, x1, y1)) { tab = TABS[i].id; prokSel = null; scroll = 0; return; }
+        if (inRect(gx, gy, x0, y0, x1, y1)) { tab = TABS[i].id; scroll = 0; return; }
       }
       if (hasBuyRow() && gy >= 144 && gy < 158) {
         for (let i = 0; i < BUY_MODES.length; i++) {
@@ -2974,7 +3264,6 @@
         }
       }
       if (inRect(gx, gy, PX0 + 2, closeY(), PX1 - 2, closeY() + 16)) {
-        if (tab === 'prok' && prokSel !== null) { prokSel = null; scroll = 0; return; }   // back to the technika list
         panelOpen = false;
         return;
       }
@@ -2984,7 +3273,7 @@
           if (inRect(gx, gy, x0, y0, x1, y1)) { premiumSection = PREMIUM_SECTIONS[i].id; scroll = 0; return; }
         }
       }
-      if (inRect(gx, gy, PX0, listTop(), PX1, listBottom())) {
+      if (inZone(gx, gy, PX0, listTop(), PX1, listBottom())) {
         // grabbing the scrollbar (right edge): the thumb follows the finger; elsewhere the list follows it
         drag = { y0: gy, s0: scroll, moved: 0, thumb: gx >= PX1 - 8 };
         return;
@@ -2999,7 +3288,7 @@
     const dx = gx - coinX();
     const dy = gy - COIN_Y;
     // the whole screen above the bonus row counts as a tap on the cookie; the buttons above return earlier, and the open shop panel does not count
-    if (gy < MENU_BTN_Y[0] && !(panelOpen && gx >= PX0)) spawnClick(gx, gy);
+    if (gy < MENU_BTN_Y[0] && !(panelOpen && gx >= PX0)) { tapCook(gx, gy); spawnClick(gx, gy); }
   }
 
   canvas.addEventListener('pointermove', (e) => {
@@ -3018,29 +3307,33 @@
     const [gx, gy] = toGame(e);
     const wasTap = drag.moved < 4;
     drag = null;
-    if (wasTap && inRect(gx, gy, PX0, listTop(), PX1 - 8, listBottom())) {
+    if (tab === 'click') { if (wasTap && inRect(gx, gy, ...CLICK_BUY)) buy('click', 0); return; }
+    if (wasTap && inZone(gx, gy, PX0, listTop(), PX1 - 8, listBottom())) {
       const idx = Math.floor((gy - listTop() + scroll) / rowH());
       if (idx >= 0 && idx < items().length) {
-        if (tab === 'prok' && prokSel === null) { prokSel = idx; scroll = 0; }     // open the technika's 4 upgrades
-        else if (tab === 'prok') buy('prok', PROK_BY_TECH[prokSel][idx]);
+        const ry = listTop() + idx * rowH() - scroll;
+        setHit(gx, gy, PX0, Math.max(listTop(), ry), PX1 - 4, Math.min(listBottom(), ry + rowH()));   // the row is the button
+        if (tab === 'prok') buy('prok', PROKACHKI.indexOf(items()[idx]));
         else if (tab === 'premium') {
           const it = items()[idx];
           const gi = PREMIUM_ITEMS.indexOf(it);
-          if (it.kind === 'premium') { if (it.add || !premiumOwned[it.id]) premiumWin = { mode: 'confirm', idx: gi }; }
+          if (it.kind === 'premium') { if (it.hours ? hoursSum(it.hours) > 0n : !premiumOwned[it.id]) premiumWin = { mode: 'confirm', idx: gi }; }
           else if (it.kind === 'ad') buy('ad', gi);
         }
         else buy(tab, idx);
       }
     }
   }
-  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointerup', (e) => { if (drag) withPress(e, false, endDrag); });
   canvas.addEventListener('pointermove', (e) => {
+    if (achDrag) { achMove(toGame(e)[1]); return; }
     if (!sliderDrag) return;
     const [gx] = toGame(e);
     setSlider(sliderDrag, gx);
   });
-  window.addEventListener('pointerup', () => { sliderDrag = null; });
-  canvas.addEventListener('pointercancel', () => { drag = null; });
+  window.addEventListener('pointerup', () => { sliderDrag = null; achDrag = null; });
+  window.addEventListener('pointerup', (e) => { if (press && press.held) press.held = false; });
+  canvas.addEventListener('pointercancel', () => { if (press) press.held = false; drag = null; });
 
   let wheelPending = 0;   // wheel distance not yet scrolled: eased in update(), so the list glides
   let docsWheelPending = 0;   // the same for the document reader
@@ -3050,9 +3343,14 @@
       docsWheelPending += e.deltaY * 0.5;   // eased in update(), like the lists
       return;
     }
+    if (progWin && progWin.tab === 'ach') {
+      e.preventDefault();
+      achWheel += e.deltaY * 0.5;   // eased in update(), like the lists
+      return;
+    }
     if (!panelOpen) return;
     const [gx, gy] = toGame(e);
-    if (inRect(gx, gy, PX0, listTop(), PX1, listBottom())) {
+    if (inZone(gx, gy, PX0, listTop(), PX1, listBottom())) {
       e.preventDefault();
       wheelPending += e.deltaY * 0.5;
     }
@@ -3084,6 +3382,7 @@
     if (splashT > 0) splashT = Math.max(0, splashT - dt);
     animT += dt;
     bonyaT += dt;
+    updateBonya(dt);
     if (skinId === 'sea' || skinPreview === 'sea') {
       fishTimer -= dt;
       if (fishTimer <= 0) {
@@ -3134,7 +3433,7 @@
       if (ghostSprites[i].t > 2.6) ghostSprites.splice(i, 1);
     }
     const boostOn = adBoost.double > 0;
-    if (bonyaBoostWas && !boostOn) bonyaSpeechGap = BONYA_SPEECH_EVERY;   // the bonus has just ended: the 5-minute count starts again
+    if (bonyaBoostWas && !boostOn) bonyaSpeechGap = BONYA_SPEECH_EVERY;   // the bonus has just ended: the 7-minute count starts again
     bonyaBoostWas = boostOn;
     const menu = speechMenuOpen();
     if (boostOn) {
@@ -3162,14 +3461,19 @@
       if (bonyaZs[i] >= BONYA_Z_LIFE) bonyaZs.splice(i, 1);
     }
     playSec += dt;
-    // the rest: every 10 minutes of play the rest button appears under the shop; ads and the loading screen do not count
-    // the rest feature is switched off: the rest timer does not run
     const today = mskDate();
     if (dailySecDate !== today) { dailySecDate = today; dailySec = 0; }
     dailySec += dt;
     updateEvents(dt);
+    updateOffline();
+    if (pendingHours > 0) grantHours();
     updateCustomers(dt);
+    updateLevel();
+    if (lvlWin) lvlWin.t += dt;
+    updateSalute(dt);
+    updateAchWheel(dt);
     cookT += dt;
+    gameT += dt / window.KITCHEN.HOUR_S * TIME_SPEED;
     shakeT = Math.max(0, shakeT - dt);
 
     const target = panelOpen ? 1 : 0;
@@ -3178,14 +3482,13 @@
     else if (panelT > target) panelT = Math.max(target, panelT - step);
 
     // generators
-    const perSec = restDue ? 0 : autoPerSec();   // no passive income while tired
+    const perSec = autoPerSec();
+    bestPerSec = Math.max(bestPerSec, perSec);
     if (perSec > 0) {
       autoAcc += perSec * dt;
       const whole = Math.floor(autoAcc);
       if (whole > 0) {
-        coins += BigInt(whole);
-        cycleEarned += BigInt(whole);
-        totalEarned += BigInt(whole);
+        earn(BigInt(whole));
         autoAcc -= whole;
       }
     }
@@ -3225,49 +3528,124 @@
     drawText(str, sc, x, yCap, bodyTone(), 'center');                 // gingerbread body
   }
 
-  // ---------- background: the bakery kitchen (art/kitchen-bg.png, from tools/make_kitchen_bg.py) ----------
-  let kitchenImg = null;
-  const kitchenLoader = new Image();
-  kitchenLoader.onload = () => { kitchenImg = kitchenLoader; };
-  kitchenLoader.src = 'art/kitchen-bg.png?v=19';   // ?v: a new background is picked up without a hard reload
+  // ---------- background: the living bakery (src/kitchen.js; the old picture art/kitchen-bg.png is kept for a revert) ----------
+  const cakeImg = new Image();        // the cake on a transparent picture (46x24), without the light of the evening
+  cakeImg.src = 'art/cake-day.png?v=1';
+  const kitchen = window.KITCHEN.make('pc', { img: cakeImg, x: CAKE_BOX[0], y: CAKE_BOX[1] });
+  // an egg falls only while Bonya can look at it; her sleep is not touched
+  kitchen.things.canEgg = () => bonyaAwakeNow() && (bonyaT % BONYA_CYCLE) < BONYA_AWAKE_FOR - BONYA_DROWSY - 9 && bonyaSpeechLeft <= 0;
+  kitchen.things.onEgg = () => { if (bonyaAwakeNow()) bonyaPlay('notice'); };
+  let gameT = window.KITCHEN.START;   // the game time in hours: it goes only while the game is open, and gives and takes nothing
+  // on the local test address the time can be set: ?day=1..40 &hour=0..24 &speed=20
+  function timeArg(name) {
+    if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return null;
+    const m = new RegExp('[?&]' + name + '=([0-9.]+)').exec(location.search);
+    return m ? Number(m[1]) : null;
+  }
+  const TIME_SPEED = timeArg('speed') === null ? 1 : timeArg('speed');
+  function setGameTime(day, hour) { gameT = (Math.max(1, day) - 1) * 24 + Math.min(23.99, Math.max(0, hour)); }
+  // &weather=wet or &weather=clear: the rain (in winter the snow) always or never
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]weather=(wet|clear)/.test(location.search)) window.KITCHEN.weather(RegExp.$1);
+  function applyTimeArgs() {
+    const d = timeArg('day'), h = timeArg('hour');
+    if (d !== null || h !== null) setGameTime(d === null ? Math.floor(gameT / 24) + 1 : d, h === null ? 12 : h);
+  }
 
-  // cook animation: eight frames at 8 fps (art/cook-0..7.png, drawn at x 80, y 80 over the background)
-  const COOK_X = 80, COOK_Y = 80, COOK_FPS = 8, COOK_FRAMES = 8;
-  const cookFrames = Array.from({ length: COOK_FRAMES }, (_, i) => {
-    const im = new Image();
-    im.src = 'art/cook-' + i + '.png?v=7';
-    return im;
-  });
+  // the cook bakes in src/baker.js; a single tap on him: he waves with the spoon (the tap counts for the cookie as before)
+  function tapCook(gx, gy) {
+    const x = Math.round(kitchen.baker.place[0]);
+    if (settings.animBg && inZone(gx, gy, x - 10, 80, x + 10, 132)) kitchen.baker.poke();
+  }
 
   // Боня: a sable rabbit asleep on the floor to the left of the cake (40x24, the floor at y 152).
   // Frame 1 = asleep (breathing is in the sprite); frame 2 = the same with one ear flicked.
   // Every 10 s the ear flicks for 0.3 s.
-  const BONYA_X = 40, BONYA_Y = 152, BONYA_PERIOD = 10, BONYA_TWITCH = 0.3;
-  // Sprites: 0 awake, 1 asleep (breathing), 2 asleep with an ear flick, 3 asleep with a sniff,
-  // 4 and 5 awake, washing (a paw to the cheek, two steps).
-  // Cycle of 3 minutes: she wakes first and washes for 60 s (from the start of the game), then sleeps for 2 min
-  // with little Z letters floating up, then wakes for a minute and washes again.
-  // While asleep: the ear flicks every 10 s (0.3 s), the nose sniffs 2 times a second (0.12 s each).
-  const BONYA_AWAKE_FOR = 60, BONYA_SLEEP_FOR = 120, BONYA_CYCLE = BONYA_AWAKE_FOR + BONYA_SLEEP_FOR;
+  const BONYA_X = 40, BONYA_Y = 152;
+  // Cycle of 3 minutes: awake for 60 s (she yawns and stretches first, then does something every few seconds), then asleep for 2 min,
+  // in turn curled up and on her side, with little Z letters floating up. The animations are in src/bonya-anim.js.
+  const BONYA_AWAKE_FOR = 120, BONYA_SLEEP_FOR = 40, BONYA_CYCLE = BONYA_AWAKE_FOR + BONYA_SLEEP_FOR;
   const BONYA_DROWSY = 1.5;   // seconds of closing eyes before she falls asleep
   const BONYA_Z_EVERY = 2.4, BONYA_Z_LIFE = 2.4;
   const bonyaZs = [];        // ages (seconds) of the floating Z letters
   let bonyaZTimer = 0;
   // Боня's speech bubble: now and then she offers the 2x coins ad; a tap on it starts the boost
-  const BONYA_SPEECH_EVERY = 300, BONYA_SPEECH_FOR = 10;  // every 5 minutes; the bubble stays 10 seconds
-  let bonyaSpeechGap = 300, bonyaSpeechLeft = 0, bonyaBoostWas = false, bonyaSpeechPending = false;
+  const BONYA_SPEECH_EVERY = 420, BONYA_SPEECH_FOR = 7;  // every 7 minutes; the bubble stays 7 seconds
+  let bonyaSpeechGap = BONYA_SPEECH_EVERY, bonyaSpeechLeft = 0, bonyaBoostWas = false, bonyaSpeechPending = false;
   // the windows that cover the screen (settings, progress, appearance, purchase...) pause the bubble clock and hide it;
   // the shop does not, so Боня can still send her message while the shop is open
   function speechMenuOpen() {
-    return settingsOpen || rebirthOpen || !!progWin || skinWin || !!premiumWin;
+    return settingsOpen || !!progWin || skinWin || !!premiumWin || !!lvlWin;
   }
-  const BONYA_SNIFF_PERIOD = 0.5, BONYA_SNIFF = 0.12;
-  const BONYA_WASH_EVERY = 6, BONYA_WASH_FOR = 2.5, BONYA_WASH_STEP = 0.25;
-  const bonyaSprites = {};
-  for (const n of ['0', '1', '2', '3', '4', '5', '6']) {
-    const im = new Image();
-    im.src = 'art/bonya-' + n + '.png?v=17';
-    bonyaSprites[n] = im;
+  const BONYA_SHEET_W = 48, BONYA_SHEET_H = 40, BONYA_DX = -2;   // one picture of the sheet; she lies in it 16 px from its top
+  const bonyaSheet = new Image();
+  bonyaSheet.src = 'art/bonya-day.png?v=2';   // without the evening light of the old bonya-sheet.png
+  const BONYA_IDLE = ['wash', 'washEar', 'scratch', 'carrot', 'stand', 'hop', 'tail', 'wash', 'tail'];   // what she does while awake
+  let bonyaAct = null;             // {name, t}: what she is doing now, null = just sits or sleeps
+  let bonyaNext = [];              // what comes right after it
+  let bonyaRest = 2;               // seconds of quiet before the next action
+  let bonyaLast = '';
+  let bonyaWasAwake = true, bonyaCust = null, bonyaBoost = null;
+  function bonyaPlay(name, then) { bonyaAct = { name, t: 0 }; bonyaNext = then || []; bonyaLast = name; }
+  function bonyaAwakeNow() { return (bonyaT % BONYA_CYCLE) < BONYA_AWAKE_FOR; }
+  function bonyaOnSide() { return Math.floor(bonyaT / BONYA_CYCLE) % 2 === 1; }   // every second sleep is on her side
+  function updateBonya(dt) {
+    const A = window.BONYA_ANIM, awake = bonyaAwakeNow(), phase = bonyaT % BONYA_CYCLE;
+    if (bonyaAct) {
+      bonyaAct.t += dt;
+      const [fps, cells, loops] = A[bonyaAct.name];
+      if (bonyaAct.t >= cells.length / fps * loops) {
+        bonyaRest = bonyaAct.name === 'earflick' || bonyaAct.name === 'sideEar' ? 10 : 2 + Math.random() * 3;
+        bonyaAct = null;
+        if (bonyaNext.length) bonyaPlay(bonyaNext[0], bonyaNext.slice(1));
+      }
+    }
+    if (awake !== bonyaWasAwake) {
+      bonyaWasAwake = awake;
+      bonyaAct = null; bonyaNext = [];
+      if (awake) bonyaPlay('yawn', ['stretch']);
+    }
+    const boost = adBoost.double > 0;
+    if (bonyaBoost === false && boost) {          // the 2x bonus has just started: she is glad (and wakes up for it)
+      if (!awake) { bonyaT = Math.floor(bonyaT / BONYA_CYCLE) * BONYA_CYCLE + BONYA_AWAKE_FOR - 6; bonyaZs.length = 0; bonyaWasAwake = true; }
+      bonyaPlay('binky');
+    }
+    bonyaBoost = boost;
+    if (cust !== bonyaCust) {
+      bonyaCust = cust;
+      if (cust) {                                  // a customer has come: she wakes up and stays awake while he waits
+        if (!awake) { bonyaT = Math.floor(bonyaT / BONYA_CYCLE) * BONYA_CYCLE + BONYA_AWAKE_FOR - 26; bonyaZs.length = 0; bonyaWasAwake = true; }
+        bonyaPlay('notice');
+      }
+    }
+    if (awake) {
+      if (phase >= BONYA_AWAKE_FOR - BONYA_DROWSY) {
+        const lie = bonyaOnSide() ? 'lieSide' : 'lieLoaf';
+        if (!bonyaAct || bonyaAct.name !== lie) bonyaPlay(lie);
+      } else if (!bonyaAct && bonyaSpeechLeft <= 0) {       // under her speech bubble she sits still
+        bonyaRest -= dt;
+        if (bonyaRest <= 0 && phase < BONYA_AWAKE_FOR - BONYA_DROWSY - 4) {
+          let n;
+          do { n = BONYA_IDLE[Math.floor(Math.random() * BONYA_IDLE.length)]; } while (n === bonyaLast);
+          bonyaPlay(n);
+        }
+      }
+    } else if (!bonyaAct) {                        // asleep: an ear twitches every 10 s
+      bonyaRest -= dt;
+      if (bonyaRest <= 0) bonyaPlay(bonyaOnSide() ? 'sideEar' : 'earflick');
+    }
+  }
+  // the cell of the sheet to show now
+  function bonyaCell() {
+    const A = window.BONYA_ANIM;
+    if (!settings.animBg) return A.sleep[1][0];    // a still picture with the animation off
+    const name = bonyaAct ? bonyaAct.name : bonyaAwakeNow() ? 'idle' : bonyaOnSide() ? 'side' : 'sleep';
+    const [fps, cells] = A[name];
+    return cells[Math.floor((bonyaAct ? bonyaAct.t : bonyaT) * fps) % cells.length];
+  }
+  function drawBonya(c, x, y) {
+    if (!bonyaSheet.complete || !bonyaSheet.naturalWidth) return;
+    const k = bonyaCell();
+    c.drawImage(bonyaSheet, (k % 10) * BONYA_SHEET_W, Math.floor(k / 10) * BONYA_SHEET_H, BONYA_SHEET_W, BONYA_SHEET_H, x + BONYA_DX, y - 16, BONYA_SHEET_W, BONYA_SHEET_H);
   }
   // tap Боня 10 times within 3 s to wake her: she washes for 5 s and then falls asleep again
   const BONYA_WAKE_TAPS = 10, BONYA_WAKE_WINDOW = 3000, BONYA_WAKE_STAY = 5;   // ms, taps, seconds awake
@@ -3275,7 +3653,7 @@
   // 40 taps on Bonya within 10 s: the ad-bonus bubble appears at once
   let bonyaPokeTimes = [];
   function countBonyaPokes(gx, gy) {
-    if (!inRect(gx, gy, BONYA_X, BONYA_Y, BONYA_X + 40, BONYA_Y + 24)) return;
+    if (!inZone(gx, gy, BONYA_X, BONYA_Y, BONYA_X + 40, BONYA_Y + 24)) return;
     const now = Date.now();
     bonyaPokeTimes = bonyaPokeTimes.filter((t) => now - t < 10000);
     bonyaPokeTimes.push(now);
@@ -3285,11 +3663,14 @@
     }
   }
   function tapBonya(gx, gy) {
-    if (!settings.animBg || !inRect(gx, gy, BONYA_X, BONYA_Y, BONYA_X + 40, BONYA_Y + 24)) return false;
+    if (!settings.animBg || !inZone(gx, gy, BONYA_X, BONYA_Y, BONYA_X + 40, BONYA_Y + 24)) return false;
     const now = Date.now();
     bonyaTapTimes = bonyaTapTimes.filter((t) => now - t < BONYA_WAKE_WINDOW);
     bonyaTapTimes.push(now);
+    if (bonyaAwakeNow()) { if (!bonyaAct || bonyaAct.name !== 'pet') bonyaPlay('pet'); }   // she likes to be petted
+    else if (!bonyaAct) bonyaPlay(bonyaOnSide() ? 'sideEar' : 'earflick');
     if (bonyaTapTimes.length >= BONYA_WAKE_TAPS && (bonyaT % BONYA_CYCLE) >= BONYA_AWAKE_FOR) {
+      bonyaWoken += 1;
       bonyaT = BONYA_AWAKE_FOR - BONYA_WAKE_STAY;   // awake for 5 s (washing, then the eyes close) and asleep again
       bonyaZs.length = 0;
       bonyaTapTimes = [];
@@ -3297,8 +3678,9 @@
     return true;
   }
   // the bubble bobs up and down by about a pixel with her breathing, and its tail reaches her head
+  function bonyaOffer() { return premiumOwned.noads ? '2Х ДОХОД НА 10 МИНУТ' : '2Х ДОХОД ЗА РЕКЛАМУ'; }
   function bonyaBubbleBox() {
-    const l1 = '2Х ДОХОД ЗА РЕКЛАМУ', l2 = 'МОЖНО НАЖАТЬ';
+    const l1 = bonyaOffer(), l2 = 'МОЖНО НАЖАТЬ';
     const w = Math.max(textWidth(l1, 1), textWidth(l2, 1)) + 8;
     const bob = Math.round(Math.sin(cookT * 8.8));   // 4 times faster than before
     const x0 = Math.max(4, Math.min(316 - w, Math.round(BONYA_X + 30 - w / 2)));
@@ -3308,7 +3690,7 @@
   function tapBonyaBubble(gx, gy) {
     if (bonyaSpeechLeft <= 0 || adBoost.double > 0 || speechMenuOpen()) return false;
     const [x0, y0, x1, y1] = bonyaBubbleBox();
-    if (!inRect(gx, gy, x0, y0, x1, y1)) return false;
+    if (!inZone(gx, gy, x0, y0, x1, y1)) return false;
     const gi = PREMIUM_ITEMS.findIndex((x) => x.kind === 'ad' && x.id === 'double');
     buy('ad', gi);
     bonyaSpeechLeft = 0;
@@ -3339,19 +3721,6 @@
     ctx.fillRect(x, y, w, h);
   }
 
-  // the rest button: one row under the shop button, the same width (it appears when the 10 minutes of play are up)
-  const REST_Y0 = BTN_Y1 + 4, REST_Y1 = REST_Y0 + 18;
-  function drawRestButton() {
-    drawTopButton('ОТДЫХ', BTN_X0, BTN_X1, REST_Y0, REST_Y1);
-  }
-  // the loading screen, as on a rebirth; the full-screen ad is shown on it (not with the ad-free purchase)
-  function startRest() {
-    restDue = false;
-    restAcc = 0;
-    loadingLabel = 'СОН...';
-    loadingLeft = 2.5;
-    if (!premiumOwned.noads) showFullScreenAd();
-  }
   // closed-state shop button: light silver frame, dark fill, top right
   function drawShopButton() {
     const x = BTN_X0, y = BTN_Y0;
@@ -3364,78 +3733,126 @@
 
   // text and price for one row of the current tab
   function rowInfo(i, it) {
-    if (tab === 'click' && listLocked('click', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(CLICK_UPGRADES[i - 1].name), price: '', can: false };
-    if (tab === 'tech' && listLocked('tech', i)) return { line1: 'ЗАКРЫТО', line2: 'КУПИ 5 ' + fiveOf(TECHNIKA[i - 1].name), price: '', can: false };
-    if (tab === 'click') {
-      const owned = clickOwned[i];
-      const p = plan('click', i);
-      const amt = BigInt(p.n || 1);     // how many would be bought now: the gain shown is for all of them
-      const mult = BigInt(incomeMult()); // rebirths, premium and ad boosts: what a click really gives
-      return {
-        line1: '+' + fmt(it.add * amt * mult) + ' ЗА КЛИК',
-        line2: 'ЕСТЬ ' + owned + ': +' + fmt(it.add * BigInt(owned) * mult) + ' ВСЕГО',
-        price: fmt(p.cost),
-        can: p.canOne,
-      };
-    }
     if (tab === 'tech') {
-      const owned = techOwned[i];
-      if (owned >= TECH_MAX) {
-        return {
-          line1: '+' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',   // total this technika brings
-          line2: 'МАКС',
-          price: '',
-          can: false,
-        };
-      }
-      const p = plan('tech', i);
-      const amt = p.n || 1;             // how many would be bought now: the gain shown is for all of them
+      if (listLocked(i)) return { line1: 'ОТКРОЕТСЯ НА УРОВНЕ ' + it.level, line2: '', price: '', can: false, lock: true };
+      const p = plan('tech', i), owned = techOwned[i];
+      const [line1, cost] = fitPair('+' + rateText(machineIncome(i)) + ' В СЕК', custNum(p.cost), ROW_TEXT_W);   // all the machines of this kind
       return {
-        line1: '+' + fmt(BigInt(Math.floor(it.rate * amt * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',
-        line2: 'ЕСТЬ ' + owned + ': +' + fmt(BigInt(Math.floor(it.rate * owned * techMult(i) * 1)) * BigInt(incomeMult())) + ' В СЕК',
-        price: fmt(p.cost),
-        can: p.canOne,
-      };
-    }
-    if (tab === 'prok' && prokSel === null) {
-      // one clickable row per technika: how many of its 4 upgrades are bought
-      const j = i;
-      const cnt = PROK_BY_TECH[j].filter((g) => prokOwned[g]).length;
-      return {
-        line1: 'КУПЛЕНО: ' + cnt + ' ИЗ 4',
-        line2: 'ЖМИ, ЧТОБЫ ОТКРЫТЬ',
-        price: '',                  // no price on this row: the whole row opens the list
-        can: false,
+        line1,
+        line2: 'ЕЩЁ ' + (STAR_EVERY - (owned % STAR_EVERY)) + ' ДО ЗВЕЗДЫ',
+        price: cost,
+        can: p.can,
+        stars: starsOf(owned),
+        deal: [p.n, machineGain(i, p.n)],   // how many one tap buys, and what they add per second
+        bar: (owned % STAR_EVERY) / STAR_EVERY,
       };
     }
     if (tab === 'prok') {
-      const g = PROK_BY_TECH[prokSel][i];
-      const owned = prokOwned[g];
-      const unlocked = prokUnlocked(g);
-      const price = priceNow('prok', g);
-      let line2 = 'ДОХОД 2 РАЗА';
-      if (owned) line2 = 'КУПЛЕНО: ДОХОД 2 РАЗА';
-      else if (!prokTechReady(g)) line2 = 'НУЖЕН УР. ' + PROK_TECH_LEVEL[it.level] + ' ТЕХНИКИ';
-      else if (!unlocked) line2 = 'СНАЧАЛА ПРЕДЫДУЩИЙ';
-      const SHORT = { 'ШОКОЛАДНЫЙ ФОНТАН': 'ФОНТАН', 'ФАБРИКА ПРЯНИКОВ': 'ФАБРИКА' };   // keeps the price on the same line
+      const price = finalPrice(it.cost), machine = TECHNIKA[it.tech];
+      const have = 'ЕСТЬ ' + it.need + ' ' + fiveOf(machine.name);
+      const [line1, cost] = fitPair((machine.short || machine.name) + ' Х2', custNum(price), ROW_TEXT_W);
       return {
-        line1: SHORT[TECHNIKA[it.tech].name] || TECHNIKA[it.tech].name,
-        line2,
-        price: owned ? 'ЕСТЬ' : fmt(price),
-        can: !owned && unlocked && coins >= price,
+        line1,
+        line2: textWidth(have, 1) <= ROW_TEXT_W ? have : have.slice(5),   // too long for the row: without ЕСТЬ
+        price: cost,
+        can: coins >= price,
       };
     }
     // premium and ad rows
     if (it.kind === 'soon') return { line1: it.line, line2: 'ЖДИТЕ ОБНОВЛЕНИЙ', price: '', can: false };
+    if (it.hours) {   // gingerbread for N hours of the technika: the exact sum; without the technika there is nothing to sell
+      const n = hoursSum(it.hours);
+      return { line1: n > 0n ? '+' + fmt(n) : 'НУЖНА ТЕХНИКА', line2: '', price: it.price.replace(/ГОЛОС\S*/, 'ГЛ'), can: false };
+    }
     let line2;
     if (it.kind === 'ad') {
-      line2 = 'РЕКЛАМА';   // the third line of an ad row: the ad itself
+      line2 = premiumOwned.noads ? 'БЕСПЛАТНО' : 'РЕКЛАМА';   // the third line of an ad row: the ad itself
     } else {
       line2 = premiumOwned[it.id] ? 'КУПЛЕНО' : '';   // owned: КУПЛЕНО; not owned: nothing (the price is on the row)
     }
     // a free ad that is running shows the time left on the row (the row draws only this line)
     const left = it.kind === 'ad' && adBoost[it.id] > 0 ? 'ОСТАЛОСЬ ' + adTimeLeft(it.id) : it.line;
-    return { line1: left, line2, price: it.kind === 'ad' ? '' : it.price.replace('ГОЛОСОВ', 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
+    return { line1: left, line2, price: it.kind === 'ad' ? '' : it.price.replace(/ГОЛОС\S*/, 'ГЛ'), can: it.kind === 'ad' };   // the list shows the short form; the purchase window the full one
+  }
+
+  // ---------- the tab КЛИК: what a tap gives, the purchase, the next goal ----------
+  const CLICK_BUY = [PX0 + 6, 81, PX1 - 6, 109];
+  function drawClickTab() {
+    const c = clickTabInfo(), x0 = PX0 + 6, w = PX1 - PX0 - 12, cx = PX0 + 80;
+    fillRect(x0, 38, w, 40, COL.row);
+    drawText('ТВОЙ ТАП ДАЁТ', 1, cx, 41, COL.text, 'center');
+    drawText(c.now, 2, cx, 52, accent(), 'center');
+    drawText('ЗА ОДНО НАЖАТИЕ', 1, cx, 69, dimTone(), 'center');
+    fillRect(x0, 81, w, 28, c.can ? COL.rowHi : COL.row);
+    if (c.can) fillRect(x0, 81, 2, 28, accent());
+    drawText(c.buy, 1, PX0 + 10, 84, COL.text, 'left');
+    drawText(c.will, 1, PX0 + 10, 95, accent(), 'left');
+    drawText(c.price, 1, PX1 - 12 - textWidth(c.price, 1), 95, c.can ? accent() : dimTone(), 'left');
+    fillRect(x0, 112, w, 29, COL.row);
+    drawText(c.goal, 1, cx, 115, COL.text, 'center');
+    drawText(c.goalTap, 1, cx, 125, accent(), 'center');
+    fillRect(PX0 + 10, 135, w - 8, 3, COL.track);
+    fillRect(PX0 + 10, 135, Math.round((w - 8) * c.bar), 3, accent());
+  }
+  // two texts on one line: while they do not fit, the digits after the point are dropped (the price first)
+  function fitPair(left, right, w) {
+    const cut = (t, d) => t.replace(/\.(\d\d)(?=[А-ЯЁ])/, (m, x) => (d > 0 ? '.' + x.slice(0, d) : ''));
+    for (const [a, b] of [[2, 2], [2, 1], [1, 1], [1, 0], [0, 0]]) {
+      const l = cut(left, a), r = cut(right, b);
+      if (textWidth(l, 1) + 5 + textWidth(r, 1) <= w || (a === 0 && b === 0)) return [l, r];
+    }
+    return [left, right];
+  }
+  // what n more machines of one kind would add per second (with the stars they bring)
+  function machineGain(j, n) {
+    const own = techOwned[j], per = TECHNIKA[j].rate * techMult(j) / Math.pow(2, starsOf(own)) * incomeMult() * (glazeTech > 0 ? 2 : 1);
+    return per * ((own + n) * Math.pow(2, starsOf(own + n)) - own * Math.pow(2, starsOf(own)));
+  }
+  // the first line of a machine: its name, its stars, and on the right, over the price, what one tap buys: 10ШТ [+230]
+  function drawMachineHead(it, row, x, y, maxX) {
+    const sum = rateText(row.deal[1]).replace(/ /g, ''), cut = (d) => row.deal[0] + 'ШТ [+' + sum.replace(/\.(\d\d)(?=[А-ЯЁ])/, (m, k) => (d ? '.' + k.slice(0, d) : '')) + ']';
+    const n = row.stars, stars = n > 1 ? smallTextWidth(String(n)) + 10 : n === 1 ? 9 : 0;
+    let pick = null;
+    for (const nm of [it.name, it.short || it.name]) for (const d of [2, 1, 0]) {
+      if (!pick && x + textWidth(nm, 1) + stars + 4 + smallTextWidth(cut(d)) <= maxX) pick = { nm, d };
+    }
+    if (!pick) pick = { nm: it.short || it.name, d: 0 };
+    drawText(pick.nm, 1, x, y, COL.text, 'left');
+    drawStars(x + textWidth(pick.nm, 1) + 4, y, n);
+    const t = cut(pick.d), w = smallTextWidth(t);
+    drawSmallText(t, maxX - w + Math.floor(w / 2), y + 2, row.can ? accent() : dimTone());
+  }
+  // a 5x5 star
+  const STAR_ROWS = ['..#..', '.###.', '#####', '.###.', '.#.#.'];
+  function drawStar(x, y, col) {
+    ctx.fillStyle = col;
+    STAR_ROWS.forEach((row, j) => { for (let i = 0; i < 5; i++) if (row[i] === '#') ctx.fillRect(x + i, y + j, 1, 1); });
+  }
+  // one star is drawn alone; from two on, the number and one star
+  function drawStars(x, y, n) {
+    if (!(n > 0)) return;
+    if (n > 1) {
+      const w = smallTextWidth(String(n));   // a small number, as tall as the star
+      drawSmallText(String(n), x + Math.floor(w / 2), y + 1, accent());
+      x += w + 1;
+    }
+    drawStar(x, y + 1, accent());
+  }
+  // the tab КЛИК: the numbers of its three blocks
+  function clickTabInfo() {
+    const p = plan('click', 0), left = STAR_EVERY - (tapLv % STAR_EVERY);
+    const goalFull = 'И ТАП СТАНЕТ +' + custNum(BigInt(Math.floor(tapValue(tapLv + left))));
+    const [will, price] = fitPair('СТАНЕТ +' + custNum(BigInt(Math.floor(tapValue(tapLv + p.n)))), custNum(p.cost), ROW_TEXT_W);
+    return {
+      now: '+' + custNum(clickGain()),
+      buy: 'КУПИТЬ +' + p.n + ' К ТАПУ',
+      will,
+      price,
+      can: p.can,
+      goal: 'ЕЩЁ ' + left + plural(left, ' ПОКУПКА', ' ПОКУПКИ', ' ПОКУПОК'),
+      goalTap: textWidth(goalFull, 1) <= ROW_TEXT_W ? goalFull : goalFull.slice(2),   // the exact tap with the doubling (its part of the technika income is not doubled)
+      bar: (tapLv % STAR_EVERY) / STAR_EVERY,
+    };
   }
 
   function drawPanel() {
@@ -3470,8 +3887,11 @@
         const [x0, y0, x1, y1] = sectionRect(i);
         fillRect(x0, y0, x1 - x0, y1 - y0, premiumSection === sct.id ? COL.tabOn : COL.tabOff);
         drawTextBox(sct.label, 1, x0, x1, y0, y1, COL.text);
+        // the free section blinks while one of its ads can be watched
+        if (sct.id === 'ads' && freeAdReady() && Math.sin(cookT * 6) > 0) blinkDot(x1 - 6, y0 + 2);
       });
     }
+    if (tab === 'click') drawClickTab();
     // list (clipped)
     ctx.save();
     ctx.beginPath();
@@ -3479,6 +3899,14 @@
     ctx.clip();
     const list = items();
     if (tab === 'premium' && premiumSection === 'skins' && list.length === 0) drawTextBox('ТОВАРОВ НЕТ', 1, PX0 + 6, PX1 - 6, listTop() + 14, listTop() + 26, dimTone());
+    if (tab === 'prok' && list.length === 0) {
+      const all = prokOwned.every(Boolean);
+      drawTextBox(all ? 'ВСЕ ПРОКАЧКИ КУПЛЕНЫ' : 'ПРОКАЧЕК ПОКА НЕТ', 1, PX0 + 6, PX1 - 6, listTop() + 14, listTop() + 26, dimTone());
+      if (!all) {
+        drawTextBox('КУПИ 10 МАШИН', 1, PX0 + 6, PX1 - 6, listTop() + 30, listTop() + 42, dimTone());
+        drawTextBox('ОДНОГО ВИДА', 1, PX0 + 6, PX1 - 6, listTop() + 41, listTop() + 53, dimTone());
+      }
+    }
     list.forEach((it, i) => {
       const y = listTop() + i * rowH() - Math.round(scroll);
       if (y + rowH() < listTop() || y > listBottom()) return;
@@ -3486,9 +3914,11 @@
       fillRect(PX0 + 6, y, PX1 - PX0 - 12, rowH() - gapH() + 1, row.can ? COL.rowHi : COL.row);
       if (row.can) fillRect(PX0 + 6, y, 2, rowH() - gapH() + 1, accent());   // affordable: bar on the left, not only colour
       // three lines: name; what one purchase gives; status; price on the right
-      drawText(it.name, 1, PX0 + 10, y + 2, COL.text, 'left');
-      drawText(row.line1, 1, PX0 + 10, y + 11, accent(), 'left');
+      if (row.deal) drawMachineHead(it, row, PX0 + 10, y + 2, PX1 - 12);
+      else drawText(it.name, 1, PX0 + 10, y + 2, row.lock ? dimTone() : COL.text, 'left');
+      drawText(row.line1, 1, PX0 + 10, y + 11, row.lock ? dimTone() : accent(), 'left');
       drawText(row.line2, 1, PX0 + 10, y + 20, dimTone(), 'left');
+      if (row.bar !== undefined) { fillRect(PX1 - 40, y + 22, 28, 4, COL.track); fillRect(PX1 - 40, y + 22, Math.round(28 * row.bar), 4, accent()); }
       drawText(row.price, 1, PX1 - 12 - textWidth(row.price, 1), y + 11, row.can ? accent() : dimTone(), 'left');
     });
     ctx.restore();
@@ -3507,8 +3937,7 @@
 
     // close button
     fillRect(PX0 + 2, closeY(), PX1 - PX0 - 4, 16, COL.row);
-    const backLabel = tab === 'prok' && prokSel !== null ? 'НАЗАД' : 'ЗАКРЫТЬ';
-    drawTextBox(backLabel, 1, PX0 + 2, PX1 - 2, closeY(), closeY() + 16, COL.text);
+    drawTextBox('ЗАКРЫТЬ', 1, PX0 + 2, PX1 - 2, closeY(), closeY() + 16, COL.text);
 
     // buy-amount row, only where a purchase can be repeated
     if (hasBuyRow()) {
@@ -3529,31 +3958,14 @@
       canvas.style.transform = '';
     }
     ctx.save();
-    if (kitchenImg) {
-      ctx.drawImage(kitchenImg, 0, 0);
-    } else {
-      fillRect(0, 0, W, H, COL.bg);                       // fallback while the image loads
-      fillRect(0, FLOOR_Y, W, H - FLOOR_Y, COL.floor);
-    }
-    const cookIdx = settings.animBg ? ((Math.floor(cookT * COOK_FPS) % COOK_FRAMES) + COOK_FRAMES) % COOK_FRAMES : 0;   // off = still frame; never negative
-    const cookFrame = cookFrames[cookIdx];
-    if (cookFrame.complete && cookFrame.naturalWidth) ctx.drawImage(cookFrame, COOK_X, COOK_Y);
-    // Боня sleeps by the cake; her ear flicks every 10 s (only with the animated background on)
-    const phase = bonyaT % BONYA_CYCLE;
-    const bonyaAwake = settings.animBg && phase < BONYA_AWAKE_FOR;
-    let bonyaKey = '1';                                   // asleep (also the still picture with the animation off)
-    if (bonyaAwake) {
-      const a = phase;                                    // seconds since she woke up
-      if (phase >= BONYA_AWAKE_FOR - BONYA_DROWSY) bonyaKey = '6';   // the last 1.5 s before sleep: eyes half closed
-      else if (a % BONYA_WASH_EVERY < BONYA_WASH_FOR) bonyaKey = Math.floor(a / BONYA_WASH_STEP) % 2 ? '5' : '4';
-      else bonyaKey = '0';                                // awake, eyes open
-    } else if (settings.animBg) {
-      if (bonyaT % BONYA_PERIOD < BONYA_TWITCH) bonyaKey = '2';        // ear flick
-      else if (bonyaT % BONYA_SNIFF_PERIOD < BONYA_SNIFF) bonyaKey = '3'; // nose sniff
-    }
-    const bonyaFrame = bonyaSprites[bonyaKey];
-    if (bonyaFrame.complete && bonyaFrame.naturalWidth) ctx.drawImage(bonyaFrame, BONYA_X, BONYA_Y);
+    kitchen.things.guest = !!cust;
+    kitchen.things.appetite = !!ev && ev.type === 'appetite' && ev.pies;   // the glowing pies hop
+    kitchen.things.busy = minuteLeft > 0 || !!sale;                        // no glare on the cookie now
+    kitchen.update(gameT, cookT, settings.animBg, minuteLeft > 0);
+    kitchen.drawRoom(ctx);               // the room with the cook (src/baker.js)
+    drawBonya(ctx, BONYA_X, BONYA_Y);
     if (cust) drawCustomer();
+    kitchen.drawLight(ctx, cookT, settings.animBg);   // the light of the hour: only over the room; the cookie, the numbers and the buttons come after it
   // the speech bubble: 2x coins for the ad, tap it to start the boost
   function drawBonyaBubble() {
     const [x0, y0, x1, y1] = bonyaBubbleBox();
@@ -3564,7 +3976,7 @@
     fillRect(x1 - 1, y0, 1, y1 - y0, accent());
     const tx = Math.round((x0 + x1) / 2);
     fillRect(BONYA_X + 31, y1, 3, Math.max(2, BONYA_Y - y1), accent());   // the tail reaches down to her ears
-    drawText('2Х ДОХОД ЗА РЕКЛАМУ', 1, tx, y0 + 4, accent(), 'center');
+    drawText(bonyaOffer(), 1, tx, y0 + 4, accent(), 'center');
     drawText('МОЖНО НАЖАТЬ', 1, tx, y0 + 13, COL.text, 'center');
   }
   // the Z letters: a little pixel Z rising from her head and fading out
@@ -3681,6 +4093,7 @@
       }
     }
 
+    if (settings.animBg && frame === FRAME.rest) kitchen.things.drawGlare(ctx, frame, Math.round(cx - frame.width / 2 - frame.shiftX) + gSway, Math.round(COIN_Y - frame.height / 2 - frame.shiftY));
     if (skinId === 'newyear') drawSnowFull();
     if (skinId === 'sea') drawFishes();
     if (skinId === 'ghost' || skinId === 'halloween') drawGhosts();
@@ -3698,7 +4111,7 @@
 
     // the hint: yellow like the bonus lines; shown before the first tap and after a minute without taps
     // the hint sits on the floor right under the cookie
-    if ((!everTapped || animT > 60) && !panelOpen) drawText('КЛИКАЙ', 1, cx, 149, accent(), 'center');   // hidden while the shop is open
+    if ((!everTapped || animT > 60) && !panelOpen) drawTextO('КЛИКАЙ', 1, cx, 149, accent());   // hidden while the shop is open
     // the bonus tab: drawn before the buttons; its menu is drawn on top of the screen, like the other menus
     drawBoostLine();
     // the appearance button at the left wall: always shown, also while the shop is open
@@ -3718,10 +4131,7 @@
 
     // top-row buttons first, so the open shop panel covers them where they overlap
     // the counter is drawn after all the effects, so no feather or sparkle covers the numbers
-    drawText('ПРЯНИКОВ', 1, cx, COUNTER_LABEL_Y, COL.text, 'center');
-    drawText(String(coins), 2, cx, COUNTER_NUM_Y, COL.text, 'center');
-    // small line under the counter: automatic coins per second
-    drawSmallText('+' + String(Math.floor(autoPerSec())) + ' В СЕК', cx, COUNTER_AUTO_Y, '#ffffff');   // whole numbers only: the font has no '.'
+    drawCounter(cx);
     if (cust && cust.out === null) drawCustomerBubble();
     drawSettingsButton();
     if (document.fullscreenEnabled) drawFullScreenIcon();   // only where the browser allows fullscreen
@@ -3730,11 +4140,7 @@
       const [ax0, ax1, ay0] = topRect('achievements');   // topRect gives [x0, x1, y0, y1]
       blinkDot(ax1 - 6, ay0 + 2);
     }
-    drawTopButton(rebirthLabel(), ...topRect('rebirth'));
-    if (coins >= rebirthNeed() && Math.sin(cookT * 6) > 0) {
-      const [rx0, rx1, ry0] = topRect('rebirth');   // topRect gives [x0, x1, y0, y1]
-      blinkDot(rx1 - 6, ry0 + 2);
-    }
+    drawLevelButton();
     drawPanel();
     // Боня's bubble is drawn over the shop, so she can still send her message while it is open
     if (bonyaSpeechLeft > 0 && adBoost.double <= 0 && !speechMenuOpen()) drawBonyaBubble();
@@ -3742,7 +4148,6 @@
     if (supportOpen) drawSupport();
     else if (docsListOpen) drawDocsList();
     else if (docsOpen >= 0) drawDocReader();
-    if (rebirthOpen) drawRebirth();
     if (progWin) drawProgWin();
     if (skinWin) drawSkinWin();
     if (premiumWin) drawPremiumWin();
@@ -3751,8 +4156,9 @@
     if (loadingLeft > 0) drawLoading();
     if (consentOpen) { drawConsent(); if (docsOpen >= 0) drawDocReader(); }   // the first-launch window is the top layer
     if (resetWin) drawResetWin();
+    if (lvlWin) drawLevelWin();
+    if (offlineWin) drawOffline();
     if (noticeWin) drawNotice();
-    if (restDue && !panelOpen && !settingsOpen && !rebirthOpen && !progWin && !skinWin && !premiumWin && !boostMenuOpen && !consentOpen && loadingLeft <= 0) drawRestButton();
     if (boostMenuOpen) drawBoostMenu();
     ctx.restore();
   }
@@ -3865,9 +4271,8 @@
   // a button: two soft low notes of a triangle wave, so it is not the cookie's click
   function sfxButton() { pendingTapSound = false; blip(520, 0.05, 0, 'triangle'); blip(740, 0.05, 0.035, 'triangle'); }
   function sfxBuy() { pendingTapSound = false; blip(660, 0.09); blip(990, 0.12, 0.08); }
-  // the rebirth: a rising chord
-  // the rebirth: a pixel fanfare: square-wave brass notes rising, an accent, a long top note, and bell sparkle; no low bass
-  function sfxRebirth() {
+  // a new level: a pixel fanfare: square-wave brass notes rising, an accent, a long top note, and bell sparkle; no low bass
+  function sfxLevel() {
     pendingTapSound = false;
     const ctx = ensureAudio();
     if (!ctx || !sfxGain) return;
@@ -3914,34 +4319,44 @@
 
   // ---------- VK storage: the save is kept on VK too, so the same progress shows on every platform ----------
   // VK keeps values of up to 4096 characters, so the save goes in chunks; a save is sent at most once every 15 seconds
+  // two separate copies: the progress (v6_...) and the premium (prem_...), so the progress never takes the purchases with it
   const VK_CHUNK = 3900;
   let vkSaveTimer = null;
+  function cloudPut(prefix, raw) {
+    const parts = [];
+    for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
+    vkBridge.send('VKWebAppStorageSet', { key: prefix + 'n', value: String(parts.length) }).catch(() => {});
+    parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: prefix + i, value: p }).catch(() => {}));
+  }
+  // resolves with the stored text ('' when there is none)
+  function cloudGet(prefix) {
+    return vkBridge.send('VKWebAppStorageGet', { keys: [prefix + 'n'] }).then((res) => {
+      const n = parseInt(res.keys[0].value, 10);
+      if (!(n > 0)) return '';
+      const keys = [];
+      for (let i = 0; i < n; i++) keys.push(prefix + i);
+      return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => res2.keys.map((k) => k.value).join(''));
+    });
+  }
   // a save is sent once per 15 seconds while playing (the timer is not restarted by every local save, so it does get sent)
   function vkSaveSoon() {
     if (!window.vkBridge || vkSaveTimer) return;
     vkSaveTimer = setTimeout(() => { vkSaveTimer = null; vkSaveNow(); }, 15000);
   }
   function vkSaveNow() {
+    // the premium: both copies are joined, nothing is ever lost
+    cloudGet('prem_').then((cloud) => {
+      mergePremium(cloud);
+      const raw = premiumRaw();
+      if (raw !== cloud) cloudPut('prem_', raw);
+    }).catch(() => {});
     let raw = null;
     try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return; }
     if (!raw) return;
     // never overwrite a save with more progress: read the cloud copy first, write only if this device is not behind
-    const write = () => {
-      const parts = [];
-      for (let i = 0; i < raw.length; i += VK_CHUNK) parts.push(raw.slice(i, i + VK_CHUNK));
-      vkBridge.send('VKWebAppStorageSet', { key: 'save_n', value: String(parts.length) }).catch(() => {});
-      parts.forEach((p, i) => vkBridge.send('VKWebAppStorageSet', { key: 'save_' + i, value: p }).catch(() => {}));
-    };
-    vkBridge.send('VKWebAppStorageGet', { keys: ['save_n'] }).then((res) => {
-      const n = parseInt(res.keys[0].value, 10);
-      if (!(n > 0)) return write();
-      const keys = [];
-      for (let i = 0; i < n; i++) keys.push('save_' + i);
-      return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
-        const cloud = res2.keys.map((k) => k.value).join('');
-        if (saveAhead(cloud, raw)) return;   // the cloud is ahead: keep it, the next start takes it
-        write();
-      });
+    cloudGet('v6_').then((cloud) => {
+      if (cloud && saveAhead(cloud, raw)) return;   // the cloud is ahead: keep it, the next start takes it
+      cloudPut('v6_', raw);
     }).catch(() => {});
   }
   // which of two saves is ahead: the one reset later wins (a reset must not be undone by an older copy with more coins);
@@ -3953,57 +4368,67 @@
     const [ra, ea] = rank(a), [rb, eb] = rank(b);
     return ra !== rb ? ra > rb : ea > eb;
   }
-  // at the start: if the VK copy is newer than this device's save, take it and reload once
+  // at the start: the premium of the VK copy is added; if its progress is newer than this device's save, it is taken too
   function vkLoadCloud() {
-    vkBridge.send('VKWebAppStorageGet', { keys: ['save_n'] }).then((res) => {
-      const n = parseInt(res.keys[0].value, 10);
-      if (!(n > 0)) return null;
-      const keys = [];
-      for (let i = 0; i < n; i++) keys.push('save_' + i);
-      return vkBridge.send('VKWebAppStorageGet', { keys: keys }).then((res2) => {
-        const cloud = res2.keys.map((k) => k.value).join('');
-        // the later reset wins, then more earned progress: savedAt is refreshed by every local save, so it cannot tell which is newer
-        // the cloud save is applied in place (no page reload: a reload showed the start screen again)
-        if (saveAhead(cloud, localStorage.getItem(SAVE_KEY))) {
-          localStorage.setItem(SAVE_KEY, cloud);
-          loadGame();
-        }
-      });
+    cloudGet('prem_').then((cloud) => { mergePremium(cloud); savePremium(); }).catch(() => {}).then(() => cloudGet('v6_')).then((cloud) => {
+      // the later reset wins, then more earned progress: savedAt is refreshed by every local save, so it cannot tell which is newer
+      // the cloud save is applied in place (no page reload: a reload showed the start screen again)
+      if (cloud && saveAhead(cloud, localStorage.getItem(SAVE_KEY))) {
+        localStorage.setItem(SAVE_KEY, cloud);
+        loadGame();
+      }
     }).catch(() => {});
   }
   // ---------- saving: progress and settings in localStorage (fails quietly if unavailable) ----------
-  const SAVE_KEY = 'kucha-pryanikov-save-v1';
+  const SAVE_KEY = 'kucha-pryanikov-v6';           // a new key: the saves of the older economies are not read
+  const PREMIUM_KEY = 'kucha-pryanikov-premium';   // the purchases and the skins, apart from the progress
+  function premiumRaw() {
+    return JSON.stringify({ premiumOwned, skinOwned, skinAdViews, grantedOrders, pendingHours, hoursAt });
+  }
+  // adds what another copy of the premium has (owned things are only added, never taken away)
+  function mergePremium(raw) {
+    if (!raw) return;
+    try {
+      const s = JSON.parse(raw);
+      for (const it of PREMIUM_ITEMS) if (it.kind === 'premium' && !it.hours && s.premiumOwned && s.premiumOwned[it.id]) premiumOwned[it.id] = true;
+      if (premiumOwned.skins_all) unlockAllPremiumSkins();
+      for (const id of PREMIUM_SKIN_IDS) if (premiumOwned['skin_' + id]) skinOwned[id] = true;
+      for (const k of SKINS) {
+        if (s.skinOwned && s.skinOwned[k.id]) skinOwned[k.id] = true;
+        skinAdViews[k.id] = Math.max(skinAdViews[k.id] || 0, Math.floor(Number(s.skinAdViews && s.skinAdViews[k.id]) || 0));
+      }
+      if (Array.isArray(s.grantedOrders)) for (const o of s.grantedOrders) if (!grantedOrders.includes(String(o))) grantedOrders.push(String(o));
+      if ((Number(s.hoursAt) || 0) > hoursAt) { hoursAt = Number(s.hoursAt); pendingHours = Math.max(0, Number(s.pendingHours) || 0); }
+    } catch (err) { /* damaged data: what is already here stays */ }
+  }
+  function savePremium() {
+    try { localStorage.setItem(PREMIUM_KEY, premiumRaw()); } catch (err) { /* storage blocked or full */ }
+  }
   function saveGame() {
+    savePremium();
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
-        v: 2,
+        v: 6,
         coins: coins.toString(),
-        clickOwned,
+        tapLv,
         techOwned,
         prokOwned,
-        premiumOwned,
-        rebirthAdOff,
-        bestProkOneRebirth,
-        adWatched,
+        levelSeen: lvlPending ? lvlPending.from : bakeryLevel,   // a new level whose window is not shown yet is shown after the next start
         adBoost: { double: adBoost.double, discount: adBoost.discount },   // the ad bonuses keep their time left
-        rebirths,
-        cycleEarned: cycleEarned.toString(),
         totalEarned: totalEarned.toString(),
         resetAt,
         playerClicks,
         playSec: Math.floor(playSec),
+        custServed, questsDone, treatsEaten, minutesSeen, bonyaWoken, offlineTaken,
+        bestPerSec,
         dailyDay,
         dailyDate,
-        skinOwned,
-        skinAdViews,
         dailySec: Math.floor(dailySec),
         dailySecDate,
         totalBought,
         settings,
-        restAcc: Math.floor(restAcc),
         custGap: Math.floor(custGap),
-        restDue,
-        grantedOrders,
+        gameT: Math.round(gameT * 1000) / 1000,
         savedAt: Date.now(),
       }));
       vkSaveSoon();
@@ -4012,69 +4437,37 @@
     }
   }
   function loadGame() {
+    try { mergePremium(localStorage.getItem(PREMIUM_KEY)); } catch (err) { /* storage blocked */ }
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return;
       const s = JSON.parse(raw);
-      if (s.skinOwned && typeof s.skinOwned === 'object') {
-        for (const k of SKINS) skinOwned[k.id] = !!s.skinOwned[k.id] || k.id === 'classic';
-        if (s.premiumOwned && (s.premiumOwned.skin_neon || s.premiumOwned.skins_all)) skinOwned.neon = true;
-        if (s.premiumOwned && (s.premiumOwned.skin_volcano || s.premiumOwned.skins_all)) skinOwned.volcano = true;
-        if (s.premiumOwned && (s.premiumOwned.skin_neontube || s.premiumOwned.skins_all)) skinOwned.neontube = true;
-        if (s.premiumOwned) {
-          for (const id of PREMIUM_SKIN_IDS) {
-            if (s.premiumOwned['skin_' + id]) skinOwned[id] = true;
-          }
-          if (s.premiumOwned.skins_all) unlockAllPremiumSkins();
-          for (const it of PREMIUM_ITEMS) if (it.kind === 'premium' && s.premiumOwned[it.id]) premiumOwned[it.id] = true;
-        }
-      }
-      if (s.skinAdViews && typeof s.skinAdViews === 'object') {
-        for (const k of SKINS) skinAdViews[k.id] = Math.max(0, Math.floor(Number(s.skinAdViews[k.id]) || 0));
-      }
+      const count = (v) => Math.max(0, Math.floor(Number(v) || 0));
       coins = BigInt(s.coins || '0');
-      if (Array.isArray(s.clickOwned) && s.clickOwned.length === clickOwned.length) clickOwned = s.clickOwned.map(Number);
-      if (Array.isArray(s.techOwned) && s.techOwned.length === techOwned.length) techOwned = s.techOwned.map(Number);
+      tapLv = count(s.tapLv);
+      if (Array.isArray(s.techOwned) && s.techOwned.length === techOwned.length) techOwned = s.techOwned.map(count);
       if (Array.isArray(s.prokOwned) && s.prokOwned.length === prokOwned.length) prokOwned = s.prokOwned.map(Boolean);
-      bestProkOneRebirth = Math.max(0, Math.floor(Number(s.bestProkOneRebirth) || 0));
-      rebirthAdOff = !!s.rebirthAdOff || !!(s.premiumOwned && s.premiumOwned.rebirth2);
-      if (s.adWatched) adWatched = { double: !!s.adWatched.double, discount: !!s.adWatched.discount };
       if (s.adBoost) adBoost = { double: Math.max(0, Number(s.adBoost.double) || 0), discount: Math.max(0, Number(s.adBoost.discount) || 0) };
-      rebirths = Math.max(0, Math.floor(Number(s.rebirths) || 0));
       totalEarned = BigInt(s.totalEarned || '0');
+      bakeryLevel = levelFor(totalEarned);
+      const seen = count(s.levelSeen) || bakeryLevel;
+      lvlPending = seen < bakeryLevel ? { from: seen } : null;
+      lvlWin = null;
       resetAt = Number(s.resetAt) || 0;
-      playerClicks = Math.max(0, Math.floor(Number(s.playerClicks) || 0));
+      playerClicks = count(s.playerClicks);
       playSec = Math.max(0, Number(s.playSec) || 0);
-      dailyDay = Math.min(7, Math.max(0, Math.floor(Number(s.dailyDay) || 0)));
+      custServed = count(s.custServed); questsDone = count(s.questsDone); treatsEaten = count(s.treatsEaten);
+      minutesSeen = count(s.minutesSeen); bonyaWoken = count(s.bonyaWoken); offlineTaken = count(s.offlineTaken);
+      bestPerSec = Math.max(0, Number(s.bestPerSec) || 0);
+      dailyDay = Math.min(7, count(s.dailyDay));
       dailyDate = typeof s.dailyDate === 'string' ? s.dailyDate : '';
       dailySec = Math.max(0, Number(s.dailySec) || 0);
       dailySecDate = typeof s.dailySecDate === 'string' ? s.dailySecDate : '';
-      totalBought = Math.max(0, Math.floor(Number(s.totalBought) || 0));
-      cycleEarned = BigInt(s.cycleEarned || '0');
-      if (s.premiumOwned) {
-        premiumOwned = {
-          double: !!s.premiumOwned.double,
-          triple: !!s.premiumOwned.triple,
-          autoclick: !!s.premiumOwned.autoclick,
-          rebirth2: !!s.premiumOwned.rebirth2,
-          noads: !!s.premiumOwned.noads,
-          discount: !!s.premiumOwned.discount,
-          skin_neon: !!s.premiumOwned.skin_neon,
-          skins_all: !!s.premiumOwned.skins_all,
-          skin_volcano: !!s.premiumOwned.skin_volcano,
-          skin_neontube: !!s.premiumOwned.skin_neontube,
-          skin_crystal: !!s.premiumOwned.skin_crystal,
-          skin_royal: !!s.premiumOwned.skin_royal,
-          skin_ghost: !!s.premiumOwned.skin_ghost,
-          skin_rainbow: !!s.premiumOwned.skin_rainbow,
-          skin_starry: !!s.premiumOwned.skin_starry,
-        };
-      }
-      // the rest timer: the play time left before the rest button (saved)
-      restAcc = Math.max(0, Math.min(REST_EVERY, Number(s.restAcc) || 0));
+      totalBought = count(s.totalBought);
+      offlineFrom = Number(s.savedAt) || 0; offlineUntil = Date.now();   // paid for once, after the start screen
+      offlineWin = null;
+      if (Number.isFinite(s.gameT) && s.gameT >= 0) gameT = s.gameT;
       if (Number.isFinite(s.custGap)) custGap = Math.max(0, Math.min(CUST_EVERY, s.custGap));
-      if (Array.isArray(s.grantedOrders)) grantedOrders = s.grantedOrders.map(String);
-      restDue = false;   // the rest feature is switched off
       if (s.settings) {
         settings.sound = Math.min(1, Math.max(0, Number(s.settings.sound) || 0));
         settings.music = Math.min(1, Math.max(0, Number(s.settings.music) || 0));
@@ -4089,6 +4482,7 @@
     }
   }
   loadGame();
+  applyTimeArgs();
   // the VK bridge script loads after this script has started: the VK part waits for it (checked every 0.1 s, up to 20 s)
   function onVkBridge(fn, tries = 0) {
     if (window.vkBridge) fn();
@@ -4100,6 +4494,8 @@
     if (vkBridge.subscribe) {
       vkBridge.subscribe((e) => {
         const type = e && e.detail && e.detail.type;
+        if (type === 'VKWebAppViewHide') goHidden();
+        if (type === 'VKWebAppViewRestore') goShown();
         if (type === 'VKWebAppViewHide' && audioCtx) audioCtx.suspend();
         // the game is hidden or closed: the progress goes to VK at once
         if (type === 'VKWebAppViewHide') { saveGame(); vkSaveNow(); }
@@ -4113,6 +4509,7 @@
   window.addEventListener('pagehide', () => { saveGame(); if (window.vkBridge) vkSaveNow(); });
   // the sound stops when the page is hidden (a browser tab, or the app in the background) and comes back when it is shown
   document.addEventListener('visibilitychange', () => {
+    if (document.hidden) goHidden(); else goShown();
     if (!audioCtx) return;
     if (document.hidden) audioCtx.suspend(); else audioCtx.resume();
   });
@@ -4183,6 +4580,7 @@
     last = now;
     update(dt);
     render();
+    drawPress(ctx, dt);
     if (splashT > 0) drawSplash();
     if (launchState !== 'ok') drawLaunchGate();   // on top of everything, the consent window included
     requestAnimationFrame(frame);
@@ -4194,18 +4592,26 @@
   window.KUCHA = {
     version: VERSION,
     get coins() { return coins.toString(); },
-    get owned() { return { click: clickOwned.slice(), tech: techOwned.slice(), prok: prokOwned.slice() }; },
+    get owned() { return { tap: tapLv, tech: techOwned.slice(), prok: prokOwned.slice() }; },
     get perSec() { return autoPerSec(); },
-    get rebirths() { return rebirths; },
-    event(type, pies) { if (type === 'appetite') ev = { type: 'appetite', t: 0, pies: pies !== false }; if (type === 'quest') ev = { type: 'quest', t: 60, taps: 0, done: null }; if (type === 'minute') minuteLeft = 60; },
-    get menus() { return { shop: panelOpen, settings: settingsOpen, rebirth: rebirthOpen, progress: progWin ? progWin.tab : null, premium: !!premiumWin }; },
+    get level() { return bakeryLevel; },
+    event(type, pies) { if (type === 'appetite') ev = { type: 'appetite', t: 0, pies: pies !== false }; if (type === 'quest') ev = { type: 'quest', t: 60, taps: 0, done: null }; if (type === 'minute') startMinute(); },
+    get menus() { return { shop: panelOpen, settings: settingsOpen, level: !!lvlWin, progress: progWin ? progWin.tab : null, premium: !!premiumWin }; },
     get glaze() { return { click: glazeClick, tech: glazeTech, name: glazeName }; },
     get questBoost() { return questBoost; },
     get minuteLeft() { return minuteLeft; },
     get ev() { return ev ? { type: ev.type, t: ev.t, taps: ev.taps, done: ev.done, pies: ev.pies } : null; },
     customer(kind) { custComes(kind); },
+    bonya(name) { if (name === 'wake') bonyaT = Math.floor(bonyaT / BONYA_CYCLE + 1) * BONYA_CYCLE; else if (name) bonyaPlay(name); return { act: bonyaAct && bonyaAct.name, awake: bonyaAwakeNow(), side: bonyaOnSide() }; },
     get customers() { return { gap: custGap, now: cust ? { kind: cust.k, n: cust.n.toString(), left: cust.left } : null, selling: !!sale }; },
+    fmt(v) { return fmt(BigInt(v)); },
     get mult() { return incomeMult(); },
-    get cycleEarned() { return cycleEarned.toString(); },
+    get cook() { return kitchen.baker.state; },
+    get things() { return kitchen.things; },
+    baker: kitchen.baker,
+    setCook(o) { kitchen.baker.set(o); },
+    get clock() { const c = kitchen.now; return { t: gameT, season: c.season, day: c.dayOfSeason, hour: gameT % 24 }; },
+    setTime(day, hour) { setGameTime(day, hour); },
+    get totalEarned() { return totalEarned.toString(); },
   };
 })();
