@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.400-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.401-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -3560,14 +3560,6 @@
     for (const p of popups) { p.t += dt; p.y -= 30 * dt; }
     if (adBoost.double > 0) adBoost.double = Math.max(0, adBoost.double - dt);
     if (adBoost.discount > 0) adBoost.discount = Math.max(0, adBoost.discount - dt);
-    if (musicStarted && audioCtx) {
-      musicT += dt;
-      if (musicT >= TRACK_PERIOD) {
-        musicT = 0;
-        trackIdx = pickNextTrack();
-        playTrack(trackIdx, TRACK_FADE);
-      }
-    }
     for (let i = popups.length - 1; i >= 0; i--) if (popups[i].t > 0.8) popups.splice(i, 1);
     for (const s of sparks) {
       s.t += dt;
@@ -4229,8 +4221,7 @@
     ctx.restore();
   }
 
-  // ---------- music: gapless loop via Web Audio, starts on the first tap ----------
-  // Needs the game served over http(s); file:// blocks fetch of the track.
+  // ---------- music: streamed playlist through Web Audio, starts on the first tap ----------
   // one shared audio context, created on the first tap (browsers need a user gesture)
   let audioCtx = null;
   let musicGain = null;
@@ -4252,15 +4243,12 @@
     }
     return audioCtx;
   }
-  // playlist: all 11 tracks, a random one (never the same twice in a row) every 10 minutes,
-  // with an equal-power crossfade so the change is smooth. Each track is a seamless 30 s loop.
-  const TRACKS = [
-    'music/00_glavnaya.wav', 'music/01_utro.wav', 'music/02_monetny.wav', 'music/03_pryanik.wav',
-    'music/04_yarmarka.wav', 'music/05_nochnaya.wav', 'music/06_ura.wav', 'music/07_tihiy.wav',
-    'music/08_zolotaya.wav', 'music/09_pechenyushki.wav', 'music/10_bolshaya.wav',
-  ];
-  const TRACK_PERIOD = 240;     // seconds between changes (4 minutes)
-  const TRACK_FADE = 4;         // seconds of crossfade
+  // playlist: 3 tracks of 5 minutes, always in the order 1 -> 2 -> 3 -> 1, with an equal-power crossfade.
+  // The files are streamed by two <audio> decks (a decoded 5-minute buffer would take 100 MB), through musicGain.
+  const TRACKS = ['music/pixel_winter_track1', 'music/pixel_winter_track2', 'music/pixel_winter_track3'];
+  const TRACK_LEN = 300;        // seconds in every track (el.duration is only an estimate on servers without Range)
+  const TRACK_FADE = 2;         // seconds of crossfade
+  const TRACK_PRELOAD = 30;     // the next track starts loading this many seconds before the end
   const FADE_IN = new Float32Array(64);
   const FADE_OUT = new Float32Array(64);
   for (let i = 0; i < 64; i++) {
@@ -4268,53 +4256,119 @@
     FADE_IN[i] = Math.sin(t * Math.PI / 2);    // equal power: no dip in loudness in the middle
     FADE_OUT[i] = Math.cos(t * Math.PI / 2);
   }
-  const trackCache = {};        // decoded buffers, loaded once
-  let trackIdx = -1;
-  let trackSrc = null;
-  let trackGain = null;
-  let musicT = 0;               // seconds since the last change
-  function loadTrack(i) {
-    if (!trackCache[i]) {
-      trackCache[i] = fetch(TRACKS[i])
-        .then((r) => r.arrayBuffer())
-        .then((buf) => audioCtx.decodeAudioData(buf));
+  // a few silent samples: the second deck plays them inside the first tap, so iPhones let it start later by itself
+  const SILENCE = 'data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YQgAAACAgICAgICAgA==';
+  let trackExt = '.ogg';        // '.m4a' where the browser has no OGG Vorbis (older iPhones)
+  let decks = null;             // two { el, g, track }
+  let deckIdx = 0;              // the deck that is heard now
+  let trackIdx = 0;             // the track that is heard now
+  let nextReady = false;        // the other deck already loads the next track
+  let fading = false;           // the next track is being started
+  let musicPaused = false;      // the page is hidden
+  function makeDeck(n) {
+    const el = document.createElement('audio');
+    const g = audioCtx.createGain();
+    g.gain.value = 0;
+    audioCtx.createMediaElementSource(el).connect(g);
+    g.connect(musicGain);
+    const d = { el, g, track: -1, timer: 0 };
+    el.addEventListener('timeupdate', () => {
+      if (n !== deckIdx || d.track < 0) return;
+      const left = TRACK_LEN - el.currentTime;
+      if (left <= TRACK_PRELOAD) prepareNext();
+      if (left <= TRACK_FADE + 0.25) nextTrack();   // timeupdate comes about 4 times a second
+    });
+    el.addEventListener('ended', () => { if (n === deckIdx && d.track >= 0) nextTrack(); });
+    el.addEventListener('error', () => {
+      if (d.track < 0) return;
+      if (trackExt === '.ogg' && el.error && el.error.code !== 2) {   // not a network fault: the other format
+        trackExt = '.m4a';
+        loadDeck(d, d.track);
+        if (n === deckIdx) playDeck(d);
+      } else if (n === deckIdx) musicStarted = false;                 // the next tap tries again
+      else nextReady = false;
+    });
+    return d;
+  }
+  function loadDeck(d, i) {
+    clearTimeout(d.timer);
+    d.track = i;
+    d.el.preload = 'auto';
+    d.el.src = TRACKS[i] + trackExt;
+  }
+  // the first start, or a start after a refusal
+  function playDeck(d) {
+    const src = d.el.src;
+    d.el.play().then(() => {
+      fadeDeck(d, FADE_IN, 1);
+      if (musicPaused) d.el.pause();
+    }).catch(() => { if (src === d.el.src) musicStarted = false; });   // not allowed yet: the next tap tries again
+  }
+  function prepareNext() {
+    if (nextReady) return;
+    nextReady = true;
+    loadDeck(decks[1 - deckIdx], (trackIdx + 1) % TRACKS.length);
+  }
+  function fadeDeck(d, curve, sec) {
+    const p = d.g.gain, now = audioCtx.currentTime;
+    p.cancelScheduledValues(0);
+    p.setValueCurveAtTime(curve, now, sec);
+  }
+  function nextTrack() {
+    if (fading || musicPaused) return;
+    fading = true;
+    prepareNext();
+    const old = decks[deckIdx], d = decks[1 - deckIdx];
+    d.el.play().then(() => {
+      deckIdx = 1 - deckIdx;
+      trackIdx = d.track;
+      nextReady = false;
+      fading = false;
+      fadeDeck(d, FADE_IN, TRACK_FADE);
+      fadeDeck(old, FADE_OUT, TRACK_FADE);
+      old.timer = setTimeout(() => old.el.pause(), TRACK_FADE * 1000 + 300);
+      if (musicPaused) d.el.pause();
+    }).catch(() => {
+      fading = false;
+      if (old.el.ended) musicStarted = false;       // silence now: the next tap starts the music again
+    });
+  }
+  // a hidden page: the decks stop together with the audio context
+  function pauseMusic() {
+    if (!audioCtx) return;
+    musicPaused = true;
+    audioCtx.suspend();
+    if (decks) decks[deckIdx].el.pause();
+  }
+  function resumeMusic() {
+    if (!audioCtx || document.hidden) return;
+    musicPaused = false;
+    audioCtx.resume();
+    if (musicStarted && decks) {
+      const d = decks[deckIdx];
+      if (d.el.ended) nextTrack(); else d.el.play().catch(() => { musicStarted = false; });
     }
-    return trackCache[i];
-  }
-  function playTrack(i, fade) {
-    const ctx = audioCtx;
-    loadTrack(i).then((buf) => {
-      const now = ctx.currentTime;
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, now);
-      g.gain.setValueCurveAtTime(FADE_IN, now, fade);
-      src.connect(g);
-      g.connect(musicGain);
-      src.start(now);
-      if (trackSrc) {                       // the old track fades out under the new one
-        trackGain.gain.setValueCurveAtTime(FADE_OUT, now, fade);
-        trackSrc.stop(now + fade + 0.1);
-      }
-      trackSrc = src;
-      trackGain = g;
-    }).catch(() => {});
-  }
-  function pickNextTrack() {
-    let i;
-    do { i = Math.floor(Math.random() * TRACKS.length); } while (i === trackIdx);
-    return i;
   }
   function startMusicOnce() {
     if (musicStarted) return;
-    musicStarted = true;
     const ctx = ensureAudio();
     if (!ctx) return;
-    trackIdx = Math.floor(Math.random() * TRACKS.length);   // a random track at every launch
-    playTrack(trackIdx, 1);
+    musicStarted = true;
+    if (ctx.state === 'suspended') ctx.resume();
+    if (!decks) {
+      if (!document.createElement('audio').canPlayType('audio/ogg; codecs="vorbis"')) trackExt = '.m4a';
+      decks = [makeDeck(0), makeDeck(1)];
+    }
+    const d = decks[deckIdx], other = decks[1 - deckIdx];
+    if (other.track < 0) {
+      other.el.src = SILENCE;
+      other.el.play().catch(() => {});
+    }
+    if (d.track < 0 || d.el.error) loadDeck(d, trackIdx);
+    playDeck(d);
   }
+  // iPhones count the release of the finger as the tap: a start refused on the press is repeated there
+  canvas.addEventListener('pointerup', () => { if (decks && !musicStarted) startMusicOnce(); });
 
   // short square-wave blip through the sound slider
   function blip(freq, dur, when, type) {
@@ -4562,10 +4616,10 @@
         const type = e && e.detail && e.detail.type;
         if (type === 'VKWebAppViewHide') goHidden();
         if (type === 'VKWebAppViewRestore') goShown();
-        if (type === 'VKWebAppViewHide' && audioCtx) audioCtx.suspend();
+        if (type === 'VKWebAppViewHide') pauseMusic();
         // the game is hidden or closed: the progress goes to VK at once
         if (type === 'VKWebAppViewHide') { saveGame(); vkSaveNow(); }
-        if (type === 'VKWebAppViewRestore' && audioCtx) audioCtx.resume();
+        if (type === 'VKWebAppViewRestore') resumeMusic();
         // back in the app: the save from the other device is taken if it has more progress
         if (type === 'VKWebAppViewRestore') vkLoadCloud();
       });
@@ -4576,8 +4630,7 @@
   // the sound stops when the page is hidden (a browser tab, or the app in the background) and comes back when it is shown
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) goHidden(); else goShown();
-    if (!audioCtx) return;
-    if (document.hidden) audioCtx.suspend(); else audioCtx.resume();
+    if (document.hidden) pauseMusic(); else resumeMusic();
   });
 
   // ---------- loop ----------
