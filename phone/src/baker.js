@@ -121,34 +121,58 @@ function drawBag() {
 const pileNow = () => bit && bit.name === 'give' ? Math.max(0, pile - Math.floor(bit.u / .35 + (bit.u > .05 ? 1 : 0))) : pile;
 // the plate with the finished gingerbread on the counter in front, in the scale of the pies and the cake: one more row with every baking
 const PLATE_X = layout === 'phone' ? 167 : 118;
-// the greenery on the phone's counter in place of the plate: basil, a flower of the season and a hanging ivy
+// the greenery over the free part of the counter: a back row of tall pots and a front row of low ones
 function drawPlants(at) {
-  const y = 177, cx = PLATE_X, sw = (k) => Math.round(Math.sin(at * 1.1 + k) * .7), L = ['#1f4a3c', '#2f7048', '#4c9a58', '#7cc470', '#b8e89a'];
-  const leaf = (x, yy, w, d, b) => { R(x, yy, w, 2, L[b]); R(x + (d > 0 ? 0 : 1), yy, w - 1, 1, L[b + 1]); R(d > 0 ? x + w - 1 : x, yy + 1, 1, 1, L[b - 1]); };
-  const pot = (x, w, h, q) => { R(x - 1, y, w + 3, 1, 'rgba(42,32,64,.35)'); R(x, y - h, w, h, q[1]); R(x, y - h, 2, h, q[2]); R(x + w - 2, y - h, 2, h, q[0]); R(x - 1, y - h, w + 2, 2, q[2]); R(x - 1, y - h, w + 1, 1, q[3]); R(x + w, y - h + 1, 1, 1, q[0]); };
-  const CL = ['#8a4434', '#bc6a48', '#d8875c', '#f4b488'], BL = ['#33588c', '#4d7fb4', '#6c9fd0', '#a8d0f0'], CR = ['#a8907c', '#d8c4a4', '#f0e0c4', '#fff6e0'];
-  pot(cx - 17, 9, 6, CL);                                                                                     // the basil: a round bush
-  for (const [x, yy, w, d, b] of [[-19, -9, 4, -1, 1], [-11, -9, 4, 1, 1], [-18, -12, 4, -1, 1], [-12, -12, 4, 1, 1], [-15, -9, 4, 1, 2], [-17, -11, 3, -1, 2], [-13, -11, 3, 1, 2], [-16, -14, 4, -1, 2], [-13, -14, 3, 1, 3], [-15, -12, 3, -1, 3]]) leaf(cx + x + (yy < -11 ? sw(0) : 0), y + yy, w, d, b);
-  const F = [['#c84a78', '#f07aa8', '#ffc0d8'], ['#d8942a', '#ffc83c', '#fff0a0'], ['#b84a24', '#e8762e', '#ffb470'], ['#a02438', '#d83a4a', '#ff8a8a']][season], s1 = sw(2);
-  pot(cx - 4, 8, 5, BL); R(cx - 2, y - 4, 4, 1, BL[3]);                                                         // the flowers of the season
-  R(cx - 1, y - 11, 1, 6, L[2]); R(cx + 1 + s1, y - 12, 1, 4, L[1]); R(cx + 1, y - 9, 1, 4, L[1]); leaf(cx - 5, y - 8, 4, -1, 2); leaf(cx + 2, y - 8, 4, 1, 1); leaf(cx - 3, y - 7, 3, -1, 3);
-  for (const [x, yy] of [[-4, -13], [1 + s1, -15], [4, -11]]) { R(cx + x, y + yy, 4, 4, F[1]); R(cx + x + 1, y + yy - 1, 2, 1, F[2]); R(cx + x, y + yy, 2, 1, F[2]); R(cx + x + 1, y + yy + 3, 3, 1, F[0]); R(cx + x + 3, y + yy + 1, 1, 2, F[0]); R(cx + x + 1, y + yy + 1, 2, 1, '#fff3b0'); }
-  pot(cx + 10, 8, 6, CR); R(cx + 11, y - 3, 6, 1, '#7fb8a8');                                                    // the ivy: the shoots hang over the pot
-  for (const [x, yy, w, d, b] of [[8, -9, 4, -1, 1], [15, -9, 4, 1, 1], [11, -10, 4, -1, 2], [14, -11, 3, 1, 3], [12, -12, 3, -1, 2], [8, -6, 3, -1, 2], [7, -4, 3, -1, 1], [18, -7, 3, 1, 2], [18, -5, 3, 1, 1], [19, -3, 3, 1, 2]]) leaf(cx + x + (yy > -6 ? 0 : sw(4)), y + yy, w, d, b);
+  const L = ['#1f4a3c', '#2f7048', '#4c9a58', '#7cc470', '#b8e89a'], sw = (k) => Math.round(Math.sin(at * 1.1 + k) * .7);
+  const CL = ['#8a4434', '#bc6a48', '#d8875c', '#f4b488'], BL = ['#33588c', '#4d7fb4', '#6c9fd0', '#a8d0f0'], CR = ['#a8907c', '#d8c4a4', '#f0e0c4', '#fff6e0'], TN = ['#6a7488', '#9aa6b8', '#c4ced8', '#f0f6fa'], VI = ['#5c3a74', '#7c5498', '#a078bc', '#d0b0e4'], WD = ['#5c3424', '#84502f', '#a8703f', '#d09a5c'];
+  const leaf = (x, y, w, d, b) => { R(x, y, w, 2, L[b]); R(x + (d > 0 ? 0 : 1), y, w - 1, 1, L[Math.min(4, b + 1)]); R(d > 0 ? x + w - 1 : x, y + 1, 1, 1, L[Math.max(0, b - 1)]); };
+  const leaves = (x, y, k, list) => { for (const [dx, dy, w, d, b] of list) leaf(x + dx + (dy < -11 ? sw(k) : 0), y + dy, w, d, b); };
+  const pot = (x, y, w, h, q) => { R(x - 1, y, w + 3, 1, 'rgba(42,32,64,.35)'); R(x, y - h, w, h, q[1]); R(x, y - h, 2, h, q[2]); R(x + w - 2, y - h, 2, h, q[0]); R(x - 1, y - h, w + 2, 2, q[2]); R(x - 1, y - h, w + 1, 1, q[3]); R(x + w, y - h + 1, 1, 1, q[0]); };
+  const F = [['#c84a78', '#f07aa8', '#ffc0d8'], ['#d8942a', '#ffc83c', '#fff0a0'], ['#b84a24', '#e8762e', '#ffb470'], ['#a02438', '#d83a4a', '#ff8a8a']][season];
+  const K = {
+    flower(x, y) {
+      const cx = x + 4, s1 = sw(2); pot(x, y, 8, 5, BL); R(cx - 2, y - 4, 4, 1, BL[3]);
+      R(cx - 1, y - 11, 1, 6, L[2]); R(cx + 1 + s1, y - 12, 1, 4, L[1]); R(cx + 1, y - 9, 1, 4, L[1]); leaf(cx - 5, y - 8, 4, -1, 2); leaf(cx + 2, y - 8, 4, 1, 1); leaf(cx - 3, y - 7, 3, -1, 3);
+      for (const [dx, dy] of [[-4, -13], [1 + s1, -15], [4, -11]]) { R(cx + dx, y + dy, 4, 4, F[1]); R(cx + dx + 1, y + dy - 1, 2, 1, F[2]); R(cx + dx, y + dy, 2, 1, F[2]); R(cx + dx + 1, y + dy + 3, 3, 1, F[0]); R(cx + dx + 3, y + dy + 1, 1, 2, F[0]); R(cx + dx + 1, y + dy + 1, 2, 1, '#fff3b0'); }
+    },
+    basil(x, y) { pot(x, y, 9, 6, CL); leaves(x + 17, y, 0, [[-19, -9, 4, -1, 1], [-11, -9, 4, 1, 1], [-18, -12, 4, -1, 1], [-12, -12, 4, 1, 1], [-15, -9, 4, 1, 2], [-17, -11, 3, -1, 2], [-13, -11, 3, 1, 2], [-16, -14, 4, -1, 2], [-13, -14, 3, 1, 3], [-15, -12, 3, -1, 3]]); },
+    ivy(x, y) { pot(x, y, 8, 6, CR); R(x + 1, y - 3, 6, 1, '#7fb8a8'); leaves(x - 10, y, 4, [[8, -9, 4, -1, 1], [15, -9, 4, 1, 1], [11, -10, 4, -1, 2], [14, -11, 3, 1, 3], [12, -12, 3, -1, 2], [8, -6, 3, -1, 2], [7, -4, 3, -1, 1], [18, -7, 3, 1, 2], [18, -5, 3, 1, 1], [19, -3, 3, 1, 2]]); },
+    cactus(x, y) {
+      pot(x, y, 8, 5, CL); R(x + 2, y - 13, 4, 8, '#3d8a5c'); R(x + 2, y - 13, 1, 8, '#6cbc7c'); R(x + 5, y - 12, 1, 7, '#235c46'); R(x + 3, y - 14, 2, 1, '#6cbc7c');
+      R(x - 1, y - 11, 2, 3, '#3d8a5c'); R(x - 1, y - 11, 1, 3, '#6cbc7c'); R(x, y - 9, 2, 2, '#2f7048'); R(x + 7, y - 13, 2, 4, '#3d8a5c'); R(x + 6, y - 10, 2, 2, '#235c46'); R(x + 7, y - 13, 1, 3, '#6cbc7c');
+      for (const [a, b] of [[3, -12], [4, -10], [3, -8], [4, -6], [8, -12], [-1, -10]]) R(x + a, y + b, 1, 1, '#e8f4c8');
+      R(x + 2, y - 16, 4, 2, '#f07aa8'); R(x + 3, y - 17, 2, 1, '#ffc0d8'); R(x + 3, y - 16, 2, 1, '#fff0a0');
+    },
+    lavender(x, y) {
+      pot(x, y, 10, 5, CR); R(x + 1, y - 3, 8, 1, VI[2]);
+      for (let n = 0; n < 7; n++) { const h = [5, 7, 8, 6, 8, 7, 5][n], tx = x + 1 + n + (n > 4 ? 1 : 0) - (n < 2 ? 1 : 0) + sw(n * .4 + 1), ty = y - 5 - h; R(x + 1 + n, y - 5 - (h >> 1), 1, h >> 1, L[1 + (n & 1)]); R(tx, ty + 3, 1, h - 2 - (h >> 1), L[2]); R(tx, ty - 1, 1, 5, VI[1]); R(tx, ty - 1, 1, 2, VI[3]); R(tx + 1, ty, 1, 1, VI[2]); R(tx + 1, ty + 2, 1, 1, VI[1]); }
+      leaf(x, y - 7, 4, -1, 1); leaf(x + 6, y - 7, 4, 1, 1); leaf(x + 3, y - 7, 3, 1, 2);
+    },
+    snake(x, y) { pot(x, y, 8, 6, VI); for (const [dx, h, t] of [[0, 7, -1], [2, 11, 0], [4, 9, 1], [6, 6, 1]]) for (let k = 0; k < h; k++) { const w = k > h - 3 ? 1 : 2, xx = x + dx + (k > h - 4 ? t : 0); R(xx, y - 7 - k, w, 1, k % 3 ? '#2f7048' : '#5fae6c'); if (w > 1) R(xx + 1, y - 7 - k, 1, 1, '#d8d878'); } },
+    rose(x, y) {                                                                                             // a succulent: a rosette in a low bowl
+      pot(x, y, 12, 4, TN); const q = ['#2c6a70', '#4a9a94', '#7cc8b4', '#c0f0d8'];
+      for (const [dx, dy, w, b] of [[-1, -7, 4, 0], [9, -7, 4, 0], [1, -9, 4, 1], [7, -9, 4, 1], [4, -10, 4, 1], [2, -7, 4, 1], [6, -7, 4, 2], [4, -8, 4, 2], [5, -9, 2, 3]]) { R(x + dx, y + dy, w, 3, q[b]); R(x + dx, y + dy, w, 1, q[Math.min(3, b + 1)]); }
+      for (const [dx, dy] of [[-1, -7], [12, -7], [1, -9], [10, -9], [4, -10], [7, -10]]) R(x + dx, y + dy, 1, 1, '#f090a8');
+    },
+    mint(x, y) { pot(x, y, 9, 7, TN); R(x, y - 5, 9, 3, '#c23138'); R(x, y - 5, 2, 3, '#e0584e'); R(x + 3, y - 4, 3, 1, '#fff6e0'); leaves(x + 4, y + 1, 3, [[-6, -10, 4, -1, 2], [3, -10, 4, 1, 1], [-4, -12, 4, -1, 2], [1, -12, 4, 1, 2], [-2, -10, 4, 1, 2], [-3, -14, 3, -1, 3], [1, -14, 3, 1, 3], [-1, -15, 3, 1, 3], [-1, -12, 3, -1, 3]]); },
+    tree(x, y) {                                                                                             // a little orange tree
+      pot(x, y, 10, 6, BL); R(x + 1, y - 3, 8, 1, BL[3]); R(x + 4, y - 11, 2, 5, '#7c5238'); R(x + 4, y - 11, 1, 5, '#a8784c'); const s = sw(5);
+      for (const [dx, dy, w, h, b] of [[-2, -17, 14, 6, 1], [-1, -19, 12, 9, 1], [1, -21, 8, 11, 2], [-1, -18, 7, 5, 2], [1, -20, 5, 4, 3]]) R(x + dx + (dy < -18 ? s : 0), y + dy, w, h, L[b]);
+      for (const [dx, dy, b] of [[0, -14, 0], [5, -13, 0], [9, -15, 0], [7, -19, 1], [4, -17, 3], [2, -15, 3], [8, -13, 1], [3, -21, 4], [0, -18, 4], [10, -17, 2]]) leaf(x + dx, y + dy, 3, 1, b);
+      for (const [dx, dy] of [[1, -17], [6, -15], [8, -19], [4, -20], [2, -13]]) { R(x + dx, y + dy, 2, 2, '#f08a24'); R(x + dx, y + dy, 1, 1, '#ffd070'); R(x + dx + 1, y + dy + 1, 1, 1, '#b85418'); }
+    },
+    grass(x, y) { pot(x, y, 15, 5, WD); R(x + 4, y - 4, 1, 4, WD[0]); R(x + 10, y - 4, 1, 4, WD[0]); for (let n = 0; n < 14; n++) { const h = 4 + (n * 7) % 5, s = n % 3 ? 0 : sw(n); R(x + n + (n & 1), y - 5 - (h >> 1), 1, h >> 1, L[1 + n % 2]); R(x + n + (n & 1) + s, y - 5 - h, 1, h - (h >> 1), L[2 + n % 3]); } },
+    berry(x, y) {                                                                                            // strawberries hanging over the pot
+      pot(x, y, 11, 6, CL); leaves(x + 5, y, 2, [[-7, -8, 4, -1, 1], [3, -8, 5, 1, 1], [-5, -10, 4, -1, 2], [1, -10, 4, 1, 2], [-2, -9, 4, 1, 2], [-1, -11, 3, 1, 3]]);
+      for (const [dx, dy] of [[0, -6], [8, -5], [4, -5]]) { R(x + dx, y + dy - 1, 3, 1, L[3]); R(x + dx, y + dy, 3, 2, '#d82a40'); R(x + dx + 1, y + dy + 2, 1, 1, '#a01830'); R(x + dx, y + dy, 1, 1, '#ff8a80'); R(x + dx + 2, y + dy + 1, 1, 1, '#ffe0a0'); }
+      R(x + 2, y - 11, 3, 3, '#ffffff'); R(x + 3, y - 10, 1, 1, '#ffd84a');
+    },
+  };
+  for (const [n, x, y] of layout === 'phone' ? PH_PLANTS : PC_PLANTS) K[n](x, y);
 }
-function drawPlate(at) {
-  if (layout === 'phone') { drawPlants(at || 0); return; }
-  const cx = PLATE_X, y = 175, I = ICE[season], rows = Math.min(4, pileNow());
-  R(cx - 19, y + 2, 38, 1, 'rgba(40,20,30,.35)'); R(cx - 20, y - 2, 40, 2, '#fbf6ee'); R(cx - 18, y, 36, 1, '#d8cfdc'); R(cx - 14, y + 1, 28, 1, '#a99cb0'); R(cx - 20, y - 2, 6, 1, '#ffffff'); R(cx - 15, y - 1, 30, 1, '#e7a3a8');
-  for (let r = 0; r < rows; r++) for (let n = 0; n < 4 - r; n++) {
-    const x = Math.round(cx - (4 - r) * 4.5 + n * 9), yy = y - 6 - r * 4;
-    R(x, yy, 8, 4, '#a8622c'); R(x, yy, 8, 1, '#d99a55'); R(x, yy + 3, 8, 1, '#7c4620'); R(x + 7, yy + 1, 1, 3, '#7c4620');
-    R(x + 1, yy + 1, 6, 1, I.top[0]); R(x + 2, yy + 2, 1, 1, I.top[0]); R(x + 5, yy + 2, 1, 1, I.top[0]); R(x + 3, yy + 1, 2, 1, I.top[1]);
-    if (r === rows - 1) spr(I.t, I.pal, x + 2, yy - 2);
-  }
-  // the gingerbread jumps from the plate into the bag
-  if (bit && bit.name === 'give') for (let n = 0; n < pile; n++) { const q = (bit.u - n * .28) / .45; if (q > 0 && q < 1) { const x = Math.round(cx + (HOME - cx) * q), yy = Math.round(168 + (T_Y - 10 - 168) * q - Math.sin(q * Math.PI) * 12); R(x - 2, yy - 1, 5, 3, '#a8622c'); R(x - 2, yy - 1, 5, 1, I.top[0]); } }
-}
+const PC_PLANTS = [['snake', 108, 171], ['mint', 131, 171], ['lavender', 153, 171], ['ivy', 174, 171], ['tree', 192, 173], ['grass', 92, 177], ['cactus', 118, 177], ['rose', 139, 177], ['berry', 162, 177], ['flower', 182, 177]];
+const PH_PLANTS = [['mint', 149, 172], ['lavender', 160, 172], ['ivy', 173, 172], ['tree', 184, 174], ['cactus', 147, 178], ['berry', 157, 178], ['flower', 171, 178], ['rose', 181, 178]];
+function drawPlate(at) { drawPlants(at || 0); }
 // the cooking minute: the table, the coat, the hat, the cheeks and the air are in flour
 function drawFlour(time, ox, by, view, turn) {
   for (let n = 0; n < 34; n++) R(92 + noise(n) * 40, T_Y + noise(n + 50) * 4, noise(n + 9) > .6 ? 2 : 1, 1, n % 3 ? '#fffaf0' : '#e9dcc8');

@@ -348,7 +348,7 @@ const moonGlow = pool(34, 34, '#dfe6ff', 1), [hatC, hatG] = cv(52, 48); on(hatG,
 // the start of the game: one scene of the three at random (or the named one), the cookie is always the New Year one
 function start(layout, accent, want) {
   const v = want || 'ABC'[Math.floor(Math.random() * 3)], pic = (n) => { const i = new Image(); i.src = 'art/' + n; return i; };
-  const sc = make(v, layout, { accent, cookie: pic('cookie-newyear.png?v=6'), bonya: pic('bonya-day.png?v=2'), cook: Array.from({ length: 8 }, (_, i) => pic('cook-d' + i + '.png?v=1')), kit: v === 'B' ? pic('splash-kitchen.png?v=1') : null });
+  const sc = make(v, layout, { accent, cookie: pic('cookie-newyear.png?v=7'), bonya: pic('bonya-day.png?v=2'), cook: Array.from({ length: 8 }, (_, i) => pic('cook-d' + i + '.png?v=1')), kit: v === 'B' ? pic('splash-kitchen.png?v=1') : null });
   const [c, g] = cv(sc.W, sc.H);
   return { v, frame(el) { sc.draw(g, el); return c; } };
 }

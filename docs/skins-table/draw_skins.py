@@ -188,4 +188,5 @@ def rm(x,y,r,a,v):
     k=(a+3.1416)*8
     if 31.5<r<33.2 and k%1<.3: return mix(LC[int(k)%4],(255,255,255),.45 if h2(x,y)>.6 else 0)
     return pick(hxs('081c1c 0e2c22 16442c 206038 307c46 4c9c58 7cc07c b4e0a8'),v+.3*(h2(x*.7+y,y*.4)-.5)+.06,x,y,.4)
-make('newyear',g,hxs('b4c0e4 d4def4 eef4ff fafcff ffffff'),f,[('flake',-52,24.5,'#ffffff','#bfe4ff'),('flake',180,24.5,'#ffffff','#bfe4ff'),('flake',66,24.5,'#ffffff','#bfe4ff')],rm)
+if False:  # since 1.1.0 the New Year cookie is drawn by draw_newyear.py
+    make('newyear',g,hxs('b4c0e4 d4def4 eef4ff fafcff ffffff'),f,[('flake',-52,24.5,'#ffffff','#bfe4ff'),('flake',180,24.5,'#ffffff','#bfe4ff'),('flake',66,24.5,'#ffffff','#bfe4ff')],rm)

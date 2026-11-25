@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.401-PHONE';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.1.0-PHONE';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const SCENE_CROP_X = (W - 180) / 2;   // the phone screen shows the middle 180 px of the scene
@@ -180,7 +180,7 @@
     { kind: 'premium', id: 'skin_halloween', name: 'ХЭЛЛОУИН', line: 'ЛЕТУЧИЕ МЫШИ', price: '1 ГОЛОС' },
     { kind: 'premium', id: 'skin_easter', name: 'ПАСХАЛЬНЫЙ', line: 'ЯЙЦА И ЛЕПЕСТКИ', price: '1 ГОЛОС' },
     { kind: 'premium', id: 'skin_zefir', name: 'ЗЕФИРНЫЙ', line: 'ОБЛАКО И СЕРДЦА', price: '1 ГОЛОС' },
-    { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ', line: 'ЁЛКИ И ОЛЕНЬ', price: '1 ГОЛОС' },
+    { kind: 'premium', id: 'skin_newyear', name: 'НОВОГОДНИЙ', line: 'ЁЛКА И САНИ', price: '1 ГОЛОС' },
     { kind: 'premium', id: 'skins_all', name: 'ВСЕ СКИНЫ', line: 'СЕЙЧАС: 1 СКИН', price: '5 ГОЛОСОВ' },
   ];
   // the units after a million, each a thousand times the one before; after the last one the number is written as 1.23Е48
@@ -212,7 +212,7 @@
     skin_ghost: { name: 'ПРИЗРАЧНЫЙ', lines: ['ДУХИ И ТУМАН', 'НАВСЕГДА'] },
     skin_rainbow: { name: 'РАДУЖНЫЙ', lines: ['ДУГА И КОНФЕТТИ', 'НАВСЕГДА'] },
     skin_starry: { name: 'ЗВЁЗДНАЯ НОЧЬ', lines: ['ЗВЁЗДЫ И ЛУНА', 'НАВСЕГДА'] },
-    skin_newyear: { name: 'НОВОГОДНИЙ', lines: ['ЁЛКИ И ОЛЕНЬ', 'НАВСЕГДА'] },
+    skin_newyear: { name: 'НОВОГОДНИЙ', lines: ['ЁЛКА И САНИ', 'НАВСЕГДА'] },
     skin_zefir: { name: 'ЗЕФИРНЫЙ', lines: ['ОБЛАКО И СЕРДЦА', 'НАВСЕГДА'] },
     skin_caramel: { name: 'КАРАМЕЛЬНЫЙ', lines: ['КАПЛИ И ЛУЖИЦА', 'НАВСЕГДА'] },
     skin_gzhel: { name: 'ГЖЕЛЬ', lines: ['СИНИЕ УЗОРЫ', 'НАВСЕГДА'] },
@@ -478,7 +478,7 @@
     { id: 'halloween', name: 'ХЭЛЛОУИН', src: 'art/cookie-halloween.png?v=2', ready: true, premium: true },
     { id: 'easter', name: 'ПАСХАЛЬНЫЙ', src: 'art/cookie-easter.png?v=2', ready: true, premium: true },
     { id: 'zefir', name: 'ЗЕФИРНЫЙ', src: 'art/cookie-zefir.png?v=1', ready: true, premium: true },
-    { id: 'newyear', name: 'НОВОГОДНИЙ', src: 'art/cookie-newyear.png?v=6', ready: true, premium: true },
+    { id: 'newyear', name: 'НОВОГОДНИЙ', src: 'art/cookie-newyear.png?v=7', ready: true, premium: true },
   ];
   // skins are owned: the plain one from the start, the others come from the daily reward (day 1 gives skin 2, day 2 skin 3, ...)
   const skinOwned = { classic: true };
@@ -1450,7 +1450,6 @@
     if (skinAdViews[id] >= skinAdNeed(k)) { skinOwned[id] = true; skinAdViews[id] = 0; sfxBuy(); offerSkin(id); }
     saveGame();
   }
-  // the reindeer: it comes out of nothing (transparent to solid), flies across the cookie with its sleigh, and fades away
   // a fir tree with three tiers: each tier has a dark edge, snow along its lower edge, and ornaments
   // a fir tree from a pixel map, 15 px wide and 19 px tall: a pointed top, three stepped tiers that widen downwards,
   // dark green edges, snow on the branch tips, red / blue / gold ornaments, a blinking star, and a trunk
@@ -1542,9 +1541,6 @@
     fillRect(sx - R(3), base - R(14) + 3, R(7), 1, '#D83A3A');        // scarf (3 px lower)
     fillRect(sx + R(3) + wave, base - R(13) + 3, 2, 2, '#D83A3A');    // the scarf end waves (3 px lower)
   }
-  // the reindeer: it comes out of nothing (transparent to solid), flies across the cookie with its sleigh, and fades away
-  // the reindeer: it comes out of nothing (transparent to solid), flies across the cookie with its sleigh, and fades away
-  // the reindeer: it comes out of nothing (transparent to solid), flies across the cookie with its sleigh, and fades away
   // the fish: swim from one end of the cookie to the other, wobbling, then fade away; three shapes
   function drawFishes() {
     for (const f of fishes) {
@@ -1583,81 +1579,45 @@
     }
     ctx.globalAlpha = 1;
   }
+  // the sleigh of Santa with two reindeer: in the game it flies across the whole screen, in the preview it fades in and out
   function drawDeers() {
+    const D = ['...........a..a..a.', '...........aa.aaa..', '............aaaa...', '............bab....', '...........ebBBb...', '............bBkBB..', '...........bbBBBBn.', '...........bBbbww..', 'w.........RRBb.....', 'wbbBBBBBBBRYbb.....', '.bBBBBBBBBRBbb.....', '.bBBBBBBBBRBbb.....', '.bbbbwwwwwbRb......'];
+    const L = [['.bb.bb....bb.bb....', 'bb...bb..bb...bb...', 'k.....k..k.....k...'], ['..bbb......bbb.....', '...bb......bb......', '...kk.....kk.......']];
+    const pal = { a: '#E8C890', b: '#8A4E24', B: '#B87038', e: '#6A381C', k: '#2A1620', w: '#FFF0D8', n: '#FF4040', R: '#D82A40', Y: '#FFD860' };
+    const SL = ['..........RRR.............', '.........LRRRr............', '........LRRRRrr...........', '.......WWWWWWW............', '...gG..WSSkSSn............', '..gGGg..SSSSS.............', '.GBBBBg.WWWWWW............', 'GBBYBBBgWWWWWWR...........', 'BBBYBBbLRWWWWRRrMM........', 'BBYYYBbRRRWWRRrrMM........', 'bBBYBBbRRRKKRRr...........', 'YYYYYYYYYYYYYYYYYYYY...YY.', '.RLLLLLLLLLLLRRRRRRR..YY.Y', '.RRYRRRYRRRYRRRYRRRRRRR..Y', '..RRRRRRRRRRRRRRRRRrrr....', '...rrrrrrrrrrrrrrrrrr.....', '.....y....y.....y..y......', 'y...yyyyyyyyyyyyyyyyyyy...', '.yyyyyyyyyyyyyyyyyyyyyyyy.'];
+    const sp = { R: '#D82A40', L: '#FF7A70', r: '#8A1030', W: '#FFFFFF', S: '#F4C49A', k: '#2A1620', n: '#E88A78', g: '#8A5A24', G: '#E0B070', B: '#A8743C', b: '#6A4424', Y: '#FFD860', M: '#3A8A54', K: '#2A1620', y: '#E8A830' };
     for (const d of deers) {
-      const k = d.t / 4;
-      const inPreview = d.ax === 160 && d.ay === 67;
-      const span = inPreview ? 90 : 120;
-      const u = k * 2 - 1;
-      const bob = Math.round(Math.sin(d.t * 10) * 1);
-      const px_ = Math.round(d.ax + u * span), py_ = Math.round(d.ay + d.dy + bob);
-      const ux = 1, uy = 0.08 * (d.dy >= 0 ? 1 : -1);
-      const n = Math.hypot(ux, uy), fx = ux / n, fy = uy / n;
-      const alpha = Math.min(1, d.t / 0.8) * Math.min(1, (4 - d.t) / 0.8);
-      ctx.globalAlpha = Math.max(0, alpha);
-      const SC = 0.7;   // the reindeer is drawn at 70% of its size
-      const P = (lx, ly) => [Math.round(px_ + fx * lx * SC - fy * ly * SC), Math.round(py_ + fy * lx * SC + fx * ly * SC)];
-      const put = (lx, ly, w, h, col) => { const [x, y] = P(lx, ly); fillRect(x, y, Math.max(1, Math.round(w * SC)), Math.max(1, Math.round(h * SC)), col); };
-      const sb = Math.round(Math.sin(d.t * 12 + 1) * 0.8);
-      // the sleigh: a bigger gold body with a red rim, a curled front, runners, and a gift with a bow
-      put(-38, -3 + sb, 17, 1, '#D83A3A');
-      put(-38, -2 + sb, 17, 4, '#D4A02A');
-      put(-40, -5 + sb, 2, 3, '#D4A02A');
-      put(-40, -6 + sb, 1, 1, '#D83A3A');
-      put(-38, 2 + sb, 19, 1, '#B8B8B8');
-      put(-40, 1 + sb, 2, 1, '#B8B8B8');
-      put(-36, -7 + sb, 5, 4, '#D83A3A');
-      put(-34, -7 + sb, 1, 4, '#FFD84A');
-      put(-36, -4 + sb, 5, 1, '#FFD84A');
-      put(-35, -9 + sb, 1, 2, '#FFD84A');
-      put(-33, -9 + sb, 1, 2, '#FFD84A');
-      put(-30, -4 + sb, 4, 1, '#FFFFFF');
-      // the rope from the reindeer to the sleigh
-      put(-18, -1, 10, 1, '#6B3A18');
-      // trailing sparkles
-      for (let s = 1; s <= 3; s++) {
-        ctx.globalAlpha = (alpha * 0.6) / s;
-        put(-43 - s * 3, -1 + (s % 2), 1, 1, '#FFFFFF');
+      const prev = d.ax === 160 && d.ay === 67, T = 7, k = d.t / T, span = prev ? 60 : 250;
+      const x0 = Math.round(160 + (k * 2 - 1) * span - 38), y0 = Math.round(d.ay - (prev ? 6 : 34) + d.dy * 0.35 - Math.sin(k * Math.PI) * 10);
+      const alpha = prev ? Math.max(0, Math.min(1, d.t / 0.8, (T - d.t) / 0.8)) : 1;
+      for (let i = 0; i < 26; i++) {                                              // the golden dust behind the sleigh
+        const q = (cookT * 0.9 + i / 26) % 1, r = Math.sin(i * 47.3) * 99.7, v = r - Math.floor(r);
+        ctx.globalAlpha = alpha * (1 - q) * 0.95; const sx = Math.round(x0 - 2 - q * (prev ? 24 : 46)), sy = Math.round(y0 + 15 + (v - 0.5) * 12 * (0.3 + q) + q * 7);
+        fillRect(sx, sy, q < 0.4 && (i & 1) ? 2 : 1, 1, ['#FFFFFF', '#FFE27A', '#F4B428'][i % 3]); if (i % 7 === 0) fxStar(sx, sy, (1 - q) * 0.9, '#FFFFFF', '#FFE27A');
       }
-      ctx.globalAlpha = Math.max(0, alpha);
-      // the reindeer: body with a lighter belly, neck, head with a snout, an eye, a red nose, ears, antlers, a tail, legs
-      put(-6, -3, 9, 4, '#9A5A2A');
-      put(-6, 1, 9, 1, '#C98A4A');
-      put(2, -6, 3, 4, '#9A5A2A');
-      put(4, -8, 5, 4, '#9A5A2A');
-      put(8, -6, 2, 2, '#C98A4A');
-      put(9, -5, 1, 1, '#FF3A3A');
-      put(6, -7, 1, 1, '#2A1A0A');
-      put(4, -10, 1, 2, '#5A3A1A');
-      const sway = Math.round(Math.sin(d.t * 6));
-      put(5 + sway, -13, 1, 3, '#5A3A1A');
-      put(3 + sway, -14, 1, 2, '#5A3A1A');
-      put(7 + sway, -14, 1, 2, '#5A3A1A');
-      put(4 + sway, -15, 1, 1, '#5A3A1A');
-      put(-7, -2, 1, 2, '#FFFFFF');
-      // legs: two pixels thick, tapering to dark hooves; they trot in pairs, and each one hangs from the body or chest
-      const trot = Math.sin(d.t * 14) > 0;
-      const legs = [[-5, trot ? 4 : 3], [-2, trot ? 3 : 4], [1, trot ? 4 : 3], [3, trot ? 3 : 4]];
-      for (const [lx, len] of legs) {
-        put(lx, 2, 2, len - 1, '#6B3A18');
-        put(lx, 2 + len - 1, 2, 1, '#2A1A0A');
+      ctx.globalAlpha = alpha;
+      const bob = (n) => Math.round(Math.sin(d.t * 5 + n * 1.1) * 1.4);
+      ctx.drawImage(fxMap('nySleigh', SL, sp), x0, y0 + bob(0));
+      fillRect(x0 + 18, y0 + 9 + bob(0), 45, 1, '#7C4410');                       // the reins
+      for (let n = 0; n < 2; n++) {
+        const f = (Math.floor(d.t * 7) + n) & 1, dx = x0 + 28 + n * 23, dy = y0 - 1 + bob(n + 1);
+        ctx.drawImage(fxMap('nyDeer' + f, D.concat(L[f]), pal), dx, dy);
+        if (n) { fillRect(dx + 16, dy + 5, 3, 3, 'rgba(255, 70, 60, ' + (0.3 + 0.25 * Math.sin(cookT * 8)).toFixed(2) + ')'); fillRect(dx + 17, dy + 6, 1, 1, '#FF5048'); }
       }
-      // the chest joins the front legs to the body
-      put(0, -1, 5, 3, '#9A5A2A');
-      put(0, 1, 5, 1, '#C98A4A');
+      ctx.globalAlpha = 1;
     }
-    ctx.globalAlpha = 1;
   }
   // the new year snow: falls over the whole background, drifting from side to side
   function drawSnowFull() {
-    for (let i = 0; i < 46; i++) {
-      const speed = 10 + (i % 5) * 4;
-      const x = ((i * 53) % 330) - 5 + Math.sin(cookT * 1.5 + i) * 3;
-      const y = ((cookT * speed + i * 29) % 190) - 5;
-      const big = i % 4 === 0;
-      ctx.globalAlpha = 0.5 + 0.4 * ((i % 3) / 2);
-      fillRect(Math.round(x), Math.round(y), big ? 2 : 1, big ? 2 : 1, i % 5 === 0 ? '#CFEFFF' : '#FFFFFF');
-    }
+    // three depths: small far flakes, middle ones, and big near flakes of six rays; every flake has its own column, so the whole width is even
+    const big = fxMap('nyFlake', ['..x..', 'x.x.x', '.xox.', 'x.x.x', '..x..'], { x: '#FFFFFF', o: '#CFE8FF' });
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();   // the phone's canvas is taller than the scene
+    const layer = (n, sp, f) => { for (let i = 0; i < n; i++) { const r = Math.sin(i * 91.7 + n) * 4758.5, q = r - Math.floor(r), v = sp * (0.8 + q * 0.5); f(Math.round((i + q) * W / n + Math.sin(cookT * (0.6 + q) + i * 2.1) * (sp / 4)), Math.round((cookT * v + q * 977 + i * 61) % (H + 10)) - 5, i); } };
+    layer(90, 13, (x, y) => { ctx.globalAlpha = 0.75; fillRect(x, y, 1, 1, '#E4EEFF'); });
+    ctx.globalAlpha = 0.95;
+    layer(60, 21, (x, y, i) => { fillRect(x + 1, y + 1, 2, 2, 'rgba(52, 48, 100, 0.3)'); fillRect(x, y, 2, 2, '#FFFFFF'); if (i & 1) fillRect(x + 1, y + 1, 1, 1, '#CFE0FA'); });
+    layer(14, 30, (x, y) => { fillRect(x, y + 1, 5, 4, 'rgba(52, 48, 100, 0.18)'); ctx.drawImage(big, x - 1, y - 1); });
+    ctx.restore();
     ctx.globalAlpha = 1;
   }
   // the ghosts of the ghost skin: a 9x9 pixel ghost, see-through, rising and wobbling as it fades out
@@ -1859,6 +1819,53 @@
       ctx.globalAlpha = 1;
     }
   }
+  // ---- the New Year skin: the fir tree, the snowman and the gifts at the sides of the cookie
+  const nyTree = () => fxArt('nyTree', 27, 39, (P) => {
+    const T = ['#06201E', '#0C3428', '#165036', '#247048', '#46985A', '#86C474'], rnd = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5; return v - Math.floor(v); };
+    for (let y = 33; y < 38; y++) for (let x = 11; x < 16; x++) P(x, y, ['#93694B', '#7C5238', '#6B4030', '#55302A', '#3C2024'][x - 11]);
+    [[4, 13, 7], [10, 23, 10], [18, 35, 13]].forEach(([y0, y1, w], n) => {
+      for (let y = y0; y < y1; y++) {
+        const q = (y - y0) / (y1 - y0), half = Math.min(13, Math.round(1 + q * (w - 1)));
+        for (let x = -half; x <= half; x++) {
+          if (y === y1 - 1 && rnd(x, n) < 0.35) continue;
+          let v = 3.2 - (x / w) * 1.6 - q * 1.3 + (rnd(x, y) - 0.5) * 1.6; if (Math.abs(x) >= half) v = x < 0 ? 1.6 : 0;
+          P(13 + x, y, T[Math.max(0, Math.min(5, Math.round(v)))]);
+        }
+        if (q < 0.45) for (let x = -half; x < 0; x++) if (rnd(x, y + 40) < 0.45 - q * 0.6) P(13 + x, y, x < -half + 2 ? '#FFFFFF' : '#DCE8FA');   // the snow on the branches
+      }
+    });
+    [[10, 11], [15, 18], [8, 20], [18, 29], [11, 27], [5, 32], [14, 33], [21, 33]].forEach(([x, y], i) => { const c = [['#FFC0B8', '#E83048', '#8A1030'], ['#FFF6C8', '#F4B428', '#A86018'], ['#C8E8FF', '#3A86F0', '#1C3C9C']][i % 3]; P(x, y, c[0]); P(x + 1, y, c[1]); P(x, y + 1, c[1]); P(x + 1, y + 1, c[2]); });
+    for (const [x, y, c] of [[13, 0, '#FFF6C8'], [13, 1, '#FFE27A'], [12, 2, '#FFE27A'], [13, 2, '#FFFFFF'], [14, 2, '#F0A828'], [11, 2, '#FFE27A'], [15, 2, '#F0A828'], [12, 3, '#FFD84A'], [13, 3, '#FFD84A'], [14, 3, '#F0A828'], [12, 4, '#F0A828'], [14, 4, '#C87A1C']]) P(x, y, c);
+  });
+  const nyMan = () => fxArt('nyMan', 23, 29, (P) => {
+    const T = ['#7C8CC4', '#A8B8E4', '#D0DCF6', '#F0F5FF', '#FFFFFF'];
+    const ball = (cx, cy, r) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) { const d = x * x + y * y; if (d > r * r + 1) continue; const v = 0.62 - (x + y) / (r * 2.9) + ((x + y) & 1 ? 0.05 : -0.05) + (d > r * r - r && x + y > r * 0.6 ? 0.12 : 0); P(cx + x, cy + y, T[Math.max(0, Math.min(4, Math.floor(v * 5)))]); } };
+    ball(11, 21, 7); ball(11, 11, 5);
+    for (let i = 0; i < 5; i++) { P(3 - (i >> 1), 18 - i, '#5A3A24'); P(19 + (i >> 1), 18 - i, '#7A5034'); } P(0, 15, '#5A3A24'); P(22, 15, '#7A5034');
+    for (const [x, y] of [[9, 10], [13, 10]]) { P(x, y, '#1C1A2A'); P(x, y + 1, '#1C1A2A'); }
+    for (const [x, y, c] of [[11, 11, '#FFB04C'], [12, 11, '#F0841E'], [13, 12, '#D0661E'], [12, 12, '#F0841E'], [8, 12, '#FFB4C0'], [14, 13, '#F8B0C0'], [10, 14, '#4A4468'], [11, 14, '#4A4468'], [12, 14, '#4A4468']]) P(x, y, c);
+    for (let x = 6; x < 17; x++) { P(x, 15, x < 10 ? '#FF7A70' : x < 14 ? '#E03A48' : '#B81C34'); P(x, 16, x & 1 ? '#FFF2E0' : '#B81C34'); }
+    for (let y = 17; y < 22; y++) for (let x = 14; x < 17; x++) P(x, y, y === 21 ? (x & 1 ? '#FFF2E0' : '#B81C34') : x === 14 ? '#E03A48' : x === 15 ? '#C8283C' : '#8A1030');
+    for (const y of [19, 23]) { P(10, y, '#3A3454'); P(11, y, '#1C1A2A'); }
+    for (let x = 6; x < 17; x++) { P(x, 6, x < 14 ? '#FFFFFF' : '#D0DCF6'); P(x, 7, x < 12 ? '#F0F5FF' : '#B8C8EC'); }
+    for (let y = 1; y < 6; y++) for (let x = 7 + (y < 3 ? 2 : 0) + (y < 2 ? 1 : 0); x < 16 + (y < 4 ? 1 : 0); x++) P(x, y, x < 10 ? '#FF7A70' : x < 13 ? '#E03A48' : x < 15 ? '#B81C34' : '#7C0E28');
+    for (const [x, y, c] of [[17, 3, '#FFFFFF'], [18, 3, '#F0F5FF'], [17, 4, '#F0F5FF'], [18, 4, '#B8C8EC']]) P(x, y, c);
+  });
+  const nyGift = (w, h, c, r) => fxArt('nyGift' + w + h + c[0], w + 2, h + 4, (P) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) P(x + 1, y + 4, x === w - 1 || y === h - 1 ? c[2] : x === 0 || y === 2 ? c[0] : c[1]);
+    for (let x = 0; x < w + 2; x++) { P(x, 4, c[0]); P(x, 5, x > w - 1 ? c[2] : c[1]); if (x && x < w + 1) P(x, 6, c[2]); }
+    const m = (w >> 1) + 1; for (let y = 4; y < h + 4; y++) { P(m, y, r[1]); P(m - 1, y, r[0]); }
+    for (const [x, y, q] of [[-3, 2, 1], [-3, 1, 0], [-2, 1, 0], [-2, 3, 1], [-1, 2, 0], [-1, 3, 1], [0, 3, 1], [1, 2, 0], [2, 1, 0], [2, 3, 1], [1, 3, 1], [-2, 2, 2], [2, 2, 1]]) P(m + x, y, r[q]);
+  });
+  function nyScene(cx, base) {
+    const T = cx + 46, M = cx - 70, RD = ['#FF7A70', '#E03A48', '#8A1030'], GD = ['#FFF2B0', '#F4B428', '#A86018'], BL = ['#8AC0FF', '#3A7AD8', '#1C3C8C'], GR = ['#8ADCA0', '#38A05C', '#1C5C3C'], WH = ['#FFFFFF', '#E4ECFA', '#A8B8E0'];
+    for (const [x0, x1] of [[-76, -30], [30, 78]]) for (let x = x0; x <= x1; x++) { const e = Math.min(1, (x - x0) / 8, (x1 - x) / 8), q = Math.round(e * (2.2 + Math.sin(x * 0.31) + Math.sin(x * 0.13 + 1) * 0.8)); if (q > 0) { fillRect(cx + x, base - q + 1, 1, q, '#E6EEFC'); fillRect(cx + x, base - q + 1, 1, 1, '#FFFFFF'); fillRect(cx + x, base + 1, 1, 1, '#9CB0DC'); } }
+    ctx.drawImage(nyTree(), T, base - 37);
+    [[8, 13], [17, 14], [12, 17], [6, 25], [19, 24], [14, 29], [9, 32], [22, 31]].forEach(([x, y], i) => { const a = Math.sin(cookT * 3 + i * 1.7); if (a > 0) { const c = ['255, 90, 90', '255, 216, 74', '90, 224, 255'][i % 3]; fillRect(T + x - 1, base - 38 + y, 3, 3, 'rgba(' + c + ', ' + (a * 0.4).toFixed(2) + ')'); fillRect(T + x, base - 37 + y, 1, 1, a > 0.6 ? '#FFFFFF' : 'rgb(' + c + ')'); } });
+    fxStar(T + 13, base - 35, 0.6 + 0.4 * Math.sin(cookT * 4), '#FFFFFF', '#FFE27A');
+    ctx.drawImage(nyMan(), M, base - 27);
+    for (const [g, x] of [[nyGift(9, 8, RD, GD), -47], [nyGift(7, 6, BL, WH), -37], [nyGift(8, 7, GD, RD), 36], [nyGift(7, 5, GR, WH), 68]]) ctx.drawImage(g, cx + x, base + 1 - g.height);
+  }
   function drawNewFx(id, cx, cy, rx, ry, echo) {
     if (id === 'crystal') {
       // a glint runs round the rim; faceted crystals of five tones grow out of it; ice dust falls
@@ -1977,41 +1984,18 @@
       });
       ctx.drawImage(moon, Math.round(cx + rx * 0.75) - 10, Math.round(cy - ry - 9 + Math.sin(cookT * 0.5) * 2) - 10);
     } else if (id === 'newyear') {
-      // falling snow, trees with a blinking star and a garland of lights, a snowman with a waving scarf, gifts
-      const base = Math.round(cy + ry + 3);
-      const trees = [Math.round(cx - rx * 0.8), Math.round(cx - rx * 0.4)];
-      for (const tx of trees) drawTree(tx, base);
-      fillRect(trees[0], base - 19, 1, 2, Math.sin(cookT * 6) > 0 ? '#FFD84A' : '#FFFFFF');   // the star blinks
-      const gcols = ['#FF3A3A', '#3AFF6A', '#FFD84A', '#4AB8FF'];
-      for (let i = 0; i <= 8; i++) {
-        const t = i / 8;
-        const lx = Math.round(trees[0] + (trees[1] - trees[0]) * t);
-        const ly = Math.round(base - 14 + Math.sin(t * Math.PI) * 3);
-        ctx.globalAlpha = Math.sin(cookT * 5 + i) > 0 ? 1 : 0.3;
-        fillRect(lx, ly, 1, 1, gcols[i % gcols.length]);
-      }
-      ctx.globalAlpha = 1;
-      for (let x = -Math.round(rx * 1.65); x <= rx * 1.75; x++) { const q = 1 + Math.round(1.2 + Math.sin(x * 0.21) + Math.sin(x * 0.09 + 1) * 0.8); fillRect(Math.round(cx + x), base - q + 1, 1, q + 1, '#DCE8FA'); fillRect(Math.round(cx + x), base - q + 1, 1, 1, '#FFFFFF'); fillRect(Math.round(cx + x), base + 2, 1, 1, '#9CB0DC'); }   // a drift of snow
-      drawSnowman(Math.round(cx + rx * 0.95), base, true);
-      drawSnowman(Math.round(cx + rx * 1.55), base, false);
-      // gifts of different colours and sizes, in a row on the floor
-      const gifts = [
-        [cx - rx * 1.5, 6, '#D83A3A', '#FFD84A'],
-        [cx - rx * 1.25, 8, '#3A7AD8', '#F4F4F4'],
-        [cx - rx * 1.02, 5, '#3AAA5A', '#FF5A8A'],
-        [cx - rx * 0.78, 7, '#9A3AD8', '#FFD84A'],
-      ];
-      for (const [gxf, size, col, ribbon] of gifts) {
-        const gx = Math.round(gxf), gy = base - size;
-        fillRect(gx, gy, size, size, col);
-        ctx.globalAlpha = 0.4; fillRect(gx, gy, size, 1, '#FFF6D8'); fillRect(gx, gy, 1, size, '#FFF6D8'); fillRect(gx + size - 1, gy + 1, 1, size - 1, '#1C1A4A'); fillRect(gx, gy + size - 1, size, 1, '#1C1A4A'); ctx.globalAlpha = 1;   // the light and the cold shadow of the box
-        fillRect(gx + Math.floor(size / 2) - 0, gy, 1, size, ribbon);      // the ribbon across the box
-        fillRect(gx, gy + Math.floor(size / 2), size, 1, ribbon);
-        fillRect(gx + Math.floor(size / 2) - 1, gy - 2, 1, 2, ribbon);     // the bow
-        fillRect(gx + Math.floor(size / 2) + 1, gy - 2, 1, 2, ribbon);
-        if (Math.sin(cookT * 7 + gx) > 0.6) fillRect(gx + 1, gy + 1, 1, 1, '#FFFFFF');   // a glint on the box
-      }
-    } else if (id === 'solar') {
+      // the lamps on the spruce blink, the snow twinkles; a fir tree, a snowman and gifts stand at the sides
+      const m = fxMask, k = m ? m.w / 74 : 1, kh = m ? m.h / 74 : 1, ox = m ? m.ox : cx - 37, oy = m ? m.oy : cy - 37;
+      const LC = [['#FF5A5A', '255, 90, 90'], ['#FFD84A', '255, 216, 74'], ['#5AE0FF', '90, 224, 255'], ['#FF8AE4', '255, 138, 228']];
+      if (ry === 40 || cx === 160) nyScene(cx, Math.round(cy + ry + 7));   // no room for it beside the text of the purchase window
+      [[65, 50], [60, 58], [53, 63], [45, 67], [36, 68], [27, 67], [19, 63], [12, 58], [7, 50], [5, 42], [4, 33], [63, 20]].forEach(([lx, ly], i) => {
+        const on = Math.sin(cookT * 2.6 + (i % 4) * 1.57), x = Math.round(ox + lx * k), y = Math.round(oy + ly * kh), c = LC[i % 4][1];
+        if (on <= 0) { ctx.globalAlpha = Math.min(1, -on * 1.2) * 0.65; fillRect(x, y, 2, 2, '#2A1636'); ctx.globalAlpha = 1; return; }
+        fillRect(x - 2, y, 6, 2, 'rgba(' + c + ', ' + (0.35 * on).toFixed(2) + ')'); fillRect(x, y - 2, 2, 6, 'rgba(' + c + ', ' + (0.35 * on).toFixed(2) + ')'); fillRect(x - 1, y - 1, 4, 4, 'rgba(' + c + ', ' + (0.45 * on).toFixed(2) + ')');
+        fillRect(x, y, 2, 2, LC[i % 4][0]); if (on > 0.5) fillRect(x, y, 1, 1, '#FFFFFF');
+      });
+      [[25, 4], [44, 3], [56, 8], [46, 44], [14, 20], [34, 64], [11, 35]].forEach(([sx, sy], i) => { const tw = Math.sin(cookT * 1.9 + i * 2.2); if (tw > 0.45) fxStar(ox + sx * k, oy + sy * kh, (tw - 0.45) * 1.8, '#FFFFFF', i > 3 ? '#FFE9A0' : '#CFE8FF'); });
+} else if (id === 'solar') {
       // a sun in the middle, and eight planets orbiting it on tilted tracks: each one moves at its own speed
       const PL = [
         { r: 1.2, s: 2.2, c: '#A9A9A9', n: 1 },                          // Mercury
@@ -2215,23 +2199,38 @@
       }
       ctx.globalAlpha = 1;
     } else if (id === 'caramel') {
-      // a pool under the cookie with rings on it; eight glossy drips grow, stretch and fall as drops
-      const py = Math.round(cy + ry + 6), pw = Math.round(rx * 0.62);
-      for (let y = 0; y < 5; y++) { const w = Math.round(pw * [0.72, 0.95, 1, 0.9, 0.6][y]); fillRect(Math.round(cx) - w, py + y, w * 2 + 1, 1, ['#FFD070', '#E89A2C', '#C87A1C', '#A45A14', '#6E3410'][y]); }
-      const rp = (cookT * 0.7) % 1, rw = Math.round(pw * rp);
-      ctx.globalAlpha = 1 - rp; fillRect(Math.round(cx) - rw, py + 1, 4, 1, '#FFE9B0'); fillRect(Math.round(cx) + rw - 4, py + 1, 4, 1, '#FFE9B0'); ctx.globalAlpha = 1;
-      fillRect(Math.round(cx) - Math.round(pw * 0.6), py + 1, 6, 1, '#FFF4CC');
-      for (let i = 0; i < 8; i++) {
-        const a = Math.PI * (0.15 + i * 0.1), sx = Math.round(cx + Math.cos(a) * rx * 0.9), sy = Math.round(cy + Math.sin(a) * ry * 0.9);
-        const ph = (cookT * 0.22 + i * 0.37) % 1, grow = Math.min(1, ph / 0.7), len = 2 + Math.round(grow * grow * 9);
-        const L = ph > 0.7 ? Math.max(2, Math.round(len * (1 - (ph - 0.7) * 2.6))) : len;
-        fillRect(sx - 1, sy, 4, 2, '#D4841F');
-        fillRect(sx, sy, 2, L, '#E89A2C'); fillRect(sx, sy, 1, L, '#FFD070'); fillRect(sx + 1, sy + 1, 1, L, '#A45A14');
-        const by = ph > 0.7 ? sy + len + Math.round((ph - 0.7) * (ph - 0.7) * 420) : sy + L;
-        if (by < py + 2 && ph > 0.2) { fillRect(sx - 1, by, 4, 3, '#E89A2C'); fillRect(sx, by - 1, 2, 5, '#E89A2C'); fillRect(sx - 1, by, 1, 2, '#FFD070'); fillRect(sx, by, 1, 1, '#FFFFFF'); fillRect(sx + 2, by + 1, 1, 2, '#A45A14'); fillRect(sx, by + 3, 2, 1, '#A45A14'); }
+      // the caramel runs from the very edge of the cookie: the drips grow, stretch and fall into the pool right under it
+      const m = fxMask, sx0 = m ? m.ox : Math.round(cx - 37), sy0 = m ? m.oy : Math.round(cy - 37), mw = m ? m.w : 74, mh = m ? m.h : 74;
+      const solid = (x, y) => m ? x >= 0 && y >= 0 && x < mw && y < mh && m.data[(y * mw + x) * 4 + 3] > 0 && m.data[(y * mw + x) * 4] > 40 : false;
+      // the pool is a flat blob: on the floor in the game, right under the cookie in the preview windows
+      const rows = 7, py = ry === 40 ? cy + 48 : sy0 + mh + 1, mid = Math.round(cx) - (ry === 40 ? 1 : 3), pw = 31, my = (rows - 1) / 2, top = py + Math.round(my);
+      const edge = (y, side) => { const t = (y - my) / (my + 0.4), w = 1 - t * t; return w <= 0 ? -1 : Math.round(pw * Math.pow(w, 0.42) + Math.sin(y * 1.3 + side * 2.2)); };
+      const row = (y, d, col, dy) => { const l = edge(y, 1) - d, r = edge(y, 2) - d; if (l + r >= 0) fillRect(mid - l, py + y + (dy || 0), l + r + 1, 1, col); };
+      for (let y = 0; y < rows; y++) row(y, 0, 'rgba(42, 20, 40, 0.35)', 1);
+      for (let y = 0; y < rows; y++) row(y, 0, y < my * 0.5 ? '#F4B84A' : y < my * 1.4 ? '#C87A1C' : '#8A4612');               // the rim: lit at the far side, dark at the near one
+      for (let y = 1; y < rows - 1; y++) row(y, 2, y < my * 0.6 ? '#E8A030' : y < my * 1.3 ? '#D88C24' : y < my * 1.7 ? '#C87A1C' : '#B0661A');
+      for (let k = 0; k < 2; k++) {                                                                                           // the rings of the drops
+        const q = (cookT * 0.5 + k * 0.5) % 1, a = pw * 0.62 * q, b = my * 0.62 * q, ox = k ? Math.round(pw * 0.2) : -Math.round(pw * 0.2);
+        ctx.globalAlpha = (1 - q) * 0.8; for (let n = 0; n < 40; n++) { const u = n * 0.157; fillRect(Math.round(mid + ox + Math.cos(u) * a), Math.round(top + Math.sin(u) * b), 1, 1, '#FFE09A'); }
       }
-      for (let i = 0; i < 4; i++) { const tw = Math.sin(cookT * 2.4 + i * 1.7); if (tw > 0) fxStar(cx + Math.cos(i * 1.6 - 2.4) * rx * 0.9, cy + Math.sin(i * 1.6 - 2.4) * ry * 0.9, tw, '#FFFFFF', '#FFE09A'); }
-    } else if (id === 'sea') {
+      ctx.globalAlpha = 1;
+      fillRect(mid - Math.round(pw * 0.7), py + 2, 5, 1, '#FFF4CC');
+      // [the column of the cookie in 74ths, 1: a drip of the upper arm into the hole]
+      [[13, 0], [20, 0], [27, 0], [35, 0], [42, 0], [49, 0], [56, 0], [28, 1], [38, 1], [46, 1], [59, 1]].forEach(([u, inner], i) => {
+        const ux = Math.round(u * mw / 74); let uy = inner ? Math.round(mh * 0.1) : mh - 1;
+        if (inner) { while (uy < mh && !solid(ux, uy)) uy++; while (uy < mh && solid(ux, uy)) uy++; uy--; } else while (uy > 0 && !solid(ux, uy)) uy--;
+        if (uy <= 0 || (uy >= mh - 1 && inner)) return;
+        let floor = top; if (inner) { let f = uy + 5; while (f < mh && !solid(ux, f)) f++; if (f >= mh) return; floor = sy0 + f + 1; }
+        const sx = sx0 + ux, sy = sy0 + uy - 1;
+        const ph = (cookT * 0.2 + i * 0.37) % 1, grow = Math.min(1, ph / 0.7), max = Math.min(9, Math.max(3, floor - sy - 3)), len = 2 + Math.round(grow * grow * (max - 2));
+        const D = ph > 0.7 ? Math.max(2, Math.round(len * (1 - (ph - 0.7) * 2.6))) : len;
+        fillRect(sx - 1, sy, 4, 2, '#D4841F');
+        fillRect(sx, sy, 2, D, '#E89A2C'); fillRect(sx, sy, 1, D, '#FFD070'); fillRect(sx + 1, sy + 1, 1, D, '#A45A14');
+        const by = ph > 0.7 ? sy + len + Math.round((ph - 0.7) * (ph - 0.7) * 420) : sy + D;
+        if (by < floor - 1 && ph > 0.2) { fillRect(sx - 1, by, 4, 3, '#E89A2C'); fillRect(sx, by - 1, 2, 5, '#E89A2C'); fillRect(sx - 1, by, 1, 2, '#FFD070'); fillRect(sx, by, 1, 1, '#FFFFFF'); fillRect(sx + 2, by + 1, 1, 2, '#A45A14'); fillRect(sx, by + 3, 2, 1, '#A45A14'); }
+      });
+      [[10, 24], [24, 7], [52, 9], [9, 48], [36, 66], [58, 58]].forEach(([u, v], i) => { const tw = Math.sin(cookT * 2.4 + i * 1.7); if (tw > 0) fxStar(sx0 + u * mw / 74, sy0 + v * mh / 74, tw, '#FFFFFF', '#FFE09A'); });
+} else if (id === 'sea') {
       // seaweed sways below, two shoals swim round (behind and in front), bubbles with a rim and a shine rise
       const base = Math.round(cy + ry + 6);
       for (let i = 0; i < 6; i++) {
@@ -3562,12 +3561,12 @@
       if (deerTimer <= 0) {
         const inPreview = skinPreview === 'newyear';
         deers.push({ t: 0, ax: inPreview ? 160 : coinX(), ay: inPreview ? 67 : COIN_Y, dx: 0, dy: (Math.random() - 0.5) * 36 });
-        deerTimer = 10 + Math.random() * 5;
+        deerTimer = 16 + Math.random() * 8;
       }
     }
     for (let i = deers.length - 1; i >= 0; i--) {
       deers[i].t += dt;
-      if (deers[i].t > 4) deers.splice(i, 1);
+      if (deers[i].t > 7) deers.splice(i, 1);
     }
     if (skinId === 'ghost' || skinPreview === 'ghost' || skinId === 'halloween' || skinPreview === 'halloween') {
       ghostTimer -= dt;
