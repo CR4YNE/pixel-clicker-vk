@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.395-VK';   // capitals only: the font has no lowercase letters
+  const VERSION = '1.0.399-VK';   // capitals only: the font has no lowercase letters
   const W = 320;
   const H = 180;
   const COIN_R = 42;            // radius used for the shadow and the layout
@@ -459,22 +459,22 @@
     { id: 'mint', name: 'МЯТНЫЙ', src: 'art/cookie-mint.png', ready: true },
     { id: 'ice', name: 'ЛЕДЯНОЙ', src: 'art/cookie-ice.png', ready: true },
     { id: 'gold', name: 'ЗОЛОТОЙ', src: 'art/cookie-gold.png', ready: true },
-    { id: 'royal', name: 'КОРОЛЕВСКИЙ', src: 'art/cookie-royal.png', ready: true, premium: true },
-    { id: 'ghost', name: 'ПРИЗРАЧНЫЙ', src: 'art/cookie-ghost.png', ready: true, premium: true },
-    { id: 'neontube', name: 'НЕОНОВЫЙ', src: 'art/cookie-neontube.png', ready: true, premium: true },
-    { id: 'crystal', name: 'КРИСТАЛЛ', src: 'art/cookie-crystal.png', ready: true, premium: true },
-    { id: 'volcano', name: 'ВУЛКАНИЧЕСКИЙ', src: 'art/cookie-volcano.png', ready: true, premium: true },
-    { id: 'solar', name: 'СОЛНЕЧНАЯ СИСТЕМА', src: 'art/cookie-solar.png', ready: true, premium: true },
-    { id: 'starry', name: 'ЗВЁЗДНАЯ НОЧЬ', src: 'art/cookie-starry.png', ready: true, premium: true },
-    { id: 'caramel', name: 'КАРАМЕЛЬНЫЙ', src: 'art/cookie-caramel.png?v=1', ready: true, premium: true },
-    { id: 'gzhel', name: 'ГЖЕЛЬ', src: 'art/cookie-gzhel.png?v=1', ready: true, premium: true },
-    { id: 'rainbow', name: 'РАДУЖНЫЙ', src: 'art/cookie-rainbow.png?v=2', ready: true, premium: true },
-    { id: 'neon', name: 'КОСМИЧЕСКИЙ', src: 'art/cookie-neon.png', ready: true, premium: true },
-    { id: 'sea', name: 'МОРСКОЙ', src: 'art/cookie-sea.png', ready: true, premium: true },
-    { id: 'halloween', name: 'ХЭЛЛОУИН', src: 'art/cookie-halloween.png?v=1', ready: true, premium: true },
-    { id: 'easter', name: 'ПАСХАЛЬНЫЙ', src: 'art/cookie-easter.png?v=1', ready: true, premium: true },
-    { id: 'zefir', name: 'ЗЕФИРНЫЙ', src: 'art/cookie-zefir.png', ready: true, premium: true },
-    { id: 'newyear', name: 'НОВОГОДНИЙ', src: 'art/cookie-newyear.png?v=5', ready: true, premium: true },
+    { id: 'royal', name: 'КОРОЛЕВСКИЙ', src: 'art/cookie-royal.png?v=1', ready: true, premium: true },
+    { id: 'ghost', name: 'ПРИЗРАЧНЫЙ', src: 'art/cookie-ghost.png?v=1', ready: true, premium: true },
+    { id: 'neontube', name: 'НЕОНОВЫЙ', src: 'art/cookie-neontube.png?v=1', ready: true, premium: true },
+    { id: 'crystal', name: 'КРИСТАЛЛ', src: 'art/cookie-crystal.png?v=1', ready: true, premium: true },
+    { id: 'volcano', name: 'ВУЛКАНИЧЕСКИЙ', src: 'art/cookie-volcano.png?v=1', ready: true, premium: true },
+    { id: 'solar', name: 'СОЛНЕЧНАЯ СИСТЕМА', src: 'art/cookie-solar.png?v=1', ready: true, premium: true },
+    { id: 'starry', name: 'ЗВЁЗДНАЯ НОЧЬ', src: 'art/cookie-starry.png?v=1', ready: true, premium: true },
+    { id: 'caramel', name: 'КАРАМЕЛЬНЫЙ', src: 'art/cookie-caramel.png?v=2', ready: true, premium: true },
+    { id: 'gzhel', name: 'ГЖЕЛЬ', src: 'art/cookie-gzhel.png?v=2', ready: true, premium: true },
+    { id: 'rainbow', name: 'РАДУЖНЫЙ', src: 'art/cookie-rainbow.png?v=3', ready: true, premium: true },
+    { id: 'neon', name: 'КОСМИЧЕСКИЙ', src: 'art/cookie-neon.png?v=1', ready: true, premium: true },
+    { id: 'sea', name: 'МОРСКОЙ', src: 'art/cookie-sea.png?v=1', ready: true, premium: true },
+    { id: 'halloween', name: 'ХЭЛЛОУИН', src: 'art/cookie-halloween.png?v=2', ready: true, premium: true },
+    { id: 'easter', name: 'ПАСХАЛЬНЫЙ', src: 'art/cookie-easter.png?v=2', ready: true, premium: true },
+    { id: 'zefir', name: 'ЗЕФИРНЫЙ', src: 'art/cookie-zefir.png?v=1', ready: true, premium: true },
+    { id: 'newyear', name: 'НОВОГОДНИЙ', src: 'art/cookie-newyear.png?v=6', ready: true, premium: true },
   ];
   // skins are owned: the plain one from the start, the others come from the daily reward (day 1 gives skin 2, day 2 skin 3, ...)
   const skinOwned = { classic: true };
@@ -559,7 +559,7 @@
     }
     if (!lvlPending || lvlWin) return;
     // the window waits until every other window is closed (the shop does not stop it)
-    if (custMenuOpen() || premiumWin || skinOffer || resetWin || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || rewardAdOpen || launchState !== 'ok') return;
+    if (custMenuOpen() || premiumWin || skinOffer || resetWin || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || (cust && cust.sold) || rewardAdOpen || launchState !== 'ok') return;
     const from = lvlPending.from;
     lvlPending = null;
     lvlWin = { level: bakeryLevel, gained: bakeryLevel - from, opened: TECHNIKA.filter((m) => m.level > from && m.level <= bakeryLevel), t: 0 };
@@ -1376,9 +1376,9 @@
       // the selling screen waits for the ad (at most 2 minutes, so that a lost answer never locks the game)
       if (!sale.done && sale.t < 120) loadingLeft = Math.max(loadingLeft, 0.05);
       else if (loadingLeft <= 0) {
-        if (sale.done === 'win') { kitchen.baker.sold(); sfxBuy(); popups.push({ x: coinX(), y: 96, t: 0, text: '+' + custNum(sale.n) }); }
+        if (sale.done === 'win') { kitchen.baker.give(settings.animBg); if (cust) cust.sold = true; sfxBuy(); popups.push({ x: coinX(), y: 96, t: 0, text: '+' + custNum(sale.n) }); }
         sale = null;
-        if (cust) cust.out = 0;
+        if (cust && !cust.sold) cust.out = 0;
       }
       return;
     }
@@ -1388,6 +1388,7 @@
       return;
     }
     if (cust) cust.t += dt;
+    if (cust && cust.sold) { if (!kitchen.baker.giving) cust.out = 0; return; }   // he waits for his bag and leaves with it
     // the clock and his waiting stand still while a menu, a message, an ad or the start screen is up
     if (rewardAdOpen || noticeWin || offlineWin || lvlWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
     const adJust = Date.now() - lastAdAt < CUST_AD_GAP;
@@ -1406,7 +1407,7 @@
   }
   function custLabel() { return '+' + custNum(cust.n); }
   function tapCustomer(gx, gy) {
-    if (!cust || cust.out !== null || sale) return false;
+    if (!cust || cust.out !== null || cust.sold || sale) return false;
     const [x0, y0, x1, y1] = custBubbleBox();
     if (!inZone(gx, gy, custX() - 4, cust.top - 6, custX() + 18, CUST_FEET + 2) && !inZone(gx, gy, x0, y0, x1, y1)) return false;
     if (Date.now() < rewardAdReadyAt) { showCooldown(); return true; }   // the sale never starts during the cooldown
@@ -1433,6 +1434,7 @@
   function drawCustomer() {
     ctx.globalAlpha = custAlpha();
     window.KITCHEN_GUESTS.draw(ctx, cust.k, custX(), CUST_FEET, { t: cust.t, anim: settings.animBg, wet: cust.wet, winter: cust.winter });
+    if (cust.sold) kitchen.baker.drawGift(ctx, custX() + 6, cust.top, CUST_FEET);   // the bag in his hands
     ctx.globalAlpha = 1;
   }
   function custFrame(x0, y0, x1, y1) {
@@ -1514,10 +1516,16 @@
   }
   // one painted egg, centred on (x, y): pastel with a white stripe
   function drawEgg(x, y, col) {
-    fillRect(x, y - 2, 1, 1, col);
-    fillRect(x - 1, y - 1, 3, 3, col);
-    fillRect(x - 1, y, 3, 1, '#FFFFFF');
-    fillRect(x, y + 2, 1, 1, col);
+    const im = fxArt('egg' + col, 9, 11, (P) => {
+      const c = [1, 3, 5].map((k) => parseInt(col.substr(k, 2), 16)), t = (to, k) => 'rgb(' + c.map((v, i) => Math.round(v + (to[i] - v) * k)).join(',') + ')';
+      const T = [t([28, 26, 74], 0.5), t([28, 26, 74], 0.22), col, t([255, 250, 225], 0.4), t([255, 250, 225], 0.8)];
+      for (let yy = 0; yy < 11; yy++) for (let xx = 0; xx < 9; xx++) {
+        const u = (xx - 4) / (yy < 5 ? 2.6 + yy * 0.3 : 4.2), v = (yy - 5.5) / 5.4; if (u * u + v * v > 1) continue;
+        let k = Math.max(0, Math.min(4, Math.floor((0.55 - u * 0.36 - v * 0.34) * 5)));
+        if (yy === 5 || (yy === 4 && xx % 3 === 0)) P(xx, yy, k > 1 ? '#FFFFFF' : '#C8C4E0'); else if (yy === 8 && xx % 2) P(xx, yy, '#FFF6A0'); else P(xx, yy, T[k]);
+      }
+    });
+    ctx.drawImage(im, x - 4, y - 5);
   }
   // a carved pumpkin standing on the floor at (px, base); its face glows when the candle is lit
   function drawPumpkin(px, base, s, lit) {
@@ -1812,145 +1820,189 @@
   }
   // the effects of the new skins, drawn around a picture at (cx, cy); echo() draws a faded copy of the picture (ghost)
   const NEW_FX_IDS = ['solar', 'crystal', 'royal', 'ghost', 'rainbow', 'starry', 'newyear', 'zefir', 'caramel', 'sea', 'gzhel', 'halloween', 'easter'];
+  // small pictures of the skin effects, drawn once and kept
+  const fxPics = {};
+  function fxArt(key, w, h, draw) {
+    if (fxPics[key]) return fxPics[key];
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    draw((x, y, col) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); });
+    return (fxPics[key] = c);
+  }
+  function fxMap(key, rows, pal) {
+    return fxPics[key] || fxArt(key, rows[0].length, rows.length, (P) => rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) if (pal[r[x]]) P(x, y, pal[r[x]]); }));
+  }
+  // a twinkle with soft rays; k: 0..1, its strength
+  function fxStar(x, y, k, core, ray) {
+    x = Math.round(x); y = Math.round(y);
+    const L = Math.round(k * 3), a = ctx.globalAlpha;
+    if (k <= 0) return;
+    ctx.globalAlpha = a * Math.min(1, k * 0.8);
+    if (L > 0) { fillRect(x - L, y, L * 2 + 1, 1, ray); fillRect(x, y - L, 1, L * 2 + 1, ray); }
+    ctx.globalAlpha = a * Math.min(1, k * 1.5);
+    fillRect(x, y, 1, 1, core);
+    if (L > 1) { fillRect(x - 1, y, 3, 1, core); fillRect(x, y - 1, 1, 3, core); }
+    ctx.globalAlpha = a;
+  }
+  // a shaded ball of five tones, the light from the top left
+  function fxBall(key, r, tones) {
+    return fxArt(key, r * 2 + 1, r * 2 + 1, (P) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) { const d = x * x + y * y; if (d > r * r + 0.8) continue; const v = 0.5 - (x + y) / (r * 2.6 + 0.8) + (((x + y) & 1) ? 0.06 : -0.06); P(x + r, y + r, tones[Math.max(0, Math.min(4, Math.floor(v * 5)))]); } });
+  }
+  // additions of the other premium skins: the same in the game, in the preview and in the purchase window
+  function drawSkinPlus(id, cx, cy, rx, ry) {
+    if (id === 'neontube') {
+      // two bright runs of current go round the tube and leave a trail; sparks fly off at the arc
+      for (let n = 0; n < 2; n++) for (let k = 0; k < 12; k++) {
+        const a = (n ? -1.5 : 1.8) * (cookT - k * 0.028) + n * 2;
+        ctx.globalAlpha = 1 - k / 12;
+        fillRect(Math.round(cx + Math.cos(a) * rx * (n ? 0.98 : 1.06)), Math.round(cy + Math.sin(a) * ry * (n ? 0.98 : 1.06)), k < 3 ? 2 : 1, k < 3 ? 2 : 1, k < 2 ? '#FFFFFF' : n ? '#FF6AE0' : '#4AF4FF');
+      }
+      const ph = cookT % 2.2, a0 = Math.floor(cookT / 2.2) * 2.39 + 0.6;
+      if (ph < 0.6) for (let i = 0; i < 8; i++) { const a = a0 + (i - 3.5) * 0.22, d = ph * (22 + i * 4 % 13); ctx.globalAlpha = 1 - ph / 0.6; fillRect(Math.round(cx + Math.cos(a) * (rx + d)), Math.round(cy + Math.sin(a) * (ry + d) + ph * ph * 40), 1, 1, i % 2 ? '#FFFFFF' : '#FFF07A'); }
+      ctx.globalAlpha = 1;
+    } else if (id === 'neon') {
+      // a spiral of star dust, a ringed planet and a rocket with a flame on its orbit
+      for (let i = 0; i < 26; i++) { const a = cookT * 0.35 + i * 0.5, d = 1.02 + (i % 7) * 0.05; ctx.globalAlpha = 0.35 + 0.5 * Math.abs(Math.sin(cookT * 1.8 + i)); fillRect(Math.round(cx + Math.cos(a) * rx * d), Math.round(cy + Math.sin(a) * ry * d), 1, 1, ['#FFFFFF', '#C87AFF', '#7DF9FF', '#FF8AE0'][i % 4]); }
+      ctx.globalAlpha = 1;
+      const px = Math.round(cx - rx * 1.2), py = Math.round(cy - ry * 0.95 + Math.sin(cookT) * 2);
+      fillRect(px - 8, py + 1, 4, 1, '#F0C8FF'); ctx.drawImage(fxBall('spaceball', 5, ['#3A1060', '#6A20A0', '#A83AC8', '#E86AE0', '#FFC4F4']), px - 5, py - 5); fillRect(px - 7, py + 2, 15, 1, '#D890F0'); fillRect(px - 5, py + 3, 11, 1, '#8A48C0'); fillRect(px + 5, py, 4, 1, '#F0C8FF');
+      const a = cookT * 0.8, x = Math.round(cx + Math.cos(a) * rx * 1.25), y = Math.round(cy + Math.sin(a) * ry * 1.15);
+      for (let k = 1; k < 9; k++) { const b = a - k * 0.05; ctx.globalAlpha = 1 - k / 9; fillRect(Math.round(cx + Math.cos(b) * rx * 1.25), Math.round(cy + Math.sin(b) * ry * 1.15), k < 4 ? 2 : 1, k < 4 ? 2 : 1, k < 3 ? '#FFF3A0' : k < 6 ? '#FF9A3A' : '#B04AE0'); }
+      ctx.globalAlpha = 1;
+      fillRect(x - 2, y - 2, 4, 4, '#E8ECFF'); fillRect(x - 2, y - 2, 4, 1, '#FFFFFF'); fillRect(x + 1, y - 1, 1, 3, '#8A90C0'); fillRect(x - 1, y - 1, 1, 1, '#3AA0FF'); fillRect(x - 1, y - 3, 2, 1, '#FF4A6A');
+    } else if (id === 'volcano') {
+      // heavy smoke of three tones, cooling lava drops on arcs, and heat shining from below
+      for (let i = 0; i < 6; i++) {
+        const life = (cookT * 0.22 + i / 6) % 1, r = 1 + Math.round(life * 3), x = Math.round(cx - rx * 0.5 + (i * 0.618 % 1) * rx + Math.sin(cookT + i * 2) * 3 + life * 6), y = Math.round(cy - ry * 0.85 - life * 22);
+        ctx.globalAlpha = 0.6 * (1 - life);
+        fillRect(x - r, y - r + 1, r * 2 + 1, r * 2 - 1, '#4A3C48'); fillRect(x - r + 1, y - r, r * 2 - 1, r * 2 + 1, '#4A3C48'); fillRect(x - r + 1, y - r, r, r, '#7A6870'); if (life < 0.35) fillRect(x - r + 1, y + r - 1, r * 2 - 1, 1, '#E8702A');
+      }
+      for (let i = 0; i < 7; i++) {
+        const life = (cookT * 0.5 + i * 0.143) % 1, dir = i & 1 ? 1 : -1, x = Math.round(cx + dir * (rx * 0.3 + life * rx * (0.5 + i * 0.07))), y = Math.round(cy - ry * 0.8 - Math.sin(life * 3.14) * (14 + i * 2) + life * life * ry * 1.6);
+        ctx.globalAlpha = Math.min(1, (1 - life) * 3);
+        fillRect(x, y, 2, 2, life < 0.3 ? '#FFF3A0' : life < 0.6 ? '#FFB02E' : life < 0.85 ? '#E8501A' : '#7A2414'); fillRect(x - dir, y - 1, 1, 1, '#FF8A2A');
+      }
+      for (let i = 0; i < 12; i++) { const a = 0.35 + i * 0.22; ctx.globalAlpha = 0.35 + 0.35 * Math.sin(cookT * 5 + i * 2); fillRect(Math.round(cx + Math.cos(a) * rx * 1.04), Math.round(cy + Math.sin(a) * ry * 1.06), 2, 1, i & 1 ? '#FFB02E' : '#FF6A1A'); }
+      ctx.globalAlpha = 1;
+    }
+  }
   function drawNewFx(id, cx, cy, rx, ry, echo) {
     if (id === 'crystal') {
-      // a glint runs round the rim, and snowflakes fall from the top
-      const gi = (cookT / 1.6) % 1, ga = gi * 2 * Math.PI;
-      const gx = Math.round(cx + Math.cos(ga) * rx * 0.95), gy = Math.round(cy + Math.sin(ga) * ry * 0.95);
-      fillRect(gx - 2, gy, 5, 1, '#E8FAFF');
-      fillRect(gx, gy - 2, 1, 5, '#E8FAFF');
-      // three big faceted crystals stick out of the rim, each with a light and a dark side, shimmering
-      [[-1.9, 11], [-1.25, 13], [1.1, 10]].forEach(([ang, L0], i) => {
-        const L = L0 + Math.sin(cookT * 2 + i) * 0.6;
-        const bx = cx + Math.cos(ang) * rx * 0.85, by = cy + Math.sin(ang) * ry * 0.85;
-        const dx = Math.cos(ang), dy = Math.sin(ang);
-        const px_ = -dy, py_ = dx;                          // across the crystal
-        for (let s = 0; s <= L; s++) {
-          const half = Math.max(0, Math.round(4 * (1 - s / L)));   // tapers to the tip
-          for (let j = -half; j <= half; j++) {
-            const x = Math.round(bx + dx * s + px_ * j), y = Math.round(by + dy * s + py_ * j);
-            const lit = j < 0 ? 1 : 0;                         // the left facet is lit
-            const col = s > L - 2 ? '#FFFFFF' : lit ? '#BDEFFF' : '#5FB8E8';
-            fillRect(x, y, 1, 1, col);
+      // a glint runs round the rim; faceted crystals of five tones grow out of it; ice dust falls
+      [[-1.9, 12, 4], [-1.25, 14, 5], [-1.55, 9, 3], [1.1, 10, 4], [2.2, 8, 3]].forEach(([ang, L0, W0], i) => {
+        const sh = Math.sin(cookT * 1.6 + i * 1.3);
+        const im = fxArt('cr' + i, 40, 40, (P) => {
+          const dx = Math.cos(ang), dy = Math.sin(ang);
+          for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
+            const s = (x - 20) * dx + (y - 20) * dy, j = -(x - 20) * dy + (y - 20) * dx, half = s < 0 ? -1 : s < L0 * 0.55 ? W0 * (0.7 + s / L0 * 0.55) : W0 * (L0 - s) / (L0 * 0.45);
+            if (Math.abs(j) > half || s > L0) continue;
+            const l = j * dy * -1 + j * dx * 0.4;
+            P(x, y, Math.abs(j) > half - 1 ? (j * (dx - dy) < 0 ? '#F4FFFF' : '#2C6AA8') : Math.abs(j) < 0.6 ? '#E8FAFF' : l > 0 ? (s > L0 * 0.55 ? '#D8F6FF' : '#A4DCF6') : (s > L0 * 0.55 ? '#78B8E8' : '#4C90CC'));
           }
-        }
+        });
+        ctx.drawImage(im, Math.round(cx + Math.cos(ang) * rx * 0.85) - 20, Math.round(cy + Math.sin(ang) * ry * 0.85) - 20);
+        if (sh > 0.75) fxStar(cx + Math.cos(ang) * (rx * 0.85 + L0 * 0.6), cy + Math.sin(ang) * (ry * 0.85 + L0 * 0.6), (sh - 0.75) * 4, '#FFFFFF', '#BDEFFF');
       });
-      for (let i = 0; i < 5; i++) {
-        const life = (cookT * 0.25 + i * 0.2) % 1;
-        const fx = Math.round(cx - rx * 1.3 + i * rx * 0.65 + Math.sin(cookT + i) * 3);
-        const fy = Math.round(cy - ry * 1.2 + life * ry * 2.4);
-        ctx.globalAlpha = 1 - life * 0.5;
-        fillRect(fx, fy - 1, 1, 3, '#D8F4FF');
-        fillRect(fx - 1, fy, 3, 1, '#D8F4FF');
-        ctx.globalAlpha = 1;
+      const ga = cookT * 3.9;
+      for (let k = 0; k < 7; k++) { ctx.globalAlpha = 1 - k / 7; fillRect(Math.round(cx + Math.cos(ga - k * 0.07) * rx * 0.95), Math.round(cy + Math.sin(ga - k * 0.07) * ry * 0.95), k < 2 ? 2 : 1, k < 2 ? 2 : 1, k < 3 ? '#FFFFFF' : '#9FE0FF'); }
+      for (let i = 0; i < 9; i++) {
+        const life = (cookT * (0.14 + (i % 3) * 0.05) + i * 0.137) % 1;
+        const fx = Math.round(cx - rx * 1.3 + (i * 0.618 % 1) * rx * 2.6 + Math.sin(cookT * 1.3 + i * 2) * 3), fy = Math.round(cy - ry * 1.3 + life * ry * 2.6);
+        ctx.globalAlpha = Math.sin(life * Math.PI);
+        if (i % 3 === 0) { fillRect(fx - 2, fy, 5, 1, '#D8F4FF'); fillRect(fx, fy - 2, 1, 5, '#D8F4FF'); fillRect(fx, fy, 1, 1, '#FFFFFF'); }
+        else fillRect(fx, fy, i % 3, i % 3, '#E8FAFF');
       }
+      ctx.globalAlpha = 1;
     } else if (id === 'royal') {
-      // a little gold crown bobs above, and a golden ring swells and fades every 2.5 s
-      const bob = Math.round(Math.sin(cookT * 7) * 1.5);
-      const x0 = Math.round(cx - 5), y0 = Math.round(cy - ry - 8 + bob);
-      fillRect(x0, y0 + 2, 11, 2, '#FFD84A');
-      fillRect(x0, y0, 2, 3, '#FFD84A');
-      fillRect(x0 + 4, y0 - 1, 2, 4, '#FFD84A');
-      fillRect(x0 + 8, y0, 2, 3, '#FFD84A');
-      fillRect(x0 + 4, y0 - 1, 2, 1, '#E0364A');
-      // the golden ring is a fast burst (0.7 s), and comes again every 4 seconds
+      // a jewelled crown with a velvet lining bobs above; gold dust floats up; a golden ring of light every 4 s
+      const bob = Math.round(Math.sin(cookT * 2.4) * 1.6);
+      const crown = fxMap('crown', ['...........R...........', '..........RrR..........', '.B.........G.........B.', 'BbB.......GGG.......BbB', '.G....W...GLG...W....G.', '.GG..WGW.GGLGG.WGW..GG.', '.GLG..G..GLLLG..G..GLD.', '.GLLGGLGGLLLLGGGLGGLGD.', '.GLLLLLVVLLLLLVVLLLLGD.', '.GGLLVVVVVLLVVVVVGGGGD.', '..GGGGGGGGGGGGGGGGGDD..', '..LWLRrLWLBbLWLEeLWLD..', '..GGGGGGGGGGGGGGGGDDD..', '...DDDDDDDDDDDDDDDDD...'], { R: '#E0364A', r: '#FFB0B8', B: '#3A7AE0', b: '#CDE4FF', E: '#2FAE68', e: '#A8F5C8', G: '#E8AC26', L: '#FFDF66', W: '#FFFAD8', D: '#9A5A14', V: '#7A2AA8' });
+      ctx.drawImage(crown, Math.round(cx - 11), Math.round(cy - ry - 13 + bob));
+      const cg = (cookT * 0.5) % 1.6;
+      if (cg < 0.5) fxStar(cx - 9 + cg * 36, cy - ry - 4 + bob, Math.sin(cg * 2 * Math.PI), '#FFFFFF', '#FFF0A0');
+      for (let i = 0; i < 10; i++) {
+        const life = (cookT * 0.22 + i * 0.1) % 1, a = i * 2.4;
+        ctx.globalAlpha = Math.sin(life * Math.PI);
+        fillRect(Math.round(cx + Math.cos(a) * rx * 1.12 + Math.sin(cookT + i) * 2), Math.round(cy + Math.sin(a) * ry * 0.9 + 10 - life * 24), i % 4 ? 1 : 2, i % 4 ? 1 : 2, i % 2 ? '#FFE27A' : '#FFF8D0');
+      }
       const ph = cookT % 4;
-      if (ph < 0.7) {
-        const t = ph / 0.7, rr = rx * (0.8 + t * 0.55);
-        ctx.globalAlpha = 1 - t;
-        for (let k = 0; k < 16; k++) {
-          const a = (k * 2 * Math.PI) / 16;
-          fillRect(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr * 0.85), 1, 1, '#FFE27A');
-        }
-        ctx.globalAlpha = 1;
-      }
-    } else if (id === 'ghost') {
-      // two faded echoes drift beside the picture, and pale wisps rise from it
-      if (echo) {
-        for (let n = 0; n < 2; n++) {
-          ctx.globalAlpha = 0.2;
-          echo(n ? 4 : -4);
-        }
-        ctx.globalAlpha = 1;
-      }
-      for (let i = 0; i < 4; i++) {
-        const life = (cookT * 0.9 + i * 0.25) % 1;
-        ctx.globalAlpha = 1 - life;
-        fillRect(Math.round(cx - rx + i * rx * 0.6 + Math.sin(cookT * 3 + i) * 2), Math.round(cy + ry - life * ry * 2), 1, 1, '#B8FFC8');
-        ctx.globalAlpha = 1;
-      }
-    } else if (id === 'rainbow') {
-      // a rainbow arch above the cookie, its colours turning, and confetti dots around the rim
-      for (let k = 0; k < 11; k++) {
-        const a = -Math.PI * 0.85 + k * (Math.PI * 0.7 / 10);
-        const rr = rx + 4 + (k % 2);
-        fillRect(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr * 0.9 - 4), 2, 2, 'hsl(' + Math.round((k * 36 + cookT * 90) % 360) + ', 100%, 65%)');
-      }
-      for (let i = 0; i < 8; i++) {
-        const a = i * 0.8 + cookT * 0.7;
-        fillRect(Math.round(cx + Math.cos(a) * (rx - 2)), Math.round(cy + Math.sin(a) * (ry - 2)), 1, 1, 'hsl(' + Math.round((i * 45 + cookT * 120) % 360) + ', 100%, 70%)');
-      }
-      // rainbow rays: eight short rays out from the cookie, their colours turning and flickering
-      for (let i = 0; i < 8; i++) {
-        const a = i * (Math.PI / 4) - cookT * 0.5;
-        const flick = 0.5 + 0.5 * Math.sin(cookT * 6 + i);
-        ctx.globalAlpha = 0.5 + 0.5 * flick;
-        for (let s = 0; s < 4; s++) {
-          const rr = rx + 6 + s * 2 + flick * 2;
-          fillRect(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr * 0.9), 1, 1, 'hsl(' + Math.round((i * 45 + cookT * 150) % 360) + ', 100%, 65%)');
+      if (ph < 0.9) {
+        const t = ph / 0.9, e = 1 - (1 - t) * (1 - t);
+        for (let n = 0; n < 2; n++) for (let k = 0; k < 24; k++) {
+          const a = (k + n * 0.5) * Math.PI / 12, rr = rx * (0.85 + e * (0.5 - n * 0.14));
+          ctx.globalAlpha = (1 - t) * (n ? 0.5 : 1);
+          fillRect(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr * 0.87), n ? 1 : 2, n ? 1 : 2, n ? '#C878FF' : '#FFE27A');
         }
       }
       ctx.globalAlpha = 1;
-      // a confetti burst every 3 seconds, from a new side each time
-      const bt = (cookT % 3) / 3, bside = Math.floor(cookT / 3) * 1.9;
-      if (bt < 0.6) {
-        for (let i = 0; i < 6; i++) {
-          const a = bside + i * (Math.PI / 3) * 0.9;
-          const d = bt * 60;
-          ctx.globalAlpha = 1 - bt / 0.6;
-          fillRect(Math.round(cx + Math.cos(a) * (rx * 0.6 + d)), Math.round(cy + Math.sin(a) * (ry * 0.6 + d)), 2, 2, 'hsl(' + Math.round((i * 60 + cookT * 200) % 360) + ', 100%, 70%)');
-        }
-        ctx.globalAlpha = 1;
+    } else if (id === 'ghost') {
+      // two faded echoes drift, little ghosts circle (they pass behind the cookie), wisps curl up
+      if (echo) { ctx.globalAlpha = 0.13; echo(Math.round(5 + Math.sin(cookT * 1.8) * 2)); echo(-Math.round(5 + Math.sin(cookT * 1.8) * 2)); ctx.globalAlpha = 1; }
+      const gh = fxMap('ghost', ['...WWWW...', '..WLLLLW..', '.WLLLLLMM.', '.WLDLLDMM.', 'WWLDLLDMMM', 'WLLLLLLLMS', 'WLLLDDLMMS', '.LLLLLLMS.', '.LLMLMMMS.', '.LM.MM.MS.', '..M..M..S.'], { W: '#FFFFFF', L: '#E0FFEC', M: '#A8E0C4', S: '#6CB09C', D: '#1C4048' });
+      for (let i = 0; i < 3; i++) {
+        const a = cookT * 0.7 + i * 2.094, x = Math.round(cx + Math.cos(a) * rx * 1.28) - 5, y = Math.round(cy + Math.sin(a) * ry * 0.55 + Math.sin(cookT * 2.2 + i) * 3) - 5;
+        ctx.globalAlpha = 0.45 + 0.35 * (Math.sin(a) * 0.5 + 0.5);
+        ctx.drawImage(gh, x, y);
       }
+      for (let i = 0; i < 5; i++) {
+        const life = (cookT * 0.3 + i * 0.2) % 1;
+        for (let s = 0; s < 6; s++) {
+          ctx.globalAlpha = Math.sin(life * Math.PI) * (0.6 - s * 0.09);
+          fillRect(Math.round(cx - rx + i * rx * 0.5 + Math.sin(cookT * 2 + i - s * 0.5) * 3), Math.round(cy + ry * 0.9 - life * ry * 2 + s * 2), s < 2 ? 2 : 1, 2, s < 2 ? '#E8FFF0' : '#A8E8C8');
+        }
+      }
+      ctx.globalAlpha = 1;
+    } else if (id === 'rainbow') {
+      // an arch of seven bands with clouds at its ends, turning sparks and confetti ribbons
+      const arch = fxArt('arch' + rx, 160, 70, (P) => {
+        const cols = ['#E8506A', '#F0904A', '#FFDC5A', '#6ED47A', '#54B8F0', '#6A78E8', '#B06AE0'];
+        for (let y = 0; y < 70; y++) for (let x = 0; x < 160; x++) { const d = Math.hypot(x - 80, (y - 62) * 1.08), k = Math.floor((rx + 13 - d) / 1.6); if (k >= 0 && k < 7 && y < 58) P(x, y, cols[k]); }
+      });
+      ctx.globalAlpha = 0.75 + 0.1 * Math.sin(cookT * 1.5);
+      const sw = 160, ax = Math.round(cx) - 80, ay = Math.round(cy - ry * 0.35) - 62;
+      ctx.drawImage(arch, 0, 0, sw, 44, ax, ay, sw, 44);
+      ctx.globalAlpha = 1;
+      const cl = fxMap('cloud', ['.....WWW......', '...WWWWWWW....', '.WWWWWWWWWWW..', 'WWWWWWLLWWWWWL', 'WWWLLLLLLWLLLL', '.LLMMMLLLMMMM.', '...MM....MM...'], { W: '#FFFFFF', L: '#E4ECFF', M: '#B4C0EC' });
+      const cb = Math.round(Math.sin(cookT * 1.2));
+      const cw = Math.round(Math.sqrt(Math.max(0, (rx + 9) * (rx + 9) - 400)));
+      ctx.drawImage(cl, Math.round(cx - cw) - 8, ay + 40 + cb); ctx.drawImage(cl, Math.round(cx + cw) - 6, ay + 40 - cb);
+      for (let i = 0; i < 10; i++) {
+        const a = i * 0.628 + cookT * 0.6, tw = Math.sin(cookT * 4 + i * 2);
+        if (tw > 0) fxStar(cx + Math.cos(a) * (rx + 4), cy + Math.sin(a) * (ry + 4), tw, '#FFFFFF', 'hsl(' + Math.round((i * 36 + cookT * 60) % 360) + ', 95%, 70%)');
+      }
+      for (let i = 0; i < 12; i++) {
+        const life = (cookT * 0.3 + i / 12) % 1, a = i * 2.4, d = 6 + life * 26, w = Math.abs(Math.sin(cookT * 5 + i)) > 0.5 ? 2 : 1;
+        ctx.globalAlpha = 1 - life;
+        fillRect(Math.round(cx + Math.cos(a) * (rx * 0.75 + d)), Math.round(cy + Math.sin(a) * (ry * 0.7 + d) + life * life * 10), w, 3 - w, 'hsl(' + (i * 67 % 360) + ', 90%, 66%)');
+      }
+      ctx.globalAlpha = 1;
     } else if (id === 'starry') {
-      // six stars twinkle around, and a crescent moon drifts above the top right
+      // swirls of the night wind, a shaded moon with a halo, stars with soft rays and a shooting star
       const sp = [[-rx - 4, -ry + 4], [rx + 2, -ry - 2], [-rx + 6, ry + 4], [rx + 6, ry - 6], [-rx - 8, 2], [rx + 10, 6], [-rx - 2, -ry - 6], [rx - 6, ry + 8]];
-      // a faint constellation that blinks slowly
-      if (Math.sin(cookT * 0.7) > -0.3) {
-        for (const [a, b] of [[0, 6], [6, 1], [1, 5], [4, 2]]) {
-          for (let s = 1; s < 8; s++) {
-            const x = Math.round(cx + sp[a][0] + (sp[b][0] - sp[a][0]) * s / 8), y = Math.round(cy + sp[a][1] + (sp[b][1] - sp[a][1]) * s / 8);
-            ctx.globalAlpha = 0.35;
-            fillRect(x, y, 1, 1, '#B9C8FF');
-            ctx.globalAlpha = 1;
-          }
+      for (let n = 0; n < 3; n++) {
+        const ox = cx + [-rx - 9, rx + 8, -rx * 0.2][n], oy = cy + [ry * 0.4, ry * 0.15, -ry - 7][n];
+        for (let k = 0; k < 18; k++) {
+          const a = k * 0.5 + cookT * (n === 1 ? -0.8 : 0.8), d = 1 + k * 0.5;
+          ctx.globalAlpha = 0.65 * (1 - k / 20);
+          fillRect(Math.round(ox + Math.cos(a) * d), Math.round(oy + Math.sin(a) * d * 0.7), k < 5 ? 2 : 1, 1, k % 3 ? '#7C9CE8' : '#D0E0FF');
         }
       }
-      for (let i = 0; i < sp.length; i++) {
-        if (Math.sin(cookT * 3 + i * 2.1) > 0.2) {
-          const tx = Math.round(cx + sp[i][0]), ty = Math.round(cy + sp[i][1]);
-          fillRect(tx - 1, ty, 3, 1, '#FFFFFF');
-          fillRect(tx, ty - 1, 1, 3, '#FFFFFF');
-        }
-      }
-      // a shooting star crosses the top left every 6 seconds
-      const st = cookT % 6;
-      if (st < 0.7) {
-        const hx = cx - rx - 14 + st * 70, hy = cy - ry - 12 + st * 40;
-        for (let s = 0; s < 10; s++) {
-          ctx.globalAlpha = (1 - s / 10) * (1 - st / 0.7);
-          fillRect(Math.round(hx - s * 2), Math.round(hy - s), 2, 1, s < 2 ? '#FFFFFF' : '#A9C4FF');
-        }
+      ctx.globalAlpha = 1;
+      for (let i = 0; i < sp.length; i++) { const tw = 0.5 + 0.5 * Math.sin(cookT * 2 + i * 2.1); fxStar(cx + sp[i][0], cy + sp[i][1], tw, '#FFFFFF', i % 2 ? '#FFE28A' : '#A9C4FF'); }
+      const st = cookT % 5;
+      if (st < 0.9) {
+        const hx = cx - rx - 14 + st * 90, hy = cy - ry - 14 + st * 46;
+        for (let s = 0; s < 16; s++) { ctx.globalAlpha = (1 - s / 16) * Math.sin(Math.min(1, st / 0.9) * Math.PI); fillRect(Math.round(hx - s * 2), Math.round(hy - s), s < 3 ? 2 : 2, s < 3 ? 2 : 1, s < 3 ? '#FFFFFF' : s < 8 ? '#D8E6FF' : '#7C9CE8'); }
         ctx.globalAlpha = 1;
       }
-      const mx = Math.round(cx + rx * 0.7), my = Math.round(cy - ry - 8 + Math.sin(cookT * 0.5) * 2);
-      for (let y = -3; y <= 3; y++) {
-        for (let x = -3; x <= 3; x++) {
-          const inOuter = x * x + y * y <= 9;
-          const inCut = (x - 1.5) * (x - 1.5) + (y + 1) * (y + 1) <= 6;
-          if (inOuter && !inCut) fillRect(mx + x, my + y, 1, 1, '#FFF3B0');
+      const moon = fxArt('moon', 21, 21, (P) => {
+        for (let y = 0; y < 21; y++) for (let x = 0; x < 21; x++) {
+          const u = x - 10, v = y - 10, d = u * u + v * v, cut = (u - 3) * (u - 3) + (v + 1) * (v + 1);
+          if (d <= 42 && cut > 26) P(x, y, d > 34 && u + v < 0 ? '#FFFDE8' : u + v < -5 ? '#FFF3B0' : u + v < 1 ? '#FFE07A' : u + v < 5 ? '#E0A84A' : '#A87858');
+          else if (d <= 90 && ((x + y) & 1) && d > 42) P(x, y, 'rgba(255, 240, 170, ' + (0.28 * (1 - d / 92)).toFixed(2) + ')');
         }
-      }
+      });
+      ctx.drawImage(moon, Math.round(cx + rx * 0.75) - 10, Math.round(cy - ry - 9 + Math.sin(cookT * 0.5) * 2) - 10);
     } else if (id === 'newyear') {
       // falling snow, trees with a blinking star and a garland of lights, a snowman with a waving scarf, gifts
       const base = Math.round(cy + ry + 3);
@@ -1966,6 +2018,7 @@
         fillRect(lx, ly, 1, 1, gcols[i % gcols.length]);
       }
       ctx.globalAlpha = 1;
+      for (let x = -Math.round(rx * 1.65); x <= rx * 1.75; x++) { const q = 1 + Math.round(1.2 + Math.sin(x * 0.21) + Math.sin(x * 0.09 + 1) * 0.8); fillRect(Math.round(cx + x), base - q + 1, 1, q + 1, '#DCE8FA'); fillRect(Math.round(cx + x), base - q + 1, 1, 1, '#FFFFFF'); fillRect(Math.round(cx + x), base + 2, 1, 1, '#9CB0DC'); }   // a drift of snow
       drawSnowman(Math.round(cx + rx * 0.95), base, true);
       drawSnowman(Math.round(cx + rx * 1.55), base, false);
       // gifts of different colours and sizes, in a row on the floor
@@ -1978,6 +2031,7 @@
       for (const [gxf, size, col, ribbon] of gifts) {
         const gx = Math.round(gxf), gy = base - size;
         fillRect(gx, gy, size, size, col);
+        ctx.globalAlpha = 0.4; fillRect(gx, gy, size, 1, '#FFF6D8'); fillRect(gx, gy, 1, size, '#FFF6D8'); fillRect(gx + size - 1, gy + 1, 1, size - 1, '#1C1A4A'); fillRect(gx, gy + size - 1, size, 1, '#1C1A4A'); ctx.globalAlpha = 1;   // the light and the cold shadow of the box
         fillRect(gx + Math.floor(size / 2) - 0, gy, 1, size, ribbon);      // the ribbon across the box
         fillRect(gx, gy + Math.floor(size / 2), size, 1, ribbon);
         fillRect(gx + Math.floor(size / 2) - 1, gy - 2, 1, 2, ribbon);     // the bow
@@ -1996,6 +2050,7 @@
         { r: 2.2, s: 0.3, c: '#7FE8F0', n: 2 },                          // Uranus
         { r: 2.4, s: 0.22, c: '#3A5AE0', n: 2 },                         // Neptune
       ];
+      const PT = [['#4A4660', '#78768A', '#A9A9A9', '#CFCFCF', '#F0F0F0'], ['#8A5A3A', '#C8965A', '#F3D890', '#FBEAB8', '#FFFBE0'], ['#14245A', '#2256B0', '#3A8CFF', '#7AB8FF', '#D0ECFF'], ['#58182A', '#9A3028', '#E0553A', '#F08A5C', '#FFC8A0'], ['#6A3430', '#B06A48', '#E9A46A', '#F6C890', '#FFECC8'], ['#6A4A30', '#B08A50', '#E8D08A', '#F6E4AC', '#FFF8DC'], ['#1C5A7A', '#42A8C0', '#7FE8F0', '#B0F6F8', '#F0FFFF'], ['#141A5A', '#2438A0', '#3A5AE0', '#6C90F4', '#C0D4FF']];   // five tones of each planet
       PL.forEach((pl, i) => {
         const ax = rx * pl.r, ay = ry * pl.r * 0.42;
         // the track, a faint dotted ellipse
@@ -2016,10 +2071,15 @@
           }
           fillRect(x, y, 1, 1, col);
         };
-        for (let dx = -pl.n; dx < pl.n; dx++) for (let dy = -pl.n; dy < pl.n; dy++) pp(px2 + dx, py2 + dy, pl.c);
-        if (pl.g) pp(px2 - 1, py2 - 1, pl.g);
-        if (pl.bands) for (let dx = -pl.n; dx < pl.n; dx++) pp(px2 + dx, py2, '#C77A4A');
-        if (pl.ring) for (let dx = -pl.n - 2; dx < pl.n + 2; dx++) pp(px2 + dx, py2, '#D8C27A');
+        const pr = [1, 2, 2, 2, 4, 3, 3, 3][i], ball = fxBall('pl' + i, pr, PT[i]);
+        if (!behind) {
+          ctx.drawImage(ball, px2 - pr, py2 - pr);
+        } else if (!(fxMask ? maskHit(px2, py2) || maskHit(px2 - pr, py2) || maskHit(px2 + pr, py2) : ((px2 - cx) / (rx * 0.92)) ** 2 + ((py2 - cy) / (ry * 0.92)) ** 2 <= 1)) {
+          ctx.globalAlpha = 0.75; ctx.drawImage(ball, px2 - pr, py2 - pr); ctx.globalAlpha = 1;
+        }
+        if (pl.g) { pp(px2 - 1, py2, '#4CD67A'); pp(px2, py2 - 1, '#9AF0B0'); pp(px2 + 1, py2 + 1, '#2A9A5A'); }
+        if (pl.bands) { for (let dx = -3; dx <= 3; dx++) { pp(px2 + dx, py2 - 1, '#C77A4A'); pp(px2 + dx, py2 + 2, '#A85A38'); } pp(px2 + 1, py2 + 1, '#E0503A'); }
+        if (pl.ring) for (let dx = -6; dx <= 6; dx++) { pp(px2 + dx, py2 + Math.round(dx / 6), Math.abs(dx) > 4 ? '#FFF0B8' : '#C8A868'); }
       });
       ctx.globalAlpha = 1;
     } else if (id === 'zefir') {
@@ -2050,9 +2110,11 @@
           if (!on(x, y)) continue;
           const edge = !on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1);
           let col = '#FFD6EA';
-          if (edge) col = '#FF9CC8';
+          if (edge) col = x + y < (mw + mh) * 0.45 ? '#FFC0DC' : '#D070A4';
           else if (x <= mw * 0.35 && y <= mh * 0.35) col = '#FFFFFF';   // the shine, top left
-          else if (x >= mw * 0.7 || y >= mh * 0.7) col = '#FFB8D8';     // the shadow side, bottom right
+          else if (x + y >= (mw + mh) * 0.68) col = '#E890BC';            // the cold shadow side, bottom right
+          else if (x + y >= (mw + mh) * 0.52) col = '#FFB8D8';
+          else if (x + y <= (mw + mh) * 0.32) col = '#FFEFF7';
           fillRect(px + x, py + y, 1, 1, col);
         }
         puffs.push([px, py, mw, mh]);
@@ -2122,8 +2184,8 @@
       for (let i = 0; i < eggPts.length; i++) for (let j = i + 1; j < eggPts.length; j++) {
         const a = eggPts[i], b = eggPts[j];
         const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy);
-        if (dist < 6 && dist > 0.001) {
-          const nx = dx / dist, ny = dy / dist, push = (6 - dist) / 2;
+        if (dist < 11 && dist > 0.001) {
+          const nx = dx / dist, ny = dy / dist, push = (11 - dist) / 2;
           a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
         }
       }
@@ -2158,64 +2220,65 @@
       for (let i = 0; i < 4; i++) {
         const t = cookT * (0.6 + i * 0.15) + i * 1.6;
         const bx = Math.round(cx + Math.cos(t) * (rx + 16)), by = Math.round(cy + Math.sin(t) * (ry + 12) * 0.7 - 8);
-        const up = Math.sin(cookT * 10 + i) > 0;
-        const wy = up ? by - 2 : by + 1;
-        const dark = '#1E1A22';
-        fillRect(bx, by, 1, 2, dark);
-        fillRect(bx - 1, by - 1, 1, 1, dark); fillRect(bx + 1, by - 1, 1, 1, dark);   // ears
-        fillRect(bx - 4, wy, 3, 1, dark); fillRect(bx + 2, wy, 3, 1, dark);            // wings
-        fillRect(bx - 3, wy + 1, 2, 1, dark); fillRect(bx + 2, wy + 1, 2, 1, dark);
-        fillRect(bx, by, 1, 1, '#FF7A1A');   // eyes
+        const wing = Math.floor(cookT * 9 + i * 1.3) % 4, pose = wing === 3 ? 1 : wing;
+        const BAT = [['P...........P', 'LPP..D.D..PPL', '.LPPPDDDPPPL.', '..LPPYDYPPL..', '....PDDDP....', '......D......'], ['.............', '.....D.D.....', 'LPPPPDDDPPPPL', 'PPLPPYDYPPLPP', 'P...PDDDP...P', '......D......'], ['.............', '.....D.D.....', '...PPDDDPP...', '.LPPPYDYPPPL.', 'LPPPPDDDPPPPL', 'P..P..D..P..P']];
+        ctx.drawImage(fxMap('bat' + pose, BAT[pose], { P: '#30203C', L: '#6A5084', D: '#1A1024', Y: '#FFB02E' }), bx - 6, by - 3);
       }
     } else if (id === 'gzhel') {
-      // blue sparks twinkle along the rim, and cobalt dots flash on the edge
-      for (let i = 0; i < 6; i++) {
-        const t = i * 1.05 + cookT * 0.3;
-        const sx = Math.round(cx + Math.cos(t) * rx * 1.04), sy = Math.round(cy + Math.sin(t) * ry * 1.04);
-        const tw = Math.sin(cookT * 5 + i * 1.7);
-        if (tw > 0.3) {
-          ctx.globalAlpha = (tw - 0.3) / 0.7;
-          fillRect(sx, sy, 1, 1, '#FFFFFF');
-          fillRect(sx - 1, sy, 1, 1, '#2A5AC8'); fillRect(sx + 1, sy, 1, 1, '#2A5AC8');
-          fillRect(sx, sy - 1, 1, 1, '#2A5AC8'); fillRect(sx, sy + 1, 1, 1, '#2A5AC8');
-          ctx.globalAlpha = 1;
-        }
+      // painted flowers open and close round the rim; a brush stroke runs along it; cobalt petals drift
+      const fl = fxMap('gzf', ['...CC.CC...', '..CBBCBBC..', '.CBLLBLLBC.', '.CBLLBLLBC.', '..CBBWBBC..', '.CBBWYWBBC.', 'CBLLBWBLLBC', 'CBLLBCBLLBC', '.CBBC.CBBC.', '..CC...CC..'], { C: '#14307C', B: '#2C5CC8', L: '#7CA8F0', W: '#FFFFFF', Y: '#CFE0FF' });
+      for (let i = 0; i < 4; i++) {
+        const a = -2.5 + i * 1.571 + cookT * 0.12;
+        ctx.drawImage(fl, Math.round(cx + Math.cos(a) * rx * 1.1) - 5, Math.round(cy + Math.sin(a) * ry * 1.1 + Math.sin(cookT * 1.6 + i)) - 5);
+        for (const d of [-1, 1]) for (let k = 0; k < 7; k++) { const b = a + d * (0.17 + k * 0.045), w = k > 1 && k < 5 ? 2 : 1; fillRect(Math.round(cx + Math.cos(b) * (rx * 1.1 + Math.sin(k * 0.6) * 3)), Math.round(cy + Math.sin(b) * (ry * 1.1 + Math.sin(k * 0.6) * 3)), w, w, k < 2 ? '#14307C' : k < 5 ? '#2C5CC8' : '#7CA8F0'); }
       }
-      for (let i = 0; i < 3; i++) {
-        const t = Math.PI * (0.25 + i * 0.5);
-        const bx = Math.round(cx + Math.cos(t) * rx * 0.98), by = Math.round(cy + Math.sin(t) * ry * 0.98);
-        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(cookT * 4 + i);
-        fillRect(bx, by, 2, 2, '#2A5AC8');
+      const ba = cookT * 1.3;
+      for (let k = 0; k < 14; k++) { ctx.globalAlpha = 1 - k / 14; fillRect(Math.round(cx + Math.cos(ba - k * 0.05) * rx * 0.99), Math.round(cy + Math.sin(ba - k * 0.05) * ry * 0.99), k < 4 ? 2 : 1, k < 4 ? 2 : 1, k < 2 ? '#FFFFFF' : k < 7 ? '#7CA8F0' : '#2C5CC8'); }
+      for (let i = 0; i < 6; i++) {
+        const life = (cookT * 0.16 + i / 6) % 1;
+        ctx.globalAlpha = Math.sin(life * Math.PI);
+        const x = Math.round(cx - rx * 1.2 + (i * 0.618 % 1) * rx * 2.4 + Math.sin(cookT * 1.5 + i * 2) * 4), y = Math.round(cy - ry * 1.2 + life * ry * 2.4);
+        fillRect(x, y, 3, 1, '#2C5CC8'); fillRect(x + 1, y - 1, 2, 1, '#9CC0F8'); fillRect(x, y + 1, 1, 1, '#14307C');
+      }
+      ctx.globalAlpha = 1;
+    } else if (id === 'caramel') {
+      // a pool under the cookie with rings on it; eight glossy drips grow, stretch and fall as drops
+      const py = Math.round(cy + ry + 6), pw = Math.round(rx * 0.62);
+      for (let y = 0; y < 5; y++) { const w = Math.round(pw * [0.72, 0.95, 1, 0.9, 0.6][y]); fillRect(Math.round(cx) - w, py + y, w * 2 + 1, 1, ['#FFD070', '#E89A2C', '#C87A1C', '#A45A14', '#6E3410'][y]); }
+      const rp = (cookT * 0.7) % 1, rw = Math.round(pw * rp);
+      ctx.globalAlpha = 1 - rp; fillRect(Math.round(cx) - rw, py + 1, 4, 1, '#FFE9B0'); fillRect(Math.round(cx) + rw - 4, py + 1, 4, 1, '#FFE9B0'); ctx.globalAlpha = 1;
+      fillRect(Math.round(cx) - Math.round(pw * 0.6), py + 1, 6, 1, '#FFF4CC');
+      for (let i = 0; i < 8; i++) {
+        const a = Math.PI * (0.15 + i * 0.1), sx = Math.round(cx + Math.cos(a) * rx * 0.9), sy = Math.round(cy + Math.sin(a) * ry * 0.9);
+        const ph = (cookT * 0.22 + i * 0.37) % 1, grow = Math.min(1, ph / 0.7), len = 2 + Math.round(grow * grow * 9);
+        const L = ph > 0.7 ? Math.max(2, Math.round(len * (1 - (ph - 0.7) * 2.6))) : len;
+        fillRect(sx - 1, sy, 4, 2, '#D4841F');
+        fillRect(sx, sy, 2, L, '#E89A2C'); fillRect(sx, sy, 1, L, '#FFD070'); fillRect(sx + 1, sy + 1, 1, L, '#A45A14');
+        const by = ph > 0.7 ? sy + len + Math.round((ph - 0.7) * (ph - 0.7) * 420) : sy + L;
+        if (by < py + 2 && ph > 0.2) { fillRect(sx - 1, by, 4, 3, '#E89A2C'); fillRect(sx, by - 1, 2, 5, '#E89A2C'); fillRect(sx - 1, by, 1, 2, '#FFD070'); fillRect(sx, by, 1, 1, '#FFFFFF'); fillRect(sx + 2, by + 1, 1, 2, '#A45A14'); fillRect(sx, by + 3, 2, 1, '#A45A14'); }
+      }
+      for (let i = 0; i < 4; i++) { const tw = Math.sin(cookT * 2.4 + i * 1.7); if (tw > 0) fxStar(cx + Math.cos(i * 1.6 - 2.4) * rx * 0.9, cy + Math.sin(i * 1.6 - 2.4) * ry * 0.9, tw, '#FFFFFF', '#FFE09A'); }
+    } else if (id === 'sea') {
+      // seaweed sways below, two shoals swim round (behind and in front), bubbles with a rim and a shine rise
+      const base = Math.round(cy + ry + 6);
+      for (let i = 0; i < 6; i++) {
+        const bx = cx + [-1.25, -1.08, -0.85, 0.85, 1.05, 1.25][i] * rx, hgt = 10 + (i * 5) % 9;
+        for (let s = 0; s < hgt; s++) { const x = Math.round(bx + Math.sin(cookT * 1.6 + i + s * 0.35) * s * 0.18); fillRect(x, base - s, s > hgt - 3 ? 1 : 2, 1, s > hgt - 4 ? '#A8F0B0' : s & 2 ? '#3AA878' : '#1E7068'); if (s % 4 === 2) fillRect(x + (s & 4 ? -2 : 2), base - s, 2, 1, '#58C890'); }
+      }
+      for (let i = 0; i < 4; i++) {
+        const a = cookT * (i < 2 ? 0.55 : -0.42) + i * 2.6, back = Math.sin(a) < 0, dir = -Math.sin(a) * (i < 2 ? 1 : -1) > 0 ? 1 : -1;
+        const x = Math.round(cx + Math.cos(a) * rx * 1.35), y = Math.round(cy + Math.sin(a) * ry * 0.5 + Math.sin(cookT * 3 + i));
+        const pal = i & 1 ? { O: '#FFD84A', L: '#FFF3A8', D: '#C88A1C', W: '#FFFFFF', K: '#1C1A4A' } : { O: '#FF8A3A', L: '#FFC27A', D: '#B84A1C', W: '#FFFFFF', K: '#1C1A4A' };
+        const fish = fxMap('fish' + (i & 1) + dir, (() => { const t = Math.floor(0); const m = ['D...LLL....', 'DD.LLOWOL..', 'DODOOWOOKL.', 'DOOOOWOOOOO', 'DD.DOWOOD..', 'D...DDD....']; return dir > 0 ? m : m.map((r) => r.split('').reverse().join('')); })(), pal);
+        if (back) ctx.globalAlpha = 0.5;
+        if (!(back && Math.abs(x - cx) < rx * 0.95)) ctx.drawImage(fish, x - 5, y - 3);
         ctx.globalAlpha = 1;
       }
-    } else if (id === 'caramel') {
-      // eight drips of caramel start on the lower edge of the cookie and run down; each one grows, then drops a bead
-      for (let i = 0; i < 8; i++) {
-        const a = Math.PI * (0.15 + i * 0.1);                         // angles along the bottom of the cookie
-        const sx = Math.round(cx + Math.cos(a) * rx * 0.9), sy = Math.round(cy + Math.sin(a) * ry * 0.9);
-        const phase = (cookT * 0.22 + i * 0.13) % 1;
-        const len = 2 + Math.round(phase * 9);
-        ctx.globalAlpha = 1 - phase * 0.3;
-        for (let y = 0; y < len; y++) fillRect(sx, sy + y, 1, 1, y === 0 ? '#FFD070' : '#FFB02E');   // the drip, from the cookie down
-        if (phase > 0.55) fillRect(sx - 1, sy + len, 3, 2, '#FFB02E');   // a bead forming at the tip
-      }
-      ctx.globalAlpha = 1;
-      // a pool of caramel under the cookie, pulsing
-      const pw = Math.round(12 + Math.sin(cookT * 2) * 2);
-      ctx.globalAlpha = 0.6;
-      for (let x = -pw; x <= pw; x++) fillRect(Math.round(cx + x), Math.round(cy + ry + 6), 1, 2, '#E08A20');
-      ctx.globalAlpha = 1;
-    } else if (id === 'sea') {
-      // bubbles of three sizes rise from the bottom, wobbling sideways, each one with a shine; they grow a little as they rise
-      for (let i = 0; i < 9; i++) {
-        const life = (cookT * (0.2 + (i % 3) * 0.07) + i * 0.11) % 1;
-        const size = i % 3 === 0 ? 4 : i % 3 === 1 ? 3 : 2;
-        const bx = Math.round(cx - rx * 1.1 + ((i * 29) % Math.round(rx * 2.2)) + Math.sin(cookT * 2 + i) * 2);
-        const by = Math.round(cy + ry - life * ry * 2.6);
-        ctx.globalAlpha = 0.85 - life * 0.5;
-        fillRect(bx, by, size, size, '#CFF4FF');
-        fillRect(bx + 1, by + 1, size - 2, size - 2, '#E6FAFF');
-        fillRect(bx, by, 1, 1, '#FFFFFF');                      // the shine
+      const bub = [5, 4, 3].map((n) => fxArt('bub' + n, n + 2, n + 2, (P) => { const c = (n + 1) / 2; for (let y = 0; y < n + 2; y++) for (let x = 0; x < n + 2; x++) { const d = Math.hypot(x - c, y - c); if (d > n / 2 + 0.3) continue; P(x, y, d > n / 2 - 0.7 ? (x + y < n ? '#E6FAFF' : '#6CC0EC') : 'rgba(170, 230, 255, 0.35)'); } P(Math.round(c) - 1, Math.round(c) - 1, '#FFFFFF'); }));
+      for (let i = 0; i < 10; i++) {
+        const life = (cookT * (0.16 + (i % 3) * 0.06) + i * 0.11) % 1;
+        ctx.globalAlpha = Math.min(1, (1 - life) * 2.5);
+        ctx.drawImage(bub[i % 3], Math.round(cx - rx * 1.1 + ((i * 29) % Math.round(rx * 2.2)) + Math.sin(cookT * 2 + i) * 2), Math.round(cy + ry - life * ry * 2.5));
       }
       ctx.globalAlpha = 1;
     }
@@ -2223,6 +2286,7 @@
   // the premium effects around a picture (the same look as in the game, a little smaller)
   function drawSkinFxAt(id, cx, cy, rx, ry) {
     if (NEW_FX_IDS.includes(id)) { drawNewFx(id, cx, cy, rx, ry, null); return; }
+    drawSkinPlus(id, cx, cy, rx, ry);
     if (id === 'neontube') {
       const arcT = cookT % 2.2;
       if (arcT < 0.15) {
@@ -3379,7 +3443,7 @@
         if (docsScroll !== want) docsWheelPending = 0;
       }
     }
-    if (splashT > 0) splashT = Math.max(0, splashT - dt);
+    if (splashT > 0) { splashT = Math.max(0, splashT - dt); if (splashT === 0) splash = null; }
     animT += dt;
     bonyaT += dt;
     updateBonya(dt);
@@ -3958,7 +4022,9 @@
       canvas.style.transform = '';
     }
     ctx.save();
-    kitchen.things.guest = !!cust;
+    kitchen.things.guest = !!cust && cust.out === null;
+    kitchen.things.guestX = custX() + 5;                                        // where the cook sends the bag
+    kitchen.baker.treat(!ev || ev.type !== 'appetite' ? 0 : 1);   // he points at the glowing food
     kitchen.things.appetite = !!ev && ev.type === 'appetite' && ev.pies;   // the glowing pies hop
     kitchen.things.busy = minuteLeft > 0 || !!sale;                        // no glare on the cookie now
     kitchen.update(gameT, cookT, settings.animBg, minuteLeft > 0);
@@ -4033,7 +4099,7 @@
       fxMask = frame.alpha ? { data: frame.alpha, w: frame.width, h: frame.height, ox: Math.round(cx - frame.width / 2 - frame.shiftX), oy: Math.round(COIN_Y - frame.height / 2 - frame.shiftY) } : null;
       drawNewFx(skinId, cx, COIN_Y, 46, 40, (dx) => ctx.drawImage(frame, Math.round(cx - frame.width / 2 - frame.shiftX) + gSway + dx, Math.round(COIN_Y - frame.height / 2 - frame.shiftY)));
       fxMask = null;
-    }
+    } else { ctx.save(); ctx.shadowBlur = 0; drawSkinPlus(skinId, cx, COIN_Y, 46, 40); ctx.restore(); }
     if (tube) {
       ctx.restore();
       // electric arcs jump along the tube: a short white zigzag, about every 2.2 s, for 0.15 s
@@ -4132,7 +4198,7 @@
     // top-row buttons first, so the open shop panel covers them where they overlap
     // the counter is drawn after all the effects, so no feather or sparkle covers the numbers
     drawCounter(cx);
-    if (cust && cust.out === null) drawCustomerBubble();
+    if (cust && cust.out === null && !cust.sold) drawCustomerBubble();
     drawSettingsButton();
     if (document.fullscreenEnabled) drawFullScreenIcon();   // only where the browser allows fullscreen
     drawTopButton('ПРОГРЕСС', ...topRect('achievements'));
@@ -4536,42 +4602,15 @@
     drawTextBox(launchState === 'denied' ? 'ЗАПУСК НЕ ПРОВЕРЕН' : 'ПРОВЕРКА ЗАПУСКА...', 1, 0, W, H / 2 - 8, H / 2 + 2, COL.text);
   }
   let splashT = 2.5;
+  // the New Year start screen (splash.js): one of its three scenes, made once; it is dropped when the screen is over
+  let splash = window.SPLASH.start('pc', accent());
   function drawSplash() {
     const SPLASH_T = 2.5;
-    const el = SPLASH_T - splashT;                       // seconds since the start screen began
-    const fade = splashT < 0.3 ? splashT / 0.3 : 1;
+    if (!splash) return;
+    const pic = splash.frame(SPLASH_T - splashT);         // seconds since the start screen began
     ctx.save();
-    ctx.globalAlpha = fade;
-    // background: dark violet with pixel bands that drift slowly
-    fillRect(0, 0, W, H, '#120E22');
-    for (let y = 0; y < H; y += 6) {
-      const shift = Math.round(el * 14) % 6;
-      fillRect(0, y + shift, W, 3, y % 12 === 0 ? '#1A1433' : '#171230');
-    }
-    // confetti: little squares falling down in different colours
-    const cols = ['#FFD84A', '#FF5FDC', '#7DF9FF', '#8CFF7A', '#FF8A3D'];
-    for (let i = 0; i < 26; i++) {
-      const sx = (i * 37) % W;
-      const fy = ((el * (22 + (i % 5) * 6) + i * 19) % (H + 10)) - 5;
-      fillRect(sx, Math.round(fy), 2, 2, cols[i % cols.length]);
-    }
-    // the logo drops in with a bounce, and glows gold
-    const drop = el < 0.5 ? Math.pow(1 - el / 0.5, 2) * -70 : Math.sin((el - 0.5) * 9) * Math.max(0, 1 - (el - 0.5)) * 4;
-    const glow = 0.5 + 0.5 * Math.sin(el * 8);
-    ctx.shadowColor = 'rgba(255, 200, 60, ' + (0.5 + 0.4 * glow).toFixed(2) + ')';
-    ctx.shadowBlur = 10 + 6 * glow;
-    if (cookieImg && cookieImg.complete && cookieImg.naturalWidth) ctx.drawImage(cookieImg, 160 - 74, Math.round(4 + drop), 148, 148);
-    ctx.shadowBlur = 0;
-    // the title appears letter by letter
-    const title = 'КУЧА ПРЯНИКОВ';
-    const shown = Math.min(title.length, Math.floor(Math.max(0, el - 0.3) / 0.07));
-    if (shown > 0) drawText(title.slice(0, shown), 1, 160, 156, accent(), 'center');
-    // the developer's line comes a little later
-    if (el > 0.8) drawText('РАЗРАБОТЧИК: CR4YNE', 1, 160, 166, dimTone(), 'center');
-    // a pixel loading bar that fills over the whole start screen
-    const bw = 120, bx = 160 - bw / 2, by = 177;
-    fillRect(bx - 1, by - 1, bw + 2, 4, '#2A2448');
-    fillRect(bx, by, Math.round(bw * Math.min(1, el / SPLASH_T)), 2, accent());
+    ctx.globalAlpha = splashT < 0.3 ? splashT / 0.3 : 1;
+    ctx.drawImage(pic, 0, 0);
     ctx.restore();
   }
   let last = performance.now();
@@ -4591,6 +4630,7 @@
   // small hook for checks in the browser console
   window.KUCHA = {
     version: VERSION,
+    splash(v) { splash = window.SPLASH.start('pc', accent(), v); splashT = 2.5; return splash.v; },
     get coins() { return coins.toString(); },
     get owned() { return { tap: tapLv, tech: techOwned.slice(), prok: prokOwned.slice() }; },
     get perSec() { return autoPerSec(); },

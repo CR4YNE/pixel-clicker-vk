@@ -18,7 +18,6 @@ function steam(x, y, time, a, h, n = 4) { for (let i = 0; i < n; i++) { const k 
 const STEPS = [['МУКА', 5], ['ЯЙЦА И МЁД', 5], ['ЗАМЕС', 8], ['ТЕСТО НА СТОЛ', 3], ['МЕСИТ', 8], ['РАСКАТЫВАЕТ', 7], ['ВЫРЕЗАЕТ', 7], ['НЕСЁТ В ПЕЧЬ', 5], ['ПЕКУТСЯ', 10], ['ДОСТАЁТ', 5], ['ГЛАЗУРЬ', 7], ['ГОТОВО!', 3]];
 const CYCLE = STEPS.reduce((a, s) => a + s[1], 0);
 function cookState(t) { let u = ((t % CYCLE) + CYCLE) % CYCLE; for (let i = 0; i < STEPS.length; i++) { if (u < STEPS[i][1]) return { i, u, k: u / STEPS[i][1], name: STEPS[i][0] }; u -= STEPS[i][1]; } return { i: 0, u: 0, k: 0, name: '' }; }
-function miniC(x, y, col, hi, ice) { const p = ['.###.', '##.##', '##...', '##.##', '.###.']; p.forEach((r, j) => { for (let i = 0; i < 5; i++) if (r[i] === '#') R(x + i, y + j, 1, 1, j === 0 ? hi : col); }); if (ice) { R(x + 1, y, 2, 1, '#fff6ea'); R(x, y + 2, 1, 1, '#fff6ea'); R(x + 1, y + 4, 2, 1, '#fff6ea'); if (ice > 1) { R(x + 3, y + 1, 1, 1, '#e0483e'); R(x, y + 3, 1, 1, '#4f8fd0'); } } }
 // an arm: shoulder, elbow and hand are given by the pose (pixels of the 40x70 sprite); three pixels thick all the way
 const SLV = ['#f6f0ee', '#e6dddf', '#cfc5cf', '#9c90a4'], SKN = ['#f0d4b0', '#dcb58a', '#b98a70'];
 function arm(ox, oy, S, E, Hn, o = {}) {
@@ -49,6 +48,122 @@ function arm(ox, oy, S, E, Hn, o = {}) {
 }
 const SL = [23, 35], SR = [37, 35], lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const REST = { l: [[22, 41], [24, 45]], r: [[38, 41], [36, 45]] };
+// ---- the extras of the cook: he points at the glowing food, yawns at night, bakes with the icing of the season, is in flour in the cooking minute,
+// looks at the customer and hands the gingerbread over. bit: what he does now instead of the work ('point' | 'yawn' | 'give'), u: its seconds
+let bit = null, season = 0, floury = false, guest = false, buyerX = 232, treat = 0, treatWas = 0, treatNext = 0, yawnIn = 60, giveAsked = 0, gave = false;
+const BITS = { point: 2.4, yawn: 2.6, give: 4.6 };
+const ICE = [
+  { top: ['#ffb3d1', '#ffd84a'], pal: { p: '#ff9ec4', y: '#ffd84a', q: '#e56a9c' }, s: ['.p.p.', 'ppqpp', '.qyq.', 'ppqpp', '.p.p.'], t: ['p.p', '.y.', 'p.p'] },      // spring: a flower
+  { top: ['#fff6ea', '#e0303e'], pal: { r: '#e0303e', h: '#ff8a8a', g: '#4fa33a', d: '#9c1c30' }, s: ['.g.g.', '.ggg.', '.rhr.', 'rrrrd', '.rrd.'], t: ['.g.', 'rhr', '.r.'] },   // summer: a berry
+  { top: ['#ffdf9a', '#e0742a'], pal: { o: '#e8762a', y: '#ffc23c', b: '#8a4a20' }, s: ['..o..', 'o.y.o', 'ooyoo', '.oyo.', '..b..'], t: ['.o.', 'oyo', '.b.'] },      // autumn: a leaf
+  { top: ['#eef8ff', '#8fd0f4'], pal: { w: '#ffffff', c: '#8fd0f4' }, s: ['w.c.w', '.cwc.', 'cwwwc', '.cwc.', 'w.c.w'], t: ['c.c', '.w.', 'c.c'] },                    // winter: a snowflake
+];
+const spr = (p, pal, x, y) => p.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (pal[r[i]]) R(x + i, y + j, 1, 1, pal[r[i]]); });
+// a gingerbread on the tray is 5 pixels wide: the glaze and the sign of the season, 3x3
+function iceTop(x, y) { const I = ICE[season]; R(x, y, 5, 1, I.top[0]); spr(I.t, I.pal, x + 1, y - 2); }
+// the raised gingerbread, 11x11, with the sign inside the letter
+const BIG_C = ['..#######..', '.#+++++++#.', '#++#####++#', '#+#.....#+#', '#+#......##', '#+#........', '#+#......##', '#+#.....#+#', '#++#####++#', '.#+++++++#.', '..#######..'];
+function bigC(x, y) {
+  const I = ICE[season];
+  BIG_C.forEach((r, j) => { for (let i = 0; i < 11; i++) if (r[i] === '#') R(x + i, y + j, 1, 1, j === 0 || i === 0 ? '#d99a55' : j > 8 || i > 9 ? '#7c4620' : '#a8622c'); else if (r[i] === '+') R(x + i, y + j, 1, 1, I.top[0]); });
+  spr(I.s, I.pal, x + 3, y + 3);
+}
+// which way he looks: 0 to us, 1 right, -1 left
+function turned() { return bit ? bit.name === 'point' ? bit.dir : bit.name === 'give' && bit.u > 1.9 ? 1 : 0 : guest && st.i >= 0 ? 1 : 0; }
+// the head: as it is or three quarters (the face moves by 2 pixels, the hat stays)
+function head(ox, y, turn) {
+  if (!turn) { G.drawImage(sheet, 40, 0, 40, 32, ox, y, 40, 32); if (bit && bit.name === 'yawn') yawnFace(ox, y); return; }
+  G.save(); if (turn < 0) { G.translate(2 * (ox + 30), 0); G.scale(-1, 1); }
+  G.drawImage(sheet, 40, 0, 40, 19, ox, y, 40, 19);
+  G.drawImage(sheet, 64, 19, 2, 8, ox + 24, y + 19, 2, 8);                             // the near temple and the ear
+  G.drawImage(sheet, 65, 19, 1, 8, ox + 26, y + 19, 1, 8); G.drawImage(sheet, 64, 19, 1, 5, ox + 27, y + 19, 1, 5); R(ox + 27, y + 24, 1, 3, '#e0b885');
+  G.drawImage(sheet, 66, 19, 8, 8, ox + 28, y + 19, 8, 8);                             // the face
+  G.drawImage(sheet, 65, 27, 10, 5, ox + 26, y + 27, 10, 5); R(ox + 25, y + 27, 1, 2, '#837c8c');   // the beard
+  R(ox + 36, y + 25, 1, 1, '#e8cc9a'); R(ox + 36, y + 26, 1, 1, '#bf9676');            // the nose
+  G.restore();
+}
+function yawnFace(ox, y) {
+  const o = smooth(.3, .7, bit.u) * (1 - smooth(1.9, 2.3, bit.u));
+  if (o > .2) { R(ox + 27, y + 24, 2, 1, SKN[2]); R(ox + 31, y + 24, 2, 1, SKN[2]); R(ox + 27, y + 23, 2, 1, SKN[1]); R(ox + 31, y + 23, 2, 1, SKN[1]); const h = Math.round(1 + o * 3); R(ox + 28, y + 28, 4, h, '#4a1c24'); R(ox + 29, y + 28, 2, 1, '#fff0ea'); if (h > 3) R(ox + 29, y + 30, 2, 1, '#c85a5a'); }
+}
+// the arms of a bit: set by hand, as everywhere
+function bitArms(ox, by) {
+  const u = bit.u;
+  if (bit.name === 'point') {
+    const a = smooth(0, .3, u) * (1 - smooth(2.1, 2.4, u)), j = Math.max(0, Math.sin(u * 7)) * a, d = bit.dir, rest = d > 0 ? REST.r : REST.l;
+    const E = lerp2(rest[0], d > 0 ? [43, 37] : [17, 37], a), Hn = lerp2(rest[1], d > 0 ? [48 + j * 2, 34 + j] : [12 - j * 2, 34 + j], a);
+    if (d > 0) { arm(ox, by, SL, REST.l[0], REST.l[1]); arm(ox, by, SR, E, Hn, { flip: true }); } else { arm(ox, by, SR, REST.r[0], REST.r[1], { flip: true }); arm(ox, by, SL, E, Hn); }
+    if (a > .7) { const x = Math.round(ox + Hn[0]) + d * 2, y = Math.round(by + Hn[1]); R(x, y, 1, 1, SKN[0]); R(x + d, y + 1, 1, 1, SKN[0]); R(x + d * 2, y + 1, 1, 1, SKN[1]); R(x + d * 3, y + 2, 1, 1, SKN[1]); }
+  } else if (bit.name === 'yawn') {
+    const a = smooth(.2, .7, u) * (1 - smooth(1.9, 2.4, u)), s = smooth(.5, 1.1, u) * (1 - smooth(1.7, 2.2, u));
+    arm(ox, by, SR, lerp2(REST.r[0], [43, 36], s), lerp2(REST.r[1], [45, 28], s), { flip: true }); arm(ox, by, SL, lerp2(REST.l[0], [18, 37], a), lerp2(REST.l[1], [26, 31], a));
+    if (u > 1.2) for (let n = 0; n < 3; n++) { const q = (u - 1.2) / 1.4 - n * .18; if (q > 0 && q < 1) R(ox + 37 + q * 6 + n, by + 25 - q * 9, 1, 1, `rgba(225,235,255,${(.8 * (1 - q)).toFixed(2)})`); }
+  } else {
+    // 0-1.4 he fills the bag, 1.4-2 ties it, 2-2.6 pushes it along the table, then waves after it
+    const push = smooth(2, 2.5, u), tie = u > 1.4, b = Math.sin(u * 9) * (tie ? 1.5 : .6);
+    if (u < 2) { arm(ox, by, SL, [20, 40], [25 + (tie ? b : 0), tie ? 35 : 41]); arm(ox, by, SR, [40, 40], [36 - (tie ? b : 0), tie ? 35 : 41], { flip: true }); }
+    else { arm(ox, by, SL, REST.l[0], REST.l[1]); if (u < 3.2) arm(ox, by, SR, lerp2([40, 40], [43, 38], push), lerp2([36, 41], [49, 42], push), { flip: true }); else arm(ox, by, SR, [43, 37], [46 + Math.sin(u * 9) * 1.5, 28], { flip: true }); }
+  }
+}
+function bag(x, y, full, tied) {                                                       // a paper bag 10x10, x is the middle, y the bottom
+  x = Math.round(x); y = Math.round(y);
+  R(x - 5, y - 9, 10, 9, '#d9b483'); R(x - 5, y - 9, 2, 9, '#ecd0a4'); R(x + 4, y - 9, 1, 9, '#a9825a'); R(x - 5, y - 1, 10, 1, '#a9825a'); R(x - 1, y - 5, 3, 3, '#c23138'); R(x, y - 4, 2, 1, '#d9b483');
+  if (tied) { R(x - 3, y - 11, 6, 2, '#c99f6c'); R(x - 5, y - 9, 10, 1, '#c23138'); R(x - 2, y - 11, 2, 2, '#e0483e'); R(x + 1, y - 11, 2, 2, '#e0483e'); R(x, y - 10, 1, 1, '#8c1c2c'); }
+  else { R(x - 5, y - 10, 10, 1, '#f4dfba'); R(x - 4, y - 10, 8, 1, '#8a6440'); for (let n = 0; n < full; n++) { R(x - 4 + n * 2, y - 11 - (n & 1), 2, 2, '#a8622c'); R(x - 4 + n * 2, y - 11 - (n & 1), 2, 1, ICE[season].top[0]); } }
+}
+// the bag on the table: filled, tied and pushed to the customer; it passes behind the big gingerbread
+function drawBag() {
+  const u = bit.u, yT = T_Y + 2;
+  if (u < 2) bag(HOME, yT, Math.min(4, Math.floor(u * 3.5)), u > 1.5);
+  else if (u <= 3.1) bag(HOME + (Math.min(205, buyerX - 9) - HOME) * smooth(2.1, 3.1, u), yT, 4, true);
+}
+// the pile that is left while he takes it
+const pileNow = () => bit && bit.name === 'give' ? Math.max(0, pile - Math.floor(bit.u / .35 + (bit.u > .05 ? 1 : 0))) : pile;
+// the plate with the finished gingerbread on the counter in front, in the scale of the pies and the cake: one more row with every baking
+const PLATE_X = layout === 'phone' ? 167 : 118;
+function drawPlate() {
+  const cx = PLATE_X, y = 175, I = ICE[season], rows = Math.min(4, pileNow());
+  R(cx - 19, y + 2, 38, 1, 'rgba(40,20,30,.35)'); R(cx - 20, y - 2, 40, 2, '#fbf6ee'); R(cx - 18, y, 36, 1, '#d8cfdc'); R(cx - 14, y + 1, 28, 1, '#a99cb0'); R(cx - 20, y - 2, 6, 1, '#ffffff'); R(cx - 15, y - 1, 30, 1, '#e7a3a8');
+  for (let r = 0; r < rows; r++) for (let n = 0; n < 4 - r; n++) {
+    const x = Math.round(cx - (4 - r) * 4.5 + n * 9), yy = y - 6 - r * 4;
+    R(x, yy, 8, 4, '#a8622c'); R(x, yy, 8, 1, '#d99a55'); R(x, yy + 3, 8, 1, '#7c4620'); R(x + 7, yy + 1, 1, 3, '#7c4620');
+    R(x + 1, yy + 1, 6, 1, I.top[0]); R(x + 2, yy + 2, 1, 1, I.top[0]); R(x + 5, yy + 2, 1, 1, I.top[0]); R(x + 3, yy + 1, 2, 1, I.top[1]);
+    if (r === rows - 1) spr(I.t, I.pal, x + 2, yy - 2);
+  }
+  // the gingerbread jumps from the plate into the bag
+  if (bit && bit.name === 'give') for (let n = 0; n < pile; n++) { const q = (bit.u - n * .28) / .45; if (q > 0 && q < 1) { const x = Math.round(cx + (HOME - cx) * q), yy = Math.round(168 + (T_Y - 10 - 168) * q - Math.sin(q * Math.PI) * 12); R(x - 2, yy - 1, 5, 3, '#a8622c'); R(x - 2, yy - 1, 5, 1, I.top[0]); } }
+}
+// the cooking minute: the table, the coat, the hat, the cheeks and the air are in flour
+function drawFlour(time, ox, by, view, turn) {
+  for (let n = 0; n < 34; n++) R(92 + noise(n) * 40, T_Y + noise(n + 50) * 4, noise(n + 9) > .6 ? 2 : 1, 1, n % 3 ? '#fffaf0' : '#e9dcc8');
+  if (view === 'front') {
+    FLOUR.forEach(([x, y, w], n) => R(ox + x, by + y, w, 1, n < 7 ? '#f3c4bd' : n < 11 ? '#ffffff' : '#fffaf0'));
+    if (!turn) { R(ox + 26, by + 27, 3, 1, '#fff6ea'); R(ox + 33, by + 27, 1, 1, '#fff6ea'); }
+  }
+  for (let n = 0; n < 9; n++) {
+    const q = (time * (.5 + noise(n) * .3) + n / 9) % 1, x = 88 + noise(n + 3) * 44 + Math.sin(time + n) * 2, y = T_Y - 2 - q * 22, a = (.95 * (1 - q) * Math.min(1, q * 5)).toFixed(2), w = 3 + Math.round(q * 6);
+    R(x - w / 2, y, w, Math.max(2, w - 3), `rgba(255,250,240,${a})`); R(x - w / 2 + 1, y - 1, Math.max(1, w - 2), 1, `rgba(255,255,255,${a})`);
+  }
+  for (let n = 0; n < 16; n++) { const q = (time * .9 + noise(n + 20)) % 1; R(90 + noise(n + 70) * 42, T_Y - 24 + q * 26, 1, 1, `rgba(255,255,255,${(.9 * (1 - q)).toFixed(2)})`); }
+}
+const noise = (n) => { const v = Math.sin(n * 127.1) * 43758.5; return v - Math.floor(v); };
+const FLOUR = [[23, 10, 2], [24, 11, 2], [24, 9, 1], [33, 9, 2], [34, 10, 1], [26, 16, 2], [27, 15, 1], [23, 37, 2], [24, 38, 1], [36, 39, 2], [35, 40, 1], [27, 41, 3], [28, 42, 2], [32, 45, 3], [33, 44, 2]];
+// what he wants to do besides the work: hand the gingerbread over first, then point, then yawn
+function waitGive(dt) { if (giveAsked > 0) { giveAsked = Math.max(0, giveAsked - dt); if (!giveAsked) pile = 0; } }   // he could not come in time: the plate is just empty
+function stepBits(dt, night) {
+  waitGive(dt); treatNext = Math.max(0, treatNext - dt); if (treat !== treatWas) { treatWas = treat; treatNext = 0; }
+  yawnIn = night ? Math.max(0, yawnIn - dt) : Math.min(yawnIn, 20);                    // the first yawn 20 s after dark, then once a minute
+  if (bit) {
+    bit.u += dt;
+    if (bit.name === 'give' && bit.u > 3.6) gave = true;
+    if (bit.u >= BITS[bit.name]) { if (bit.name === 'give') pile = 0; bit = null; }
+  } else if (!waving && canWave()) {
+    if (giveAsked > 0) { bit = { name: 'give', u: 0 }; giveAsked = 0; waveAsked = 0; }
+    else if (treat && treatNext <= 0 && waveAsked <= 0) { bit = { name: 'point', u: 0, dir: treat }; treatNext = 8; }
+    else if (night && yawnIn <= 0 && !floury && !guest && waveAsked <= 0) { bit = { name: 'yawn', u: 0 }; yawnIn = 60; }
+  }
+  return !!bit;
+}
 // ---- the oven
 function ovenState(st) {
   const gate = (k, a, b) => Math.min(smooth(a, a + .08, k), 1 - smooth(b - .08, b, k));
@@ -134,7 +249,7 @@ function drawCook(time) {
     R(tx - w / 2, ty, w, 2, K.steel[1]); R(tx - w / 2, ty, w, 1, K.steel[3]); R(tx - w / 2, ty + 2, w, 1, K.dsteel[0]);
     for (let q = 0; q < n; q++) {
       const px = tx - w / 2 + 1 + q * 7; R(px, ty - 2, 5, 2, col); R(px, ty - 2, 4, 1, css(mixc(hx('#ffffff'), hx('#c98a4a'), .35)));
-      if (ice > q) { R(px, ty - 3, 5, 1, '#fff6ea'); R(px + 1, ty - 3, 1, 1, '#e0483e'); R(px + 3, ty - 3, 1, 1, '#4f8fd0'); }
+      if (ice > q) iceTop(px, ty - 3);
     }
   };
 
@@ -163,9 +278,10 @@ function drawCook(time) {
     else {
       G.drawImage(sheet, 0, 0, 40, 70, ox, 78, 40, 70);
       G.drawImage(sheet, 40, 51, 40, 10, ox, 129, 40, 10); G.drawImage(sheet, 40, 32, 40, 19, ox, by + 32, 40, 19);
-      G.drawImage(sheet, 40, 0, 40, 32, ox, hb, 40, 32);
-      if (time % 4.1 < .14) { R(lx(27), hb + 24, 2, 1, SKN[1]); R(lx(31), hb + 24, 2, 1, SKN[1]); }
-      if (i === 11) R(lx(29), hb + 29, 3, 1, '#fff0ea');
+      const turn = turned(), yawn = bit && bit.name === 'yawn';
+      head(ox, hb - (yawn && bit.u > .5 && bit.u < 2.2 ? 1 : 0), turn);
+      if (!yawn && time % 4.1 < .14) { R(lx(27 + turn * 2), hb + 24, 2, 1, SKN[1]); R(lx(31 + turn * 2), hb + 24, 2, 1, SKN[1]); }
+      if (i === 11) R(lx(29 + turn), hb + 29, 3, 1, '#fff0ea');
     }
     G.drawImage(table, 0, 0);
   }
@@ -196,11 +312,12 @@ function drawCook(time) {
   const cut = [17, 23, 37, 43];
   if (i === 6) { R(B(13), TB, 34, 3, dq[2]); R(B(13), TB, 34, 1, dq[4]); R(B(13), TB + 2, 34, 1, dq[0]); const n = Math.min(4, Math.floor((u + .9) / 1.75)); for (let q = 0; q < n; q++) { R(B(cut[q]) - 3, TB, 6, 3, dq[1]); R(B(cut[q]) - 2, TB, 4, 2, '#f3dcae'); } }
 
-  if (view === 'front' && waving) {
+  if (view === 'front' && (waving || bit)) {
     // what he has put down for the wave
     if (i === 0) { const x = B(10), y = TB; R(x - 4, y - 9, 9, 9, '#efe2c8'); R(x - 4, y - 9, 9, 1, '#fff8e8'); R(x - 4, y - 9, 1, 9, '#fff8e8'); R(x + 4, y - 8, 1, 8, '#c2ad8c'); R(x - 2, y - 6, 5, 3, K.red[2]); }
     if (i === 5) pin(Math.round(roll * 3));
     if (i === 10) tray(B(30) + icePlace(k).off, TB - 1, DONE, icePlace(k).icing);
+    if (bit) bitArms(ox, 78 + bob);
   } else if (view === 'front') {
     const by = 78 + bob; let L = REST.l, Q = REST.r, cutN = -1, cloth = false, sweat = false;
     const { icing, off } = icePlace(k);
@@ -234,11 +351,10 @@ function drawCook(time) {
     }
     if (cloth) { R(hr[0] - 3, TB - 1, 7, 2, K.cream[3]); R(hr[0] - 3, TB, 7, 1, K.red[3]); }
     if (sweat) R(lx(37), 78 + 20 + (u * 8 % 7), 1, 2, '#a8dcf4');
-    if (i === 11) { miniC(hl[0] - 2, hl[1] - 6, DONE, '#d99a55', 2); for (let n = 0; n < 5; n++) { const q = u * 3 + n * 1.26; if (Math.sin(u * 9 + n) > 0) R(hl[0] + Math.cos(q) * 6, hl[1] - 4 + Math.sin(q) * 6, 1, 1, '#fff2a0'); } }
+    if (i === 11) { bigC(hl[0] - 5, hl[1] - 12); for (let n = 0; n < 5; n++) { const q = u * 3 + n * 1.26; if (Math.sin(u * 9 + n) > 0) R(hl[0] + Math.cos(q) * 6, hl[1] - 4 + Math.sin(q) * 6, 1, 1, '#fff2a0'); } }
   }
-  // finished gingerbread on the plate, waiting for a customer: one more pile with every baking
-  R(160, TB - 1, 22, 2, '#fbf6ee'); R(163, TB + 1, 16, 1, '#b9aebb');
-  for (let n = 0; n < Math.min(4, pile) * 4; n++) { const r = n < 5 ? 0 : n < 9 ? 1 : n < 12 ? 2 : 3, s = [0, 5, 9, 12][r], px = 161 + r * 2 + (n - s) * 4; R(px, TB - 3 - r * 2, 4, 2, DONE); R(px, TB - 3 - r * 2, 3, 1, '#fff0dc'); if (n % 2) R(px + 1, TB - 3 - r * 2, 1, 1, '#e0483e'); }
+  if (bit && bit.name === 'give') drawBag();
+  if (floury && !act) drawFlour(time, ox, 78 + bob, view, turned());
 }
 
 // the wave stops his work for 2 seconds; he waves only when he stands face to us with nothing in the air
@@ -247,12 +363,15 @@ function canWave() { const [x, view] = place(); return st.i >= 0 && ![3, 7, 9, 1
 function tempo(minute) { return minute ? 3 : 1 + hot * (1 - smooth(1.5, 3, quiet)); }
 return {
   // once a frame
-  step(dt, anim, minute) {
-    if (act) { act.t += dt; if (!anim || act.t >= ACTS[act.name]) { act = null; st = cookState(t); } else return; }
+  // o: season, night (the calendar), guest (a customer waits), x (his middle)
+  step(dt, anim, minute, o) {
+    season = o.season; guest = o.guest; buyerX = o.x; floury = minute && anim;
+    if (act) { waitGive(dt); act.t += dt; if (!anim || act.t >= ACTS[act.name]) { act = null; st = cookState(t); } else return; }
     clock += dt; quiet += dt; waveAsked = Math.max(0, waveAsked - dt);
     while (taps.length && clock - taps[0] > 1.5) taps.shift();
     const want = clamp((taps.length / 1.5 - 2) / 5); hot = want > hot ? Math.min(want, hot + dt * 2) : Math.max(want, hot - dt * (quiet > 3 ? 9 : .3));
-    if (!anim) { st = REST_STATE; waving = false; waveAsked = 0; return; }
+    if (!anim) { st = REST_STATE; waving = false; waveAsked = 0; if (bit && bit.name === 'give' || giveAsked > 0) pile = 0; bit = null; giveAsked = 0; return; }
+    if (stepBits(dt, o.night)) return;                               // the clock of the cooking stands
     if (waving) { waveT += dt; if (waveT >= WAVE_S) waving = false; }
     if (!waving) {
       const was = cookState(t).i; t = (t + dt * tempo(minute)) % CYCLE; st = cookState(t);
@@ -264,17 +383,28 @@ return {
   draw(g, time) { if (!ready(sheet)) { g.drawImage(table, 0, 0); return; } G = g; drawCook(time); },
   drawOven(g, time) { G = g; drawOven(time); },
   get oven() { return ovenState(st); },
-  get mixing() { return st.i === 2 && !waving; },
+  get mixing() { return st.i === 2 && !waving && !bit; },
   get place() { return place(); },
-  get state() { return { step: st.i + 1, name: st.name, k: st.k, t, pile, waving, tempo: tempo(false) }; },
+  get state() { return { step: st.i + 1, name: st.name, k: st.k, t, pile, waving, bit: bit && bit.name, tempo: tempo(false) }; },
   tap() { quiet = 0; taps.push(clock); if (taps.length > 30) taps.shift(); },
   wave(wait) { waveAsked = wait; },                                  // wait: for how many seconds he may put it off
   poke() { if (!taps.length) waveAsked = Math.max(waveAsked, 4); },    // a tap on him; in a row of quick taps they are meant for the cookie
-  sold() { pile = 0; },
+  // the gingerbread is sold: he packs the pile and hands it over as soon as his hands are free (12 s at most, then the plate is just empty)
+  give(anim) { gave = false; if (anim) giveAsked = 12; else pile = 0; },
+  get giving() { return giveAsked > 0 || !!bit && bit.name === 'give'; },
+  // the bag on its way from the table into the hands of the customer, over him; x: his middle, top: of his head, feet
+  drawGift(g, x, top, feet) {
+    G = g; const held = feet - Math.round((feet - top) * .36), u = bit && bit.name === 'give' ? bit.u : 9;
+    if (u > 3.1 && u < 9) { const k = clamp((u - 3.1) / .5), x0 = Math.min(205, x - 9), y0 = T_Y + 2; bag(x0 + (x - x0) * k, y0 + (held - y0) * k - Math.sin(k * Math.PI) * 10, 4, true); } else if (u === 9 && gave) bag(x, held, 4, true);
+    if (u > 3.6 && u < 9) { const q = clamp((u - 3.6) / .9); ['.#.#.', '#####', '.###.', '..#..'].forEach((r, j) => { for (let i = 0; i < 5; i++) if (r[i] === '#') R(x - 2 + i, top - 7 - q * 6 + j, 1, 1, `rgba(255,90,110,${(1 - q * .6).toFixed(2)})`); }); }
+  },
+  treat(dir) { treat = dir; },                                       // the glowing food: 1 on the right of him, -1 on the left, 0 nothing
+  drawPlate(g) { G = g; drawPlate(); },
+  get plateKey() { return season + ',' + pileNow(); },
   // 'wash' or 'sweep'; null = he leaves it at once
   act(name, at) { if (name === null) { act = null; st = cookState(t); } else { act = { name, t: at || 0 }; st = { i: 11, u: 0, k: 0, name }; } },
   get doing() { return act; },
   // for the checks
-  set(o) { if (o.t !== undefined) { t = o.t; st = cookState(t); } if (o.pile !== undefined) pile = o.pile; if (o.wave !== undefined) { waving = o.wave >= 0; waveT = o.wave; } },
+  set(o) { if (o.t !== undefined) { t = o.t; st = cookState(t); } if (o.pile !== undefined) pile = o.pile; if (o.wave !== undefined) { waving = o.wave >= 0; waveT = o.wave; } if (o.bit !== undefined) bit = o.bit; if (o.yawn !== undefined) yawnIn = o.yawn; },
 };
 };

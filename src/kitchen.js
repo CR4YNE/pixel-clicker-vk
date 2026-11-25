@@ -71,7 +71,7 @@ function drawStatic(layout) {
   // the counter at the bottom edge
   R(0, 165, W, 15, K.wood[2]); R(0, 165, W, 1, K.wood[4]); R(0, 166, W, 1, K.wood[3]); for (let y = 168; y < 176; y += 2) for (let x = (y * 37) % 31; x < W; x += 34 + (y % 5) * 3) R(x, y, 12 + (x % 9), 1, K.wood[1]);
   for (let x = 40; x < W; x += 80) { R(x, 167, 1, 9, K.wood[0]); R(x + 1, 167, 1, 9, K.wood[3]); }
-  if (layout === 'phone') R(0, 176, W, 4, K.wood[2]);                // on the phone the wood goes on down to the buttons
+  if (layout === 'phone') { G.save(); G.beginPath(); G.rect(0, 165, W, 15); G.clip(); G.translate(0, 165); drawCounter(W); G.restore(); }   // on the phone the wood goes on down to the buttons
   else { R(0, 176, W, 1, K.wood[4]); R(0, 177, W, 3, K.dwood[1]); R(0, 179, W, 1, K.dwood[0]); }
   // the sign, the clock, the pans, the jars, the apron, the towel, the kettle, the board with the pies, the cake, the note and the magnets: things.js
   // vent, books, tins
@@ -110,8 +110,48 @@ function text(s, cx, y, col) {
   for (const ch of s) { const g = FONT[ch]; if (g) { g.rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === '#') R(x + i, y + j - g.above, 1, 1, col); }); x += g.rows[0].length + 1; } else x += 4; }
 }
 
+// the wooden counter of the phone: W x 35, scene rows 165-199 (the last 20 rows are the strip between the scene and the menu)
+function drawCounter(w) {
+  const q = K.wood, d = K.dwood, TONE = [0, .1, -.1, .05, -.05, .14, -.14];
+  const base = hx('#b47b4c'), shade = (v) => (v >= 0 ? mixc(base, WARM, v) : mixc(base, DARK, -v));
+  R(0, 0, w, 35, q[2]); R(0, 0, w, 1, q[4]); R(0, 1, w, 1, q[3]);
+  const ROWS = [2, 4, 8, 13, 19, 26, 32];
+  for (let r = 0; r < 6; r++) {
+    const y = ROWS[r], h = ROWS[r + 1] - y;
+    for (let x = -Math.floor(rnd(r * 5.3) * 40), n = 0; x < w; n++) {
+      const len = 38 + Math.floor(rnd(r * 11.7 + n * 3.1) * 44), k = r * 17.3 + n * 7.9, t = TONE[Math.floor(rnd(k) * 7)] - r * .012;
+      R(x, y, len, h, css(shade(t)));
+      const lo = css(shade(t - .14)), lo2 = css(shade(t - .24)), hi = css(shade(t + .12));
+      R(x, y, len, 1, hi); R(x, y + h - 1, len, 1, lo2); R(x, y, 1, h, hi); R(x + len - 1, y, 1, h, css(shade(-.42)));
+      for (let yy = 1; yy < h - 1; yy++) for (let gx = 2 + Math.floor(rnd(k + yy) * 8), m = 0; gx < len - 4; m++) {   // the grain: long soft strokes
+        const gl = 4 + Math.floor(rnd(k + yy * 3.3 + m) * 13); R(x + gx, y + yy, Math.min(gl, len - 3 - gx), 1, rnd(k + yy + m * 9) > .62 ? hi : rnd(k + m * 4 + yy * 2) > .75 ? lo2 : lo); gx += gl + 5 + Math.floor(rnd(k + m * 5.1) * 12);
+      }
+      if (h > 4 && rnd(k + 2) > .45) {                                                                                  // a knot with its rings
+        const kx = x + 9 + Math.floor(rnd(k + 5) * (len - 20)), ky = y + (h >> 1);
+        R(kx - 4, ky - 1, 9, 3, css(shade(t - .08))); R(kx - 3, ky - 2, 7, 1, lo); if (h > 5) R(kx - 3, ky + 2, 7, 1, lo); R(kx - 5, ky, 1, 1, lo); R(kx + 5, ky, 1, 1, lo); R(kx - 3, ky - 1, 1, 3, lo); R(kx + 3, ky - 1, 1, 3, lo);
+        R(kx - 1, ky - 1, 3, 3, lo2); R(kx - 1, ky, 3, 1, d[1]); R(kx, ky, 1, 1, d[0]); R(kx - 1, ky - 1, 1, 1, hi);
+      }
+      if (h > 4) { R(x + 2, y + (h >> 1), 1, 1, d[0]); R(x + len - 4, y + (h >> 1), 1, 1, d[0]); R(x + 2, y + (h >> 1) - 1, 1, 1, hi); }   // the pegs
+      x += len;
+    }
+    R(0, y + h - 1, w, 1, 'rgba(42,32,64,.28)');
+  }
+  for (const [x, y, n] of [[92, 10, 6], [148, 16, 8], [203, 7, 5], [126, 23, 7], [232, 21, 6], [178, 12, 5]]) for (let i = 0; i < n; i++) R(x + i, y - (i >> 1), 1, 1, i & 1 ? q[4] : q[1]);   // scratches of the knives
+  for (const [cx, cy, rw] of [[104, 6, 15], [157, 9, 18], [141, 20, 9], [236, 12, 12]]) for (let i = 0; i < rw * 4; i++) {            // traces of flour
+    const a = rnd(cx + i) * 6.28, f = Math.sqrt(rnd(cy + i * 3.7)); R(cx + Math.cos(a) * rw * f, cy + Math.sin(a) * rw * .24 * f, f < .4 ? 2 : 1, 1, f < .5 ? 'rgba(255,246,228,.45)' : 'rgba(255,246,228,.25)');
+  }
+  R(0, 32, w, 1, q[4]); R(0, 33, w, 1, d[3]); R(0, 34, w, 1, d[0]);   // the rounded front edge
+  for (let x = 5; x < w; x += 13) { R(x, 33, 5 + (x % 4), 1, d[2]); R(x + 2, 32, 4, 1, q[3]); }
+}
+
 function drawTable() {
-  R(88, T_Y, 122, 1, K.wood[4]); R(88, T_Y + 1, 122, 4, K.wood[3]); for (let x = 92; x < 200; x += 17) R(x, T_Y + 2 + (x % 3), 9, 1, K.wood[2]); R(88, T_Y + 5, 122, 10, K.dwood[2]); R(88, T_Y + 5, 122, 1, K.dwood[0]); R(88, T_Y + 14, 122, 1, K.dwood[0]); for (let x = 90; x < 195; x += 23) { R(x, T_Y + 8, 12, 1, K.dwood[1]); R(x + 5, T_Y + 11, 10, 1, K.dwood[3]); }
+  const q = K.wood, d = K.dwood;
+  R(88, T_Y, 122, 1, q[4]); R(88, T_Y + 1, 122, 4, q[3]);
+  for (let x = 88, n = 0; x < 210; n++) { const l = Math.min(210 - x, 14 + (n * 7) % 11); if (n & 1) R(x, T_Y + 1, l, 4, css(mixc(hx('#b47b4c'), WARM, .13))); R(x + 2, T_Y + 2 + n % 2, Math.max(0, l - 6), 1, q[2]); R(x + 5, T_Y + 3, Math.max(0, l - 9), 1, q[4]); R(x + l - 1, T_Y + 1, 1, 4, q[1]); x += l; }
+  R(88, T_Y + 4, 122, 1, q[1]);
+  R(88, T_Y + 5, 122, 10, d[2]); R(88, T_Y + 5, 122, 1, d[0]); R(88, T_Y + 6, 122, 1, d[1]); R(88, T_Y + 14, 122, 1, d[0]);
+  for (let x = 88, n = 0; x < 210; x += 30, n++) { R(x, T_Y + 6, 1, 8, d[0]); R(x + 1, T_Y + 6, 1, 8, d[3]); for (let y = 8; y < 14; y += 2) R(x + 4 + (y * 5 + n * 3) % 7, T_Y + y, Math.max(0, Math.min(12, 198 - x)), 1, y % 4 ? d[1] : d[3]); }
+  for (const x of [112, 183]) { R(x, T_Y + 9, 4, 3, d[1]); R(x + 1, T_Y + 10, 2, 1, d[0]); }
   bevel(136, T_Y + 7, 24, 6, K.dwood); R(147, T_Y + 9, 3, 1, K.gold[3]);
   for (const x of [91, 203]) { R(x, 138, 5, 8, K.dwood[2]); R(x, 138, 1, 8, K.dwood[4]); R(x + 4, 138, 1, 8, K.dwood[0]); R(x - 1, 146, 8, 1, 'rgba(50,40,80,.35)'); }
 }
@@ -236,9 +276,11 @@ function make(layout, cake, base) {
     g.globalCompositeOperation = 'lighter';
     const k = lampK(c), pool = (im, x, y, a) => { if (a > .02) { g.globalAlpha = Math.min(1, a); g.drawImage(im, x - im.width / 2, y - im.height / 2); } };
     for (const x of LAMPS) pool(lampPool, x, 88, k * (.985 + Math.sin(time * 7) * .015));
+    if (layout === 'phone') for (const x of LAMPS) pool(lampPool, x, 180, k * .3);   // the lamps and the oven on the counter
     pool(hoodPool, 66, 98, k);
     const ov = baker.oven, fire = .18 + (ov.open + Math.max(0, ov.bake) * .5 + .2) * .4;   // an open door and a baking shine more
     pool(firePool, 66, 130, fire * (.6 + .4 * k) * (1 + Math.sin(time * 11) * .05));
+    if (layout === 'phone') pool(firePool, 74, 176, fire * .4);
     g.globalAlpha = 1;
     // the sun falls from the window: the spot on the floor moves against the sun; by night there is a spot of the moon
     const p = (c.h - c.sr) / (c.ss - c.sr); sun = c.dayK * (1 - c.wet) * smooth(0, .1, p) * (1 - smooth(.9, 1, p));
@@ -258,7 +300,7 @@ function make(layout, cake, base) {
       const now = performance.now();
       if (anim !== animWas) { animWas = anim; nextSlow = nextFire = nextCook = nextThings = 0; }
       const dt = timeWas === null ? 0 : clamp(time - timeWas, 0, .25); timeWas = time;
-      baker.step(dt, anim, minute);
+      baker.step(dt, anim, minute, { season: c.season, night: c.dayK < .1, guest: !!things.guest, x: things.guestX || 237 });
       if (test) { baker.set(test); nextSlow = nextFire = nextCook = 0; }
       const at = anim ? time : 0;                                    // with the switch off everything that moves by itself stands still; the time goes on
       const jump = Math.abs(t - c.t) >= .2;                          // a jump of the clock (a loaded save) is shown at once
@@ -282,7 +324,7 @@ function make(layout, cake, base) {
       things.step(dt, t, time, anim, c, baker);
       if (jump || now >= nextThings) {
         nextThings = now + (anim ? 70 : 250);
-        backG.clearRect(0, 0, W, H); things.back(backG); frontG.clearRect(0, 0, W, H); things.front(frontG);
+        backG.clearRect(0, 0, W, H); things.back(backG); frontG.clearRect(0, 0, W, H); things.front(frontG); baker.drawPlate(frontG);
       }
     },
     drawRoom(g) { g.drawImage(room, 0, 0); g.drawImage(win, wox, woy); g.drawImage(back, 0, 0); g.drawImage(oven, OX, OY); g.drawImage(cook, BX, BY); g.drawImage(front, 0, 0); },
@@ -298,6 +340,7 @@ function make(layout, cake, base) {
       things.shine(g);
     },
     lit,                                                             // the picture of the light (for the things drawn outside the room)
+    strip() { const [c2, g2] = cv(W, 20); on(g2, () => { G.save(); G.translate(0, -15); drawCounter(W); G.restore(); }); return c2; },   // the lower 20 rows of the counter
     wood: K.wood[2],                                                 // the colour of the table front
     baker, things,
     get now() { return c; },

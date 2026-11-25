@@ -8,7 +8,7 @@ const { clamp, smooth, hx, mixc, css, rnd, disc, ramp, K, on, bevel, shadowBox, 
 const PC = layout === 'pc', HOUR_S = 30, BAKE_S = 77;                // BAKE_S: one baking of the cook, for the first look of the jars
 let G = null;
 const R = (x, y, w, h, col) => { G.fillStyle = col; G.fillRect(Math.round(x), Math.round(y), w, h); };
-const DUR = { sign: 3.4, clock: 3, moth: 12, pans: 3, mouse: 5, jarLid: 1, jarFill: 4, kettle: 8, fridge: 5, note: 3, petal: 5, piesHop: 3.6, cherryTap: .9, egg: 9, glare: 1.3 };
+const DUR = { sign: 3.4, clock: 3, moth: 12, pans: 3, mouse: 5, jarLid: 1, jarFill: 4, kettle: 8, drop: 2, fridge: 5, note: 3, petal: 5, piesHop: 3.6, cherryTap: .9, egg: 9, glare: 1.3 };
 const P = (E, id) => E.play[id];
 const has = (E, id) => E.play[id] !== undefined;
 function steam(x, y, time, a, h, n = 4) { for (let i = 0; i < n; i++) { const k = (time * .32 + i / n) % 1; R(x + Math.sin(time * 1.5 + i * 2 + k * 5) * 1.8, y - k * h, k > .4 ? 2 : 1, k > .6 ? 2 : 1, `rgba(255,250,244,${(a * (1 - k) * Math.min(1, k * 6)).toFixed(2)})`); } }
@@ -106,6 +106,11 @@ function kettle(E) {
   R(79, 102 - hop, 5, 1, q[3]); R(81, 101 - hop, 1, 1, K.black[2]);             // the lid
   R(77, 100, 1, 3, K.black[2]); R(85, 100, 1, 3, K.black[2]); R(78, 99, 7, 1, K.black[2]); R(78, 99, 3, 1, K.black[4]);   // the handle
   if (boil > 0) { for (let i = 0; i < 6; i++) { const k = (E.time * 1.1 + i / 6) % 1; puff(73 - k * 5 + Math.sin(E.time * 4 + i) * .6, 102 - k * 16, k > .3 ? 2 : 1, .95 * boil * (1 - k * .8)); } if (hop) R(80 + (Math.floor(E.time * 4) & 3), 100, 1, 1, '#ffffff'); }
+}
+// a drop from the tap and the rings on the water, every 8 s
+function drop(E) {
+  R(239, 109, 2, 1, K.steel[1]); const t = P(E, 'drop'); if (t === undefined) return;
+  if (t < .8) R(240, 109, 1, 1, '#bfe2f6'); else if (t < 1.15) R(240, 109 + (t - .8) * 26, 1, 2, '#bfe2f6'); else if (t < 1.35) { R(239, 118, 3, 1, '#d9effa'); R(238, 117, 1, 1, '#d9effa'); R(242, 117, 1, 1, '#d9effa'); } else if (t < 1.7) { R(236, 118, 2, 1, '#d9effa'); R(243, 118, 2, 1, '#d9effa'); }
 }
 // the fridge: the door at night, the note; the magnets stand still
 function fridge(E) {
@@ -226,10 +231,10 @@ function drawGlare(g, frame, x, y) {
 // ---- the queue: one noticeable scene at a time, 4-9 s between them
 // [name, weight, when it may play]; what the phone does not show never waits in its queue. null = a pause, so that the rare scenes stay rare
 const QUEUE = [['pans', 5, () => true], ['mouse', 1.2, () => PC], ['note', 1.5, () => PC], ['petal', 3, (c) => PC && c.ydf > 10 && c.ydf < 24], ['moth', 3, (c) => c.dayK < .15 && c.season !== 3], ['fridge', 1.5, (c) => PC && c.dayK < .15], [null, 5.4, () => true]];
-const SMALL = ['cherryTap', 'jarLid', 'piesHop'], big = (id) => !SMALL.includes(id);
+const SMALL = ['drop', 'cherryTap', 'jarLid', 'piesHop'], big = (id) => !SMALL.includes(id);
 const E = { layout, c: null, time: 0, anim: true, play: {}, jars: [1, 1, 1, 1], lidOf: 0, hoodK: 0, prints: 0, sweepX: null, mothLamp: 221 };
 const api = { guest: false, appetite: false, busy: false, canEgg: () => true, onEgg() {} };   // what the game tells (before every frame) and is told
-let next = 4, last = '', glareIn = 14, step = -1, bakes = 0, pending = null, was = null;
+let next = 4, last = '', glareIn = 14, dropIn = 3, step = -1, bakes = 0, pending = null, was = null;
 const busyNow = (b) => !!b.doing || Object.keys(E.play).some(big);
 const DAY = (t) => ((t % 24) + 24) % 24;
 // a loaded save or a set clock: the jars and the prints are as the hour needs them (they are not saved)
@@ -271,6 +276,7 @@ return Object.assign(api, {
       }
     }
     if (api.appetite && E.play.piesHop === undefined) E.play.piesHop = 0;
+    if ((dropIn -= dt) < 0 && !b.doing && Object.keys(E.play).length < 2) { dropIn = 8; E.play.drop = 0; }
     if ((glareIn -= dt) < 0) { glareIn = 20 + Math.random() * 10; if (!api.busy && !busyNow(b)) E.play.glare = 0; }
     // the queue waits until everything noticeable is over
     if (busyNow(b) || api.guest) next = Math.max(next, 4);
@@ -288,7 +294,7 @@ return Object.assign(api, {
   guestComes() { if (E.anim) E.play.sign = 0; },
   cherry() { if (E.anim) E.play.cherryTap = 0; },
   click() { glareIn = 20 + Math.random() * 10; delete E.play.glare; },  // a tap on the cookie ends the quiet
-  back(g) { at(g, () => { sign(E); ribbon(E); hood(E); pans(E); cloth(E); clock(E); mouse(E); jars(E); kettle(E); fridge(E); petal(E); prints(E); }); },
+  back(g) { at(g, () => { sign(E); ribbon(E); hood(E); pans(E); cloth(E); clock(E); mouse(E); jars(E); kettle(E); drop(E); fridge(E); petal(E); prints(E); }); },
   front(g) { at(g, () => { board(E); cake(E); egg(E); }); },
   shine(g) { at(g, () => shine(E)); },
   drawGlare,
