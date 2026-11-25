@@ -324,7 +324,7 @@ function make(layout, cake, base) {
       things.step(dt, t, time, anim, c, baker);
       if (jump || now >= nextThings) {
         nextThings = now + (anim ? 70 : 250);
-        backG.clearRect(0, 0, W, H); things.back(backG); frontG.clearRect(0, 0, W, H); things.front(frontG); baker.drawPlate(frontG);
+        backG.clearRect(0, 0, W, H); things.back(backG); frontG.clearRect(0, 0, W, H); things.front(frontG); baker.drawPlate(frontG, at);
       }
     },
     drawRoom(g) { g.drawImage(room, 0, 0); g.drawImage(win, wox, woy); g.drawImage(back, 0, 0); g.drawImage(oven, OX, OY); g.drawImage(cook, BX, BY); g.drawImage(front, 0, 0); },

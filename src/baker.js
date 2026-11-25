@@ -121,7 +121,23 @@ function drawBag() {
 const pileNow = () => bit && bit.name === 'give' ? Math.max(0, pile - Math.floor(bit.u / .35 + (bit.u > .05 ? 1 : 0))) : pile;
 // the plate with the finished gingerbread on the counter in front, in the scale of the pies and the cake: one more row with every baking
 const PLATE_X = layout === 'phone' ? 167 : 118;
-function drawPlate() {
+// the greenery on the phone's counter in place of the plate: basil, a flower of the season and a hanging ivy
+function drawPlants(at) {
+  const y = 177, cx = PLATE_X, sw = (k) => Math.round(Math.sin(at * 1.1 + k) * .7), L = ['#1f4a3c', '#2f7048', '#4c9a58', '#7cc470', '#b8e89a'];
+  const leaf = (x, yy, w, d, b) => { R(x, yy, w, 2, L[b]); R(x + (d > 0 ? 0 : 1), yy, w - 1, 1, L[b + 1]); R(d > 0 ? x + w - 1 : x, yy + 1, 1, 1, L[b - 1]); };
+  const pot = (x, w, h, q) => { R(x - 1, y, w + 3, 1, 'rgba(42,32,64,.35)'); R(x, y - h, w, h, q[1]); R(x, y - h, 2, h, q[2]); R(x + w - 2, y - h, 2, h, q[0]); R(x - 1, y - h, w + 2, 2, q[2]); R(x - 1, y - h, w + 1, 1, q[3]); R(x + w, y - h + 1, 1, 1, q[0]); };
+  const CL = ['#8a4434', '#bc6a48', '#d8875c', '#f4b488'], BL = ['#33588c', '#4d7fb4', '#6c9fd0', '#a8d0f0'], CR = ['#a8907c', '#d8c4a4', '#f0e0c4', '#fff6e0'];
+  pot(cx - 17, 9, 6, CL);                                                                                     // the basil: a round bush
+  for (const [x, yy, w, d, b] of [[-19, -9, 4, -1, 1], [-11, -9, 4, 1, 1], [-18, -12, 4, -1, 1], [-12, -12, 4, 1, 1], [-15, -9, 4, 1, 2], [-17, -11, 3, -1, 2], [-13, -11, 3, 1, 2], [-16, -14, 4, -1, 2], [-13, -14, 3, 1, 3], [-15, -12, 3, -1, 3]]) leaf(cx + x + (yy < -11 ? sw(0) : 0), y + yy, w, d, b);
+  const F = [['#c84a78', '#f07aa8', '#ffc0d8'], ['#d8942a', '#ffc83c', '#fff0a0'], ['#b84a24', '#e8762e', '#ffb470'], ['#a02438', '#d83a4a', '#ff8a8a']][season], s1 = sw(2);
+  pot(cx - 4, 8, 5, BL); R(cx - 2, y - 4, 4, 1, BL[3]);                                                         // the flowers of the season
+  R(cx - 1, y - 11, 1, 6, L[2]); R(cx + 1 + s1, y - 12, 1, 4, L[1]); R(cx + 1, y - 9, 1, 4, L[1]); leaf(cx - 5, y - 8, 4, -1, 2); leaf(cx + 2, y - 8, 4, 1, 1); leaf(cx - 3, y - 7, 3, -1, 3);
+  for (const [x, yy] of [[-4, -13], [1 + s1, -15], [4, -11]]) { R(cx + x, y + yy, 4, 4, F[1]); R(cx + x + 1, y + yy - 1, 2, 1, F[2]); R(cx + x, y + yy, 2, 1, F[2]); R(cx + x + 1, y + yy + 3, 3, 1, F[0]); R(cx + x + 3, y + yy + 1, 1, 2, F[0]); R(cx + x + 1, y + yy + 1, 2, 1, '#fff3b0'); }
+  pot(cx + 10, 8, 6, CR); R(cx + 11, y - 3, 6, 1, '#7fb8a8');                                                    // the ivy: the shoots hang over the pot
+  for (const [x, yy, w, d, b] of [[8, -9, 4, -1, 1], [15, -9, 4, 1, 1], [11, -10, 4, -1, 2], [14, -11, 3, 1, 3], [12, -12, 3, -1, 2], [8, -6, 3, -1, 2], [7, -4, 3, -1, 1], [18, -7, 3, 1, 2], [18, -5, 3, 1, 1], [19, -3, 3, 1, 2]]) leaf(cx + x + (yy > -6 ? 0 : sw(4)), y + yy, w, d, b);
+}
+function drawPlate(at) {
+  if (layout === 'phone') { drawPlants(at || 0); return; }
   const cx = PLATE_X, y = 175, I = ICE[season], rows = Math.min(4, pileNow());
   R(cx - 19, y + 2, 38, 1, 'rgba(40,20,30,.35)'); R(cx - 20, y - 2, 40, 2, '#fbf6ee'); R(cx - 18, y, 36, 1, '#d8cfdc'); R(cx - 14, y + 1, 28, 1, '#a99cb0'); R(cx - 20, y - 2, 6, 1, '#ffffff'); R(cx - 15, y - 1, 30, 1, '#e7a3a8');
   for (let r = 0; r < rows; r++) for (let n = 0; n < 4 - r; n++) {
@@ -399,7 +415,7 @@ return {
     if (u > 3.6 && u < 9) { const q = clamp((u - 3.6) / .9); ['.#.#.', '#####', '.###.', '..#..'].forEach((r, j) => { for (let i = 0; i < 5; i++) if (r[i] === '#') R(x - 2 + i, top - 7 - q * 6 + j, 1, 1, `rgba(255,90,110,${(1 - q * .6).toFixed(2)})`); }); }
   },
   treat(dir) { treat = dir; },                                       // the glowing food: 1 on the right of him, -1 on the left, 0 nothing
-  drawPlate(g) { G = g; drawPlate(); },
+  drawPlate(g, at) { G = g; drawPlate(at); },
   get plateKey() { return season + ',' + pileNow(); },
   // 'wash' or 'sweep'; null = he leaves it at once
   act(name, at) { if (name === null) { act = null; st = cookState(t); } else { act = { name, t: at || 0 }; st = { i: 11, u: 0, k: 0, name }; } },
