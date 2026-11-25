@@ -563,7 +563,7 @@
     }
     if (!lvlPending || lvlWin) return;
     // the window waits until every other window is closed (the shop does not stop it)
-    if (custMenuOpen() || premiumWin || skinOffer || resetWin || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || (cust && cust.sold) || rewardAdOpen || launchState !== 'ok') return;
+    if (custMenuOpen() || premiumWin || skinOffer || resetWin || promoOpen || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || (cust && cust.sold) || rewardAdOpen || launchState !== 'ok') return;
     const from = lvlPending.from;
     lvlPending = null;
     lvlWin = { level: bakeryLevel, gained: bakeryLevel - from, opened: TECHNIKA.filter((m) => m.level > from && m.level <= bakeryLevel), t: 0 };
@@ -1284,7 +1284,7 @@
     return autoPerSec() / ((adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * (glazeTech > 0 ? 2 : 1));
   }
   function updateOffline() {
-    if (!offlineFrom || lvlWin || splashT > 0 || consentOpen || launchState !== 'ok' || noticeWin || loadingLeft > 0 || sale || rewardAdOpen || offlineWin) return;
+    if (!offlineFrom || lvlWin || splashT > 0 || consentOpen || launchState !== 'ok' || promoOpen || noticeWin || loadingLeft > 0 || sale || rewardAdOpen || offlineWin) return;
     const sec = Math.min(OFF_MAX, (offlineUntil - offlineFrom) / 1000);
     offlineFrom = 0;
     if (!(sec >= OFF_MIN)) return;
@@ -1375,7 +1375,7 @@
     if (cust) cust.t += dt;
     if (cust && cust.sold) { if (!kitchen.baker.giving) cust.out = 0; return; }   // he waits for his bag and leaves with it
     // the clock and his waiting stand still while a menu, a message, an ad or the start screen is up
-    if (rewardAdOpen || noticeWin || offlineWin || lvlWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
+    if (rewardAdOpen || promoOpen || noticeWin || offlineWin || lvlWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
     const adJust = Date.now() - lastAdAt < CUST_AD_GAP;
     if (cust) {
       if (adJust) { cust.out = 0; custGap = 0; return; }   // another ad was watched meanwhile: he comes back when the minute is over
@@ -2890,7 +2890,7 @@
     // the bundle of all premium skins always comes first
     if (sec === 'skins') {
       // after the bundle nothing is left to buy: the section is empty ("ТОВАРОВ НЕТ")
-      if (premiumOwned.skins_all) return [];
+      if (premiumOwned.skins_all || SKINS.every((k) => !k.premium || skinOwned[k.id])) return [];
       // a bought skin leaves the shop
       // an owned skin (bought, won or opened in the appearance list) also leaves the shop
       return PREMIUM_ITEMS.filter((x) => x.id === 'skins_all' || (x.id.startsWith('skin_') && !premiumOwned[x.id] && !skinOwned[x.id.slice(5)]))
@@ -2993,18 +2993,19 @@
     drawTextBox('CR4YNE', 1, 246 - devW, 246, 10, 20, dimTone());
     // one row each: the label on the left, the slider or the toggle on the right; rows are 16 px apart
     sliderRow(22, 'ЗВУК', settings.sound);
-    sliderRow(38, 'МУЗЫКА', settings.music);
+    sliderRow(34, 'МУЗЫКА', settings.music);
     // full screen: the toggle sits in the free row between the sliders and the colour-blind row
-    drawText('НА ВЕСЬ ЭКРАН', 1, 74, 54, COL.text, 'left');
+    drawText('НА ВЕСЬ ЭКРАН', 1, 74, 47, COL.text, 'left');
     const fsOn = !!document.fullscreenElement;
-    fillRect(202, 53, 44, 10, fsOn ? '#5c5096' : COL.track);
-    fillRect(fsOn ? 238 : 204, 54, 8, 8, COL.btnText);
-    drawText('АНИМИРОВАННЫЙ ФОН', 1, 74, 68, COL.text, 'left');
-    fillRect(202, 67, 44, 10, settings.animBg ? '#5c5096' : COL.track);
-    fillRect(settings.animBg ? 238 : 204, 68, 8, 8, COL.btnText);
-    drawText('ТРЯСКА ЭКРАНА', 1, 74, 82, COL.text, 'left');
-    fillRect(202, 81, 44, 10, settings.shake ? '#5c5096' : COL.track);
-    fillRect(settings.shake ? 238 : 204, 82, 8, 8, COL.btnText);
+    fillRect(202, 46, 44, 10, fsOn ? '#5c5096' : COL.track);
+    fillRect(fsOn ? 238 : 204, 47, 8, 8, COL.btnText);
+    drawText('АНИМИРОВАННЫЙ ФОН', 1, 74, 59, COL.text, 'left');
+    fillRect(202, 58, 44, 10, settings.animBg ? '#5c5096' : COL.track);
+    fillRect(settings.animBg ? 238 : 204, 59, 8, 8, COL.btnText);
+    drawText('ТРЯСКА ЭКРАНА', 1, 74, 71, COL.text, 'left');
+    fillRect(202, 70, 44, 10, settings.shake ? '#5c5096' : COL.track);
+    fillRect(settings.shake ? 238 : 204, 71, 8, 8, COL.btnText);
+    settingsButton(74, 82, 246, 94, 'ПРОМОКОД');
     settingsButton(74, 96, 246, 108, 'СБРОС ПРОГРЕССА');
     // the support and documents tabs, and the close button under them
     settingsButton(74, 110, 160, 122, 'ПОДДЕРЖКА');
@@ -3225,17 +3226,110 @@
       else document.documentElement.requestFullscreen().catch(() => {});   // the browser may refuse: nothing changes
     } catch (err) { /* the browser refused: nothing changes */ }
   }
+  // ---------- promo codes: typed in the settings ----------
+  // each code opens a list of skins; the list is made when the code is used, so later skins count too
+  const PROMO_CODES = {
+    NEWYEAR: () => ['newyear'],
+    ALLSKINS: () => SKINS.map((k) => k.id),
+  };
+  const PR_X0 = 76, PR_X1 = 244, PR_Y0 = 30, PR_Y1 = 114, PR_F0 = 48, PR_F1 = 62, PR_MX = Math.round((PR_X0 + PR_X1) / 2);
+  let promoOpen = false, promoMsg = null;   // promoMsg: {lines, ok}
+  let promoFrom = 0;                        // the caret blinks from here
+  // a real text field lies over the drawn one, transparent: it brings the phone's keyboard, the paste and the selection
+  const promoInput = document.createElement('input');
+  Object.assign(promoInput, { type: 'text', maxLength: 20, autocomplete: 'off', spellcheck: false, enterKeyHint: 'done' });
+  promoInput.setAttribute('autocapitalize', 'off');
+  promoInput.setAttribute('autocorrect', 'off');
+  promoInput.setAttribute('aria-label', 'Промокод');
+  promoInput.style.cssText = 'position:fixed;display:none;margin:0;padding:0;border:0;outline:0;opacity:0;font-size:16px;text-align:center;';   // 16 px: a smaller field makes an iPhone zoom in
+  document.body.appendChild(promoInput);
+  promoInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); applyPromo(); }
+    if (e.key === 'Escape') { e.preventDefault(); closePromo(); }
+  });
+  promoInput.addEventListener('input', () => { promoMsg = null; promoFrom = performance.now(); });
+  function openPromo() {
+    promoOpen = true; promoMsg = null; promoInput.value = ''; promoFrom = performance.now();
+    syncPromoInput();
+    setTimeout(() => { if (promoOpen) promoInput.focus({ preventScroll: true }); }, 0);   // after the tap itself, which takes the focus away
+  }
+  function closePromo() {
+    promoOpen = false;
+    syncPromoInput();
+  }
+  function syncPromoInput() {
+    const st = promoInput.style;
+    if (!promoOpen || noticeWin || lvlWin || offlineWin) {
+      if (st.display !== 'none') { promoInput.blur(); st.display = 'none'; fitScreen(); }
+      return;
+    }
+    const r = canvas.getBoundingClientRect(), s = r.width / PHONE_W;
+    st.display = 'block';
+    st.left = r.left + (PR_X0 + 4 - SCENE_CROP_X) * s + 'px';
+    st.top = r.top + (PR_F0 - SCENE_UP) * s + 'px';
+    st.width = (PR_X1 - PR_X0 - 8) * s + 'px';
+    st.height = (PR_F1 - PR_F0) * s + 'px';
+  }
+  function applyPromo() {
+    const code = promoInput.value.replace(/\s+/g, '').toUpperCase();
+    if (!code) { promoMsg = { lines: ['ВВЕДИТЕ ПРОМОКОД'], ok: false }; return; }
+    if (!Object.prototype.hasOwnProperty.call(PROMO_CODES, code)) { promoMsg = { lines: ['ТАКОГО ПРОМОКОДА НЕТ'], ok: false }; return; }
+    const ids = PROMO_CODES[code](), fresh = ids.filter((id) => !skinOwned[id]);
+    if (!fresh.length) { promoMsg = { lines: [ids.length > 1 ? 'ВСЕ СКИНЫ УЖЕ ОТКРЫТЫ' : 'ЭТОТ СКИН УЖЕ ОТКРЫТ'], ok: false }; return; }
+    for (const id of fresh) skinOwned[id] = true;
+    saveGame();                           // the premium save is a part of it
+    if (window.vkBridge) vkSaveNow();     // and the cloud gets it at once
+    sfxBuy();
+    promoInput.value = '';
+    if (ids.length > 1) { promoMsg = { lines: ['ПРОМОКОД ПРИНЯТ', 'ВСЕ СКИНЫ ОТКРЫТЫ: ' + ids.length], ok: true }; return; }
+    closePromo();
+    settingsOpen = false; panelOpen = shopReturn; shopReturn = false;   // as with the close button
+    offerSkin(ids[0]);
+  }
+  function drawPromo() {
+    fillRect(0, 0, W, 320, NOTICE_DIM);
+    const w = PR_X1 - PR_X0, h = PR_Y1 - PR_Y0;
+    fillRect(PR_X0, PR_Y0, w, h, COL.panel);
+    fillRect(PR_X0, PR_Y0, w, 1, COL.panelEdge); fillRect(PR_X0, PR_Y1 - 1, w, 1, COL.panelEdge);
+    fillRect(PR_X0, PR_Y0, 1, h, COL.panelEdge); fillRect(PR_X1 - 1, PR_Y0, 1, h, COL.panelEdge);
+    drawTextBox('ПРОМОКОД', 1, PR_X0, PR_X1, 34, 42, accent());
+    // the field
+    fillRect(PR_X0 + 4, PR_F0, w - 8, PR_F1 - PR_F0, COL.panelEdge);
+    fillRect(PR_X0 + 5, PR_F0 + 1, w - 10, PR_F1 - PR_F0 - 2, COL.track);
+    const text = promoInput.value.toUpperCase(), focused = document.activeElement === promoInput;
+    // a very long text does not fit the field: its end stays in view
+    let shown = text, cut = 0;
+    while (textWidth(shown, 1) > w - 18) { shown = shown.slice(1); cut++; }
+    const x0 = PR_MX - Math.floor(shown ? textWidth(shown, 1) / 2 : 0);
+    const at = (n) => { const t = text.slice(cut, Math.max(cut, n)); return x0 + (t ? textWidth(t, 1) + 1 : 0); };
+    const a = promoInput.selectionStart || 0, b = promoInput.selectionEnd || 0;
+    if (focused && b > a) fillRect(at(a) - 1, PR_F0 + 2, at(b) - at(a) + 1, PR_F1 - PR_F0 - 4, '#5c5096');
+    if (shown) drawText(shown, 1, x0, PR_F0 + 3, COL.text, 'left');
+    else if (!focused) drawTextBox('ВВЕДИТЕ ПРОМОКОД', 1, PR_X0, PR_X1, PR_F0 + 3, PR_F0 + 11, dimTone());
+    if (focused && a === b && Math.floor((performance.now() - promoFrom) / 500) % 2 === 0) fillRect(at(b), PR_F0 + 3, 1, 8, COL.btnText);
+    if (promoMsg) promoMsg.lines.forEach((t, i) => drawTextBox(t, 1, PR_X0, PR_X1, 68 + i * 10, 76 + i * 10, promoMsg.ok ? accent() : COL.text));
+    settingsButton(PR_X0 + 4, 98, PR_MX - 2, 110, 'ПРИМЕНИТЬ');
+    settingsButton(PR_MX + 2, 98, PR_X1 - 4, 110, 'ЗАКРЫТЬ');
+  }
+  function handlePromoDown(gx, gy) {
+    if (inRect(gx, gy, PR_X0 + 4, 98, PR_MX - 2, 110)) { applyPromo(); return; }
+    if (inRect(gx, gy, PR_MX + 2, 98, PR_X1 - 4, 110)) { closePromo(); return; }
+  }
+
   function handleSettingsDown(gx, gy) {
     if (resetWin) { handleResetDown(gx, gy); return; }   // the reset window takes all taps
     if (inRect(gx, gy, 74, 110, 160, 122)) { supportOpen = true; return; }
     if (inRect(gx, gy, 164, 110, 246, 122)) { docsListOpen = true; return; }
     if (inRect(gx, gy, 74, 124, 246, 136)) { settingsOpen = false; resetWin = null; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
-    if (inRect(gx, gy, 198, 66, 248, 78, [202, 67, 246, 77])) { settings.animBg = !settings.animBg; saveGame(); return; }
-    if (inRect(gx, gy, 198, 80, 248, 92, [202, 81, 246, 91])) { settings.shake = !settings.shake; saveGame(); return; }
+    if (inRect(gx, gy, 198, 57, 248, 69, [202, 58, 246, 68])) { settings.animBg = !settings.animBg; saveGame(); return; }
+    if (inRect(gx, gy, 198, 69, 248, 81, [202, 70, 246, 80])) { settings.shake = !settings.shake; saveGame(); return; }
+    if (inRect(gx, gy, 74, 82, 246, 94)) { openPromo(); return; }
     if (inRect(gx, gy, 74, 96, 246, 108)) { resetWin = { stage: 1 }; return; }   // opens the reset window
-    if (inRect(gx, gy, 198, 51, 248, 65, [202, 53, 246, 63])) { toggleFullScreen(); return; }   // the full-screen toggle, drawn at y 53-63
-    if (inZone(gx, gy, 120, 22, 246, 34)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
-    if (inZone(gx, gy, 120, 38, 246, 50)) { sliderDrag = 'music'; setSlider('music', gx); return; }
+    if (inRect(gx, gy, 198, 45, 248, 57, [202, 46, 246, 56])) { toggleFullScreen(); return; }   // the full-screen toggle, drawn at y 46-56
+    if (inZone(gx, gy, 120, 20, 246, 32)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
+    if (inZone(gx, gy, 120, 32, 246, 44)) { sliderDrag = 'music'; setSlider('music', gx); return; }
   }
 
   // ---------- input ----------
@@ -3269,7 +3363,7 @@
   const pressCtx = pressCanvas.getContext('2d');
   function screenKey() {
     return [settingsOpen, panelOpen, !!progWin, skinWin, skinPreview, premiumWin && premiumWin.mode, !!skinOffer, boostMenuOpen, supportOpen, docsListOpen, docsOpen, consentOpen,
-      resetWin && resetWin.stage, !!lvlWin, !!offlineWin, !!noticeWin, dailyPreview, !!sale, loadingLeft > 0].join();
+      resetWin && resetWin.stage, !!lvlWin, !!offlineWin, !!noticeWin, promoOpen, dailyPreview, !!sale, loadingLeft > 0].join();
   }
   function setHit(gx, gy, x0, y0, x1, y1) {
     if (tapRaw) hitBox = [x0 + tapRaw[0] - gx, y0 + tapRaw[1] - gy, x1 - x0, y1 - y0].map(Math.round);   // on the canvas
@@ -3336,6 +3430,7 @@
     const [gx, gy] = toGame(e);
     if (offlineWin) { handleOfflineDown(gx, gy); return; }       // the window of the income while the game was closed
     if (lvlWin) { handleLevelDown(gx, gy); return; }             // the window of a new level
+    if (promoOpen) { handlePromoDown(gx, gy); return; }   // the code window takes all taps
     if (sale) return;                         // the selling screen takes no taps
     if (tapCustomer(gx, gy)) return;          // the customer at the counter (with a menu open too: the scene stays in view)
     if (inZone(gx, gy, ...CAKE_BOX)) kitchen.things.cherry();   // the cherry on the cake springs
@@ -4314,6 +4409,8 @@
     }
     if (lvlWin) drawLevelWin();
     if (offlineWin) drawOffline();
+    if (promoOpen) drawPromo();
+    syncPromoInput();
     if (noticeWin) drawNotice();   // over the game scene, not in the menu under it
     ctx.restore();
   }
@@ -4838,7 +4935,7 @@
       const bw = SKIN_BTN[2] - SKIN_BTN[0];
       screenCtx.drawImage(skinBtnCanvas, SKIN_BTN[0], 0, bw, 18, SKIN_BTN[0] - SCENE_CROP_X, 160, bw, 18);
       screenCtx.drawImage(skinBtnCanvas, MENU_BTN_X - 30, 0, MENU_BTN_W + 30, 18, MENU_BTN_X - 30 - SCENE_CROP_X, 160, MENU_BTN_W + 30, 18);
-      if (noticeWin || offlineWin || lvlWin) {
+      if (noticeWin || promoOpen || offlineWin || lvlWin) {
         // this strip is drawn after the scene: it is dimmed here, and Боня (she is taller than the strip) on her own picture
         screenCtx.fillStyle = NOTICE_DIM; screenCtx.fillRect(0, 180 - SCENE_UP, PHONE_W, SCENE_UP);
         litBonya();
@@ -4855,6 +4952,9 @@
   }
   let fitW = 0, fitH = 0;   // the window size the canvas was last fitted to
   function fitScreen() {
+    // the phone's keyboard makes the window lower: the game keeps its size and its top, where the code window is
+    document.body.style.alignItems = document.activeElement === promoInput ? 'flex-start' : '';
+    if (document.activeElement === promoInput) return;
     // the size left inside the safe area (the body's padding is the notch and the system bars)
     const cs = getComputedStyle(document.body);
     const availW = window.innerWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);

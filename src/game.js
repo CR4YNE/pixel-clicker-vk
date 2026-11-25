@@ -559,7 +559,7 @@
     }
     if (!lvlPending || lvlWin) return;
     // the window waits until every other window is closed (the shop does not stop it)
-    if (custMenuOpen() || premiumWin || skinOffer || resetWin || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || (cust && cust.sold) || rewardAdOpen || launchState !== 'ok') return;
+    if (custMenuOpen() || premiumWin || skinOffer || resetWin || promoOpen || noticeWin || offlineWin || consentOpen || splashT > 0 || loadingLeft > 0 || sale || (cust && cust.sold) || rewardAdOpen || launchState !== 'ok') return;
     const from = lvlPending.from;
     lvlPending = null;
     lvlWin = { level: bakeryLevel, gained: bakeryLevel - from, opened: TECHNIKA.filter((m) => m.level > from && m.level <= bakeryLevel), t: 0 };
@@ -1296,7 +1296,7 @@
     return autoPerSec() / ((adBoost.double > 0 ? 2 : 1) * (questBoost > 0 ? 2 : 1) * (glazeTech > 0 ? 2 : 1));
   }
   function updateOffline() {
-    if (!offlineFrom || lvlWin || splashT > 0 || consentOpen || launchState !== 'ok' || noticeWin || loadingLeft > 0 || sale || rewardAdOpen || offlineWin) return;
+    if (!offlineFrom || lvlWin || splashT > 0 || consentOpen || launchState !== 'ok' || promoOpen || noticeWin || loadingLeft > 0 || sale || rewardAdOpen || offlineWin) return;
     const sec = Math.min(OFF_MAX, (offlineUntil - offlineFrom) / 1000);
     offlineFrom = 0;
     if (!(sec >= OFF_MIN)) return;
@@ -1390,7 +1390,7 @@
     if (cust) cust.t += dt;
     if (cust && cust.sold) { if (!kitchen.baker.giving) cust.out = 0; return; }   // he waits for his bag and leaves with it
     // the clock and his waiting stand still while a menu, a message, an ad or the start screen is up
-    if (rewardAdOpen || noticeWin || offlineWin || lvlWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
+    if (rewardAdOpen || promoOpen || noticeWin || offlineWin || lvlWin || consentOpen || splashT > 0 || loadingLeft > 0 || launchState !== 'ok' || custMenuOpen()) return;
     const adJust = Date.now() - lastAdAt < CUST_AD_GAP;
     if (cust) {
       if (adJust) { cust.out = 0; custGap = 0; return; }   // another ad was watched meanwhile: he comes back when the minute is over
@@ -2869,7 +2869,7 @@
     // the bundle of all premium skins always comes first
     if (sec === 'skins') {
       // after the bundle nothing is left to buy: the section is empty ("ТОВАРОВ НЕТ")
-      if (premiumOwned.skins_all) return [];
+      if (premiumOwned.skins_all || SKINS.every((k) => !k.premium || skinOwned[k.id])) return [];
       // a bought skin leaves the shop
       // an owned skin (bought, won or opened in the appearance list) also leaves the shop
       return PREMIUM_ITEMS.filter((x) => x.id === 'skins_all' || (x.id.startsWith('skin_') && !premiumOwned[x.id] && !skinOwned[x.id.slice(5)]))
@@ -2977,17 +2977,18 @@
     fillRect(200, 72, 44, 10, fsOn ? '#5c5096' : COL.track);
     fillRect(fsOn ? 236 : 202, 73, 8, 8, COL.btnText);
     // animated background: a toggle on its own row (cook and background motion)
-    drawText('АНИМИРОВАННЫЙ ФОН', 1, 76, 90, COL.text, 'left');
+    drawText('АНИМИРОВАННЫЙ ФОН', 1, 76, 89, COL.text, 'left');
     fillRect(200, 88, 44, 10, settings.animBg ? '#5c5096' : COL.track);
     fillRect(settings.animBg ? 236 : 202, 89, 8, 8, COL.btnText);
     // screen shake on click: a toggle, off by default
-    drawText('ТРЯСКА ЭКРАНА', 1, 76, 108, COL.text, 'left');
+    drawText('ТРЯСКА ЭКРАНА', 1, 76, 105, COL.text, 'left');
     fillRect(200, 104, 44, 10, settings.shake ? '#5c5096' : COL.track);
     fillRect(settings.shake ? 236 : 202, 105, 8, 8, COL.btnText);
-    settingsButton(76, 126, 244, 141, 'СБРОС ПРОГРЕССА');
+    settingsButton(76, 118, 244, 130, 'ПРОМОКОД');
+    settingsButton(76, 132, 244, 144, 'СБРОС ПРОГРЕССА');
     // the support and documents tabs, and the close button under them
-    settingsButton(76, 144, 160, 158, 'ПОДДЕРЖКА');
-    settingsButton(164, 144, 244, 158, 'ДОКУМЕНТЫ');
+    settingsButton(76, 146, 160, 158, 'ПОДДЕРЖКА');
+    settingsButton(164, 146, 244, 158, 'ДОКУМЕНТЫ');
     settingsButton(76, 160, 244, 174, 'ЗАКРЫТЬ');
   }
 
@@ -3189,14 +3190,107 @@
       else document.documentElement.requestFullscreen().catch(() => {});   // the browser may refuse: nothing changes
     } catch (err) { /* the browser refused: nothing changes */ }
   }
+  // ---------- promo codes: typed in the settings ----------
+  // each code opens a list of skins; the list is made when the code is used, so later skins count too
+  const PROMO_CODES = {
+    NEWYEAR: () => ['newyear'],
+    ALLSKINS: () => SKINS.map((k) => k.id),
+  };
+  const PR_X0 = 60, PR_X1 = 260, PR_Y0 = 4, PR_Y1 = 176, PR_F0 = 62, PR_F1 = 76, PR_MX = Math.round((PR_X0 + PR_X1) / 2);
+  let promoOpen = false, promoMsg = null;   // promoMsg: {lines, ok}
+  let promoFrom = 0;                        // the caret blinks from here
+  // a real text field lies over the drawn one, transparent: it brings the phone's keyboard, the paste and the selection
+  const promoInput = document.createElement('input');
+  Object.assign(promoInput, { type: 'text', maxLength: 20, autocomplete: 'off', spellcheck: false, enterKeyHint: 'done' });
+  promoInput.setAttribute('autocapitalize', 'off');
+  promoInput.setAttribute('autocorrect', 'off');
+  promoInput.setAttribute('aria-label', 'Промокод');
+  promoInput.style.cssText = 'position:fixed;display:none;margin:0;padding:0;border:0;outline:0;opacity:0;font-size:16px;text-align:center;';   // 16 px: a smaller field makes an iPhone zoom in
+  document.body.appendChild(promoInput);
+  promoInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); applyPromo(); }
+    if (e.key === 'Escape') { e.preventDefault(); closePromo(); }
+  });
+  promoInput.addEventListener('input', () => { promoMsg = null; promoFrom = performance.now(); });
+  function openPromo() {
+    promoOpen = true; promoMsg = null; promoInput.value = ''; promoFrom = performance.now();
+    syncPromoInput();
+    setTimeout(() => { if (promoOpen) promoInput.focus({ preventScroll: true }); }, 0);   // after the tap itself, which takes the focus away
+  }
+  function closePromo() {
+    promoOpen = false;
+    syncPromoInput();
+  }
+  function syncPromoInput() {
+    const st = promoInput.style;
+    if (!promoOpen || noticeWin || lvlWin || offlineWin) {
+      if (st.display !== 'none') { promoInput.blur(); st.display = 'none'; }
+      return;
+    }
+    const r = canvas.getBoundingClientRect(), s = r.width / W;
+    st.display = 'block';
+    st.left = r.left + (PR_X0 + 4) * s + 'px';
+    st.top = r.top + PR_F0 * s + 'px';
+    st.width = (PR_X1 - PR_X0 - 8) * s + 'px';
+    st.height = (PR_F1 - PR_F0) * s + 'px';
+  }
+  function applyPromo() {
+    const code = promoInput.value.replace(/\s+/g, '').toUpperCase();
+    if (!code) { promoMsg = { lines: ['ВВЕДИТЕ ПРОМОКОД'], ok: false }; return; }
+    if (!Object.prototype.hasOwnProperty.call(PROMO_CODES, code)) { promoMsg = { lines: ['ТАКОГО ПРОМОКОДА НЕТ'], ok: false }; return; }
+    const ids = PROMO_CODES[code](), fresh = ids.filter((id) => !skinOwned[id]);
+    if (!fresh.length) { promoMsg = { lines: [ids.length > 1 ? 'ВСЕ СКИНЫ УЖЕ ОТКРЫТЫ' : 'ЭТОТ СКИН УЖЕ ОТКРЫТ'], ok: false }; return; }
+    for (const id of fresh) skinOwned[id] = true;
+    saveGame();                           // the premium save is a part of it
+    if (window.vkBridge) vkSaveNow();     // and the cloud gets it at once
+    sfxBuy();
+    promoInput.value = '';
+    if (ids.length > 1) { promoMsg = { lines: ['ПРОМОКОД ПРИНЯТ', 'ВСЕ СКИНЫ ОТКРЫТЫ: ' + ids.length], ok: true }; return; }
+    closePromo();
+    settingsOpen = false; panelOpen = shopReturn; shopReturn = false;   // as with the close button
+    offerSkin(ids[0]);
+  }
+  function drawPromo() {
+    fillRect(0, 0, W, H, 'rgba(10, 8, 24, 0.6)');
+    const w = PR_X1 - PR_X0, h = PR_Y1 - PR_Y0;
+    fillRect(PR_X0, PR_Y0, w, h, COL.panel);
+    fillRect(PR_X0, PR_Y0, w, 1, COL.panelEdge); fillRect(PR_X0, PR_Y1 - 1, w, 1, COL.panelEdge);
+    fillRect(PR_X0, PR_Y0, 1, h, COL.panelEdge); fillRect(PR_X1 - 1, PR_Y0, 1, h, COL.panelEdge);
+    drawTextBox('ПРОМОКОД', 1, PR_X0, PR_X1, 10, 18, accent());
+    // the field
+    fillRect(PR_X0 + 4, PR_F0, w - 8, PR_F1 - PR_F0, COL.panelEdge);
+    fillRect(PR_X0 + 5, PR_F0 + 1, w - 10, PR_F1 - PR_F0 - 2, COL.track);
+    const text = promoInput.value.toUpperCase(), focused = document.activeElement === promoInput;
+    // a very long text does not fit the field: its end stays in view
+    let shown = text, cut = 0;
+    while (textWidth(shown, 1) > w - 18) { shown = shown.slice(1); cut++; }
+    const x0 = PR_MX - Math.floor(shown ? textWidth(shown, 1) / 2 : 0);
+    const at = (n) => { const t = text.slice(cut, Math.max(cut, n)); return x0 + (t ? textWidth(t, 1) + 1 : 0); };
+    const a = promoInput.selectionStart || 0, b = promoInput.selectionEnd || 0;
+    if (focused && b > a) fillRect(at(a) - 1, PR_F0 + 2, at(b) - at(a) + 1, PR_F1 - PR_F0 - 4, '#5c5096');
+    if (shown) drawText(shown, 1, x0, PR_F0 + 3, COL.text, 'left');
+    else if (!focused) drawTextBox('ВВЕДИТЕ ПРОМОКОД', 1, PR_X0, PR_X1, PR_F0 + 3, PR_F0 + 11, dimTone());
+    if (focused && a === b && Math.floor((performance.now() - promoFrom) / 500) % 2 === 0) fillRect(at(b), PR_F0 + 3, 1, 8, COL.btnText);
+    if (promoMsg) promoMsg.lines.forEach((t, i) => drawTextBox(t, 1, PR_X0, PR_X1, 90 + i * 10, 98 + i * 10, promoMsg.ok ? accent() : COL.text));
+    settingsButton(PR_X0 + 4, 160, PR_MX - 2, 172, 'ПРИМЕНИТЬ');
+    settingsButton(PR_MX + 2, 160, PR_X1 - 4, 172, 'ЗАКРЫТЬ');
+  }
+  function handlePromoDown(gx, gy) {
+    if (inRect(gx, gy, PR_X0 + 4, 160, PR_MX - 2, 172)) { applyPromo(); return; }
+    if (inRect(gx, gy, PR_MX + 2, 160, PR_X1 - 4, 172)) { closePromo(); return; }
+  }
+
   function handleSettingsDown(gx, gy) {
     if (resetWin) { handleResetDown(gx, gy); return; }   // the reset window takes all taps
-    if (inRect(gx, gy, 76, 144, 160, 158)) { supportOpen = true; return; }
-    if (inRect(gx, gy, 164, 144, 244, 158)) { docsListOpen = true; return; }
+    if (inRect(gx, gy, 76, 146, 160, 158)) { supportOpen = true; return; }
+    if (inRect(gx, gy, 164, 146, 244, 158)) { docsListOpen = true; return; }
     if (inRect(gx, gy, 76, 160, 244, 174)) { settingsOpen = false; resetWin = null; panelOpen = shopReturn; shopReturn = false; return; }   // back to the shop only if it was open before
     if (inRect(gx, gy, 196, 86, 248, 100, [200, 88, 244, 98])) { settings.animBg = !settings.animBg; saveGame(); return; }
     if (inRect(gx, gy, 196, 102, 248, 116, [200, 104, 244, 114])) { settings.shake = !settings.shake; saveGame(); return; }
-    if (inRect(gx, gy, 76, 126, 244, 141)) { resetWin = { stage: 1 }; return; }   // opens the reset window
+    if (inRect(gx, gy, 76, 118, 244, 130)) { openPromo(); return; }
+    if (inRect(gx, gy, 76, 132, 244, 144)) { resetWin = { stage: 1 }; return; }   // opens the reset window
     if (inRect(gx, gy, 196, 70, 248, 84, [200, 72, 244, 82])) { toggleFullScreen(); return; }   // the full-screen toggle on the row of the old colour-blind mode
     if (inZone(gx, gy, 70, 28, 250, 47)) { sliderDrag = 'sound'; setSlider('sound', gx); return; }
     if (inZone(gx, gy, 70, 48, 250, 67)) { sliderDrag = 'music'; setSlider('music', gx); return; }
@@ -3227,7 +3321,7 @@
   const pressCtx = pressCanvas.getContext('2d');
   function screenKey() {
     return [settingsOpen, panelOpen, !!progWin, skinWin, skinPreview, premiumWin && premiumWin.mode, !!skinOffer, boostMenuOpen, supportOpen, docsListOpen, docsOpen, consentOpen,
-      resetWin && resetWin.stage, !!lvlWin, !!offlineWin, !!noticeWin, dailyPreview, !!sale, loadingLeft > 0].join();
+      resetWin && resetWin.stage, !!lvlWin, !!offlineWin, !!noticeWin, promoOpen, dailyPreview, !!sale, loadingLeft > 0].join();
   }
   function setHit(gx, gy, x0, y0, x1, y1) {
     if (tapRaw) hitBox = [x0 + tapRaw[0] - gx, y0 + tapRaw[1] - gy, x1 - x0, y1 - y0].map(Math.round);   // on the canvas
@@ -3291,6 +3385,7 @@
     if (lvlWin) { handleLevelDown(gx, gy); return; }             // the window of a new level
     if (sale) return;                                            // the selling screen takes no taps
     if (supportOpen || docsListOpen || docsOpen >= 0) { handleInfoDown(gx, gy); return; }
+    if (promoOpen) { handlePromoDown(gx, gy); return; }        // the code window takes all taps
     if (settingsOpen) { handleSettingsDown(gx, gy); return; }   // the settings window blocks everything else
     if (skinOffer) { handleSkinOfferDown(gx, gy); return; }
     if (progWin) { handleProgDown(gx, gy); return; }             // and the progress window
@@ -4215,6 +4310,8 @@
     if (resetWin) drawResetWin();
     if (lvlWin) drawLevelWin();
     if (offlineWin) drawOffline();
+    if (promoOpen) drawPromo();
+    syncPromoInput();
     if (noticeWin) drawNotice();
     if (boostMenuOpen) drawBoostMenu();
     ctx.restore();
